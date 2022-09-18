@@ -12,11 +12,7 @@ struct Boid
 
 public class main : MonoBehaviour
 {
-  [Header("Prefabs")]
-  [SerializeField] GameObject boidPrefab;
-  [SerializeField] Text fpsText;
-  [SerializeField] Text boidText;
-  [SerializeField] ComputeShader boidShader;
+
 
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
@@ -30,24 +26,35 @@ public class main : MonoBehaviour
   [SerializeField] float seperationFactor = 30;
   [SerializeField] float alignmentFactor = 5;
 
+  [Header("Prefabs")]
+  [SerializeField] GameObject boidPrefab;
+  [SerializeField] Text fpsText;
+  [SerializeField] Text boidText;
+  [SerializeField] Text modeText;
+  [SerializeField] ComputeShader boidShader;
+  [SerializeField] Material boidMat;
+  [SerializeField] Mesh quad;
 
   float minDistance;
   float minSpeed;
   float turnSpeed;
 
   Boid[] boids;
-  GameObject[] boidObjects;
 
   ComputeBuffer boidBuffer;
 
   float xBound, yBound;
+  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
+
+  bool switchingModes = false;
+  float cpuLimit = 1000;
 
   // Start is called before the first frame update
   void Start()
   {
+    modeText.text = useGPU ? "Mode: GPU" : "Mode: CPU";
     boidText.text = "Boids: " + numBoids;
     boids = new Boid[numBoids];
-    boidObjects = new GameObject[numBoids];
     xBound = Camera.main.orthographicSize * Camera.main.aspect - edgeMargin;
     yBound = Camera.main.orthographicSize - edgeMargin;
     minDistance = visualRange / 3;
@@ -56,18 +63,12 @@ public class main : MonoBehaviour
 
     for (int i = 0; i < numBoids; i++)
     {
-
-      //   var pos = new Vector2(i / 40f - xBound, yBound);
-      //   var vel = new Vector2(0, -5);
-
       var pos = new Vector2(Random.Range(-xBound, xBound), Random.Range(-yBound, yBound));
       var vel = new Vector2(Random.Range(-maxSpeed, maxSpeed), Random.Range(-maxSpeed, maxSpeed)).normalized * maxSpeed;
-      var boidGO = Instantiate(boidPrefab, pos, Quaternion.identity);
       var boid = new Boid();
       boid.pos = pos;
       boid.vel = vel;
       boid.rot = 0;
-      boidObjects[i] = boidGO;
       boids[i] = boid;
     }
 
@@ -85,6 +86,9 @@ public class main : MonoBehaviour
     boidShader.SetFloat("xBound", xBound);
     boidShader.SetFloat("yBound", yBound);
 
+    // Set material buffer
+    boidMat.SetBuffer("boids", boidBuffer);
+
   }
 
   // Update is called once per frame
@@ -92,24 +96,29 @@ public class main : MonoBehaviour
   {
     fpsText.text = "FPS: " + (int)(1 / Time.smoothDeltaTime);
 
-    if (useGPU)
+    if (useGPU != switchingModes)
     {
-      // Set data each frame to allow switching back and forth
-      boidBuffer.SetData(boids);
+      if (useGPU && numBoids <= cpuLimit)
+      {
+        modeText.text = "Mode: GPU";
+        boidBuffer.SetData(boids);
+      }
+      else
+      {
+        modeText.text = "Mode: CPU";
+        boidBuffer.GetData(boids);
+      }
+      switchingModes = useGPU;
+    }
 
+    if (useGPU || numBoids > cpuLimit)
+    {
       boidShader.SetFloat("deltaTime", Time.deltaTime);
       boidShader.SetFloat("cohesionFactor", cohesionFactor);
       boidShader.SetFloat("seperationFactor", seperationFactor);
       boidShader.SetFloat("alignmentFactor", alignmentFactor);
       int groups = Mathf.CeilToInt(numBoids / 64f);
       boidShader.Dispatch(0, groups, 1, 1);
-      boidBuffer.GetData(boids);
-
-      for (int i = 0; i < numBoids; i++)
-      {
-        boidObjects[i].transform.localPosition = boids[i].pos;
-        boidObjects[i].transform.localRotation = Quaternion.Euler(0, 0, boids[i].rot * Mathf.Rad2Deg);
-      }
     }
     else
     {
@@ -126,11 +135,13 @@ public class main : MonoBehaviour
         boid.pos += boid.vel * Time.deltaTime;
         boid.rot = Mathf.Atan2(boid.vel.y, boid.vel.x) - (Mathf.PI / 2);
         boids[i] = boid;
-        // Move the actual gameObjects
-        boidObjects[i].transform.localPosition = boid.pos;
-        boidObjects[i].transform.localRotation = Quaternion.Euler(0, 0, boid.rot * Mathf.Rad2Deg);
       }
+      boidBuffer.SetData(boids);
+
     }
+
+    Graphics.DrawMeshInstancedProcedural(quad, 0, boidMat, bounds, numBoids);
+    switchingModes = useGPU;
   }
 
   void LimitSpeed(ref Boid boid)
