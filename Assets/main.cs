@@ -8,6 +8,9 @@ struct Boid
   public Vector2 pos;
   public Vector2 vel;
   public float rot;
+  float pad0;
+  float pad1;
+  float pad2;
 }
 
 public class main : MonoBehaviour
@@ -47,12 +50,12 @@ public class main : MonoBehaviour
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
   bool switchingModes = false;
-  float cpuLimit = 1000;
+  float cpuLimit = 3000;
 
   // Start is called before the first frame update
   void Start()
   {
-    modeText.text = useGPU ? "Mode: GPU" : "Mode: CPU";
+    modeText.text = useGPU || numBoids > cpuLimit ? "Mode: GPU" : "Mode: CPU";
     switchingModes = useGPU;
     boidText.text = "Boids: " + numBoids;
     boids = new Boid[numBoids];
@@ -74,7 +77,7 @@ public class main : MonoBehaviour
     }
 
     // Setup compute buffer
-    boidBuffer = new ComputeBuffer(numBoids, 20);
+    boidBuffer = new ComputeBuffer(numBoids, 32);
     boidBuffer.SetData(boids);
     boidShader.SetBuffer(0, "boids", boidBuffer);
     boidShader.SetInt("numBoids", numBoids);
@@ -126,9 +129,7 @@ public class main : MonoBehaviour
       for (int i = 0; i < numBoids; i++)
       {
         var boid = boids[i];
-        Cohesion(ref boid);
-        Seperation(ref boid);
-        Alignment(ref boid);
+        MergedBehaviours(ref boid);
         LimitSpeed(ref boid);
         KeepInBounds(ref boid);
 
@@ -145,6 +146,40 @@ public class main : MonoBehaviour
     switchingModes = useGPU;
   }
 
+  void MergedBehaviours(ref Boid boid)
+  {
+    Vector2 center = Vector2.zero;
+    Vector2 close = Vector2.zero;
+    Vector2 avgVel = Vector2.zero;
+    int neighbours = 0;
+
+    for (int i = 0; i < numBoids; i++)
+    {
+      var distance = Vector2.Distance(boid.pos, boids[i].pos);
+      if (distance < visualRange)
+      {
+        if (distance < minDistance)
+        {
+          close += boid.pos - boids[i].pos;
+        }
+        center += boids[i].pos;
+        avgVel += boids[i].vel;
+        neighbours++;
+      }
+    }
+
+    if (neighbours > 0)
+    {
+      center /= neighbours;
+      avgVel /= neighbours;
+
+      boid.vel += (center - boid.pos) * cohesionFactor * Time.deltaTime;
+      boid.vel += (avgVel - boid.vel) * alignmentFactor * Time.deltaTime;
+    }
+
+    boid.vel += close * seperationFactor * Time.deltaTime;
+  }
+
   void LimitSpeed(ref Boid boid)
   {
     var speed = boid.vel.magnitude;
@@ -155,64 +190,6 @@ public class main : MonoBehaviour
     else if (speed < minSpeed)
     {
       boid.vel = boid.vel.normalized * minSpeed;
-    }
-  }
-
-  void Alignment(ref Boid boid)
-  {
-    Vector2 avgVel = Vector2.zero;
-    int neighbours = 0;
-
-    for (int i = 0; i < numBoids; i++)
-    {
-      var distance = Vector2.Distance(boid.pos, boids[i].pos);
-      if (distance < visualRange && distance > 0)
-      {
-        avgVel += boids[i].vel;
-        neighbours++;
-      }
-    }
-    if (neighbours > 0)
-    {
-      avgVel /= neighbours;
-      boid.vel += (avgVel - boid.vel) * alignmentFactor * Time.deltaTime;
-    }
-  }
-
-  void Seperation(ref Boid boid)
-  {
-    Vector2 close = Vector2.zero;
-    for (int i = 0; i < numBoids; i++)
-    {
-      var distance = Vector2.Distance(boid.pos, boids[i].pos);
-      if (distance < minDistance && distance > 0)
-      {
-        close += boid.pos - boids[i].pos;
-      }
-    }
-    boid.vel += close * seperationFactor * Time.deltaTime;
-  }
-
-  void Cohesion(ref Boid boid)
-  {
-    Vector2 center = Vector2.zero;
-    int neighbours = 0;
-
-    // Get center of birds in visual range
-    for (int i = 0; i < numBoids; i++)
-    {
-      var distance = Vector2.Distance(boid.pos, boids[i].pos);
-
-      if (distance < visualRange && distance > 0)
-      {
-        center += boids[i].pos;
-        neighbours++;
-      }
-    }
-    if (neighbours > 0)
-    {
-      center /= neighbours;
-      boid.vel += (center - boid.pos) * cohesionFactor * Time.deltaTime;
     }
   }
 

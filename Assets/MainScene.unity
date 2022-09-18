@@ -231,8 +231,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f329d85c3aef34d46b308343b8882c42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numBoids: 1000
-  useGPU: 1
+  numBoids: 2000
+  useGPU: 0
   maxSpeed: 2
   edgeMargin: 0.5
   visualRange: 0.5

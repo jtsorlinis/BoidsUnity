@@ -5,6 +5,9 @@ struct Boid {
     float2 pos;
     float2 vel;
     float rot;
+    float pad0;
+    float pad1;
+    float pad2;
 };
 
 RWStructuredBuffer<Boid> boids;
@@ -22,51 +25,33 @@ uniform float turnSpeed;
 uniform float xBound;
 uniform float yBound;
 
-void Cohesion(inout Boid boid) {
+void MergedBehaviours(inout Boid boid) {
     float2 center = 0;
+    float2 close = 0;
+    float2 avgVel = 0;
     int neighbours = 0;
 
     for (int i = 0; i < numBoids; i++) {
         float dist = distance(boid.pos, boids[i].pos);
-        if(dist < visualRange && dist > 0.0f) {
+        if(dist < visualRange) {
+            if(dist < minDistance) {
+                close += boid.pos - boids[i].pos;
+            }
             center += boids[i].pos;
-            neighbours++;
-        }
-    }
-    if (neighbours > 0) {
-        center /= neighbours;
-        boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
-    }
-
-}
-
-void Seperation(inout Boid boid) {
-    float2 close = 0;
-
-    for(int i = 0; i < numBoids; i++) {
-        float dist = distance(boid.pos, boids[i].pos);
-        if(dist < minDistance && dist > 0.0f) {
-            close += boid.pos - boids[i].pos;
-        }
-    }
-    boid.vel += close * seperationFactor * deltaTime;
-}
-
-void Alignment(inout Boid boid) {
-    float2 avgVel = 0;
-    int neighbours = 0;
-
-    for(int i = 0; i < numBoids; i++) {
-        float dist = distance(boid.pos, boids[i].pos);
-        if(dist < visualRange && dist > 0.0f) {
             avgVel += boids[i].vel;
             neighbours++;
         }
     }
+
     if (neighbours > 0) {
+        center /= neighbours;
         avgVel /= neighbours;
+
+        boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
         boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
     }
+
+    boid.vel += close * seperationFactor * deltaTime;
 
 }
 
@@ -98,9 +83,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 {
     Boid boid = boids[id.x];
     
-    Cohesion(boid);
-    Seperation(boid);
-    Alignment(boid);
+    MergedBehaviours(boid);
     LimitSpeed(boid);
     KeepInBounds(boid);
 

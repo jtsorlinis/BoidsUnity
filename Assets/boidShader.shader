@@ -35,6 +35,9 @@ Shader "Unlit/boidShader"
                 float2 pos;
                 float2 vel;
                 float rot;
+                float pad0;
+                float pad1;
+                float pad2;
             };
 
             void rotate2D(inout float2 v, float r)
