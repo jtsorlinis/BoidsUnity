@@ -32,13 +32,14 @@ void MergedBehaviours(inout Boid boid) {
     int neighbours = 0;
 
     for (int i = 0; i < numBoids; i++) {
-        float dist = distance(boid.pos, boids[i].pos);
+        Boid other = boids[i];
+        float dist = distance(boid.pos, other.pos);
         if(dist < visualRange) {
             if(dist < minDistance) {
-                close += boid.pos - boids[i].pos;
+                close += boid.pos - other.pos;
             }
-            center += boids[i].pos;
-            avgVel += boids[i].vel;
+            center += other.pos;
+            avgVel += other.vel;
             neighbours++;
         }
     }

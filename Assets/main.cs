@@ -154,15 +154,16 @@ public class main : MonoBehaviour
 
     for (int i = 0; i < numBoids; i++)
     {
-      var distance = Vector2.Distance(boid.pos, boids[i].pos);
+      Boid other = boids[i];
+      var distance = Vector2.Distance(boid.pos, other.pos);
       if (distance < visualRange)
       {
         if (distance < minDistance)
         {
-          close += boid.pos - boids[i].pos;
+          close += boid.pos - other.pos;
         }
-        center += boids[i].pos;
-        avgVel += boids[i].vel;
+        center += other.pos;
+        avgVel += other.vel;
         neighbours++;
       }
     }
