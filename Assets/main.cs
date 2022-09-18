@@ -36,7 +36,7 @@ public class main : MonoBehaviour
   [SerializeField] GameObject boidPrefab;
   [SerializeField] Text fpsText;
   [SerializeField] Text boidText;
-  [SerializeField] Dropdown modeSelector;
+  [SerializeField] Slider numSlider;
   [SerializeField] ComputeShader boidShader;
   [SerializeField] Material boidMat;
   [SerializeField] Mesh quad;
@@ -53,8 +53,14 @@ public class main : MonoBehaviour
   float xBound, yBound;
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
-  int jobLimit = 30000;
-  int cpuLimit = 3000;
+  int cpuLimit = 2000;
+  int jobLimit = 20000;
+  int gpuLimit = 75000;
+
+  void Awake()
+  {
+    numSlider.maxValue = cpuLimit;
+  }
 
   // Start is called before the first frame update
   void Start()
@@ -272,11 +278,21 @@ public class main : MonoBehaviour
     }
   }
 
+  public void sliderChange(float val)
+  {
+    numBoids = (int)val;
+    boids.Dispose();
+    boids2.Dispose();
+    boidBuffer.Dispose();
+    Start();
+  }
+
   public void modeChange(int val)
   {
     // CPU
     if (val == 0)
     {
+      numSlider.maxValue = cpuLimit;
       mode = Modes.Cpu;
       var tempArray = new Boid[numBoids];
       boidBuffer.GetData(tempArray);
@@ -286,6 +302,7 @@ public class main : MonoBehaviour
     // CPU Jobs
     if (val == 1)
     {
+      numSlider.maxValue = jobLimit;
       mode = Modes.Jobs;
       var tempArray = new Boid[numBoids];
       boidBuffer.GetData(tempArray);
@@ -295,6 +312,7 @@ public class main : MonoBehaviour
     // GPU
     if (val == 2)
     {
+      numSlider.maxValue = gpuLimit;
       mode = Modes.Gpu;
     }
   }
