@@ -53,6 +53,7 @@ public class main : MonoBehaviour
   void Start()
   {
     modeText.text = useGPU ? "Mode: GPU" : "Mode: CPU";
+    switchingModes = useGPU;
     boidText.text = "Boids: " + numBoids;
     boids = new Boid[numBoids];
     xBound = Camera.main.orthographicSize * Camera.main.aspect - edgeMargin;
