@@ -25,6 +25,7 @@ public class main : MonoBehaviour
   [SerializeField] float maxSpeed = 2;
   [SerializeField] float edgeMargin = .5f;
   [SerializeField] float visualRange = .5f;
+  [SerializeField] float minDistance = 0.1f;
   [SerializeField] float cohesionFactor = .3f;
   [SerializeField] float seperationFactor = 30;
   [SerializeField] float alignmentFactor = 5;
@@ -38,7 +39,6 @@ public class main : MonoBehaviour
   [SerializeField] Material boidMat;
   [SerializeField] Mesh quad;
 
-  float minDistance;
   float minSpeed;
   float turnSpeed;
 
@@ -61,7 +61,6 @@ public class main : MonoBehaviour
     boids = new Boid[numBoids];
     xBound = Camera.main.orthographicSize * Camera.main.aspect - edgeMargin;
     yBound = Camera.main.orthographicSize - edgeMargin;
-    minDistance = visualRange / 3;
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.8f;
 
