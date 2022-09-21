@@ -16,7 +16,7 @@ struct Boid
   float pad2;
 }
 
-public class main : MonoBehaviour
+public class main2D : MonoBehaviour
 {
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
@@ -33,7 +33,6 @@ public class main : MonoBehaviour
   [SerializeField] float alignmentFactor = 5;
 
   [Header("Prefabs")]
-  [SerializeField] GameObject boidPrefab;
   [SerializeField] Text fpsText;
   [SerializeField] Text boidText;
   [SerializeField] Slider numSlider;
