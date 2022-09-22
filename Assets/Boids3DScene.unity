@@ -220,7 +220,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea227995410784c428126efd602b5b8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  useGPU: 1
+  useGPU: 0
   numBoids: 100
   boidScale: 0.3
   maxSpeed: 5
@@ -264,6 +264,30 @@ PrefabInstance:
       value: sliderChange
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: Main3D, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_Options.m_Options.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_Options.m_Options.Array.data[1].m_Text
+      value: GPU
+      objectReference: {fileID: 0}
+    - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_Options.m_Options.Array.data[2].m_Text
+      value: CPU (Jobs)
+      objectReference: {fileID: 0}
+    - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 218961746}
+    - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: modeChange
+      objectReference: {fileID: 0}
+    - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
       value: Main3D, Assembly-CSharp
       objectReference: {fileID: 0}

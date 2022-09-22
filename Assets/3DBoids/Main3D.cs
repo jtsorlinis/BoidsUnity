@@ -44,6 +44,14 @@ public class Main3D : MonoBehaviour
   ComputeBuffer boidBuffer;
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
+  int cpuLimit = 1500;
+  int gpuLimit = 70000;
+
+  void Awake()
+  {
+    boidSlider.maxValue = cpuLimit;
+  }
+
   // Start is called before the first frame update
   void Start()
   {
@@ -199,10 +207,28 @@ public class Main3D : MonoBehaviour
     boids = new List<Boid3D>();
 
     numBoids = (int)val;
-    // boids.Dispose();
-    // boids2.Dispose();
-    // boidBuffer.Dispose();
+    boidBuffer.Dispose();
     Start();
+  }
+
+  public void modeChange(int val)
+  {
+    // CPU
+    if (val == 0)
+    {
+      boidSlider.maxValue = cpuLimit;
+      useGPU = false;
+      var tempArray = new Boid3D[numBoids];
+      boidBuffer.GetData(tempArray);
+      boids = new List<Boid3D>(tempArray);
+    }
+
+    // GPU
+    if (val == 1)
+    {
+      boidSlider.maxValue = gpuLimit;
+      useGPU = true;
+    }
   }
 
   void OnDestroy()
