@@ -5,10 +5,11 @@ using UnityEngine.UI;
 
 struct Boid3D
 {
-  public GameObject go;
   public Vector3 pos;
   public Vector3 vel;
   public Quaternion rot;
+  float pad0;
+  float pad1;
 }
 
 public class Main3D : MonoBehaviour
@@ -27,21 +28,24 @@ public class Main3D : MonoBehaviour
   [SerializeField] float alignmentFactor = 5;
 
   [Header("Prefabs")]
-  [SerializeField] GameObject boidPrefab;
   [SerializeField] Text fpsText;
   [SerializeField] Text boidText;
   [SerializeField] Slider boidSlider;
+  [SerializeField] Material boidMaterial;
+  [SerializeField] Mesh boidMesh;
 
   float xBound, yBound, zBound;
   float minSpeed;
 
   float turnSpeed;
   List<Boid3D> boids = new List<Boid3D>();
+  ComputeBuffer boidBuffer;
+  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
   // Start is called before the first frame update
   void Start()
   {
-    boidPrefab.transform.localScale = new Vector3(boidScale, boidScale, boidScale);
+    boidMaterial.SetFloat("_Scale", boidScale);
     boidText.text = "Boids: " + numBoids;
 
     xBound = 15 - edgeMargin;
@@ -54,9 +58,13 @@ public class Main3D : MonoBehaviour
       var boid = new Boid3D();
       boid.pos = new Vector3(Random.Range(-xBound, xBound), Random.Range(-yBound, yBound), Random.Range(-zBound, zBound));
       boid.vel = new Vector3(Random.Range(-maxSpeed, maxSpeed), Random.Range(-maxSpeed, maxSpeed), Random.Range(-maxSpeed, maxSpeed));
-      boid.go = Instantiate(boidPrefab, boid.pos, Quaternion.identity);
+      boid.rot = Quaternion.identity;
       boids.Add(boid);
     }
+
+    boidBuffer = new ComputeBuffer(numBoids, 48);
+    boidBuffer.SetData(boids);
+    boidMaterial.SetBuffer("boidBuffer", boidBuffer);
   }
 
   // Update is called once per frame
@@ -72,10 +80,11 @@ public class Main3D : MonoBehaviour
       KeepInBounds(ref boid);
       boid.pos += boid.vel * Time.deltaTime;
       boid.rot = Quaternion.FromToRotation(Vector3.up, boid.vel);
-      boid.go.transform.SetPositionAndRotation(boid.pos, boid.rot);
       boids[i] = boid;
-
     }
+
+    boidBuffer.SetData(boids);
+    Graphics.DrawMeshInstancedProcedural(boidMesh, 0, boidMaterial, bounds, numBoids);
   }
 
   void MergedBehaviours(ref Boid3D boid)
@@ -159,10 +168,6 @@ public class Main3D : MonoBehaviour
 
   public void sliderChange(float val)
   {
-    for (int i = 0; i < numBoids; i++)
-    {
-      Destroy(boids[i].go);
-    }
     boids = new List<Boid3D>();
 
     numBoids = (int)val;
@@ -170,5 +175,13 @@ public class Main3D : MonoBehaviour
     // boids2.Dispose();
     // boidBuffer.Dispose();
     Start();
+  }
+
+  void OnDestroy()
+  {
+    if (boidBuffer != null)
+    {
+      boidBuffer.Release();
+    }
   }
 }
