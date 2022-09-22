@@ -220,6 +220,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea227995410784c428126efd602b5b8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  useGPU: 1
   numBoids: 100
   boidScale: 0.3
   maxSpeed: 5
@@ -232,6 +233,7 @@ MonoBehaviour:
   fpsText: {fileID: 2073725464}
   boidText: {fileID: 1716913426}
   boidSlider: {fileID: 1037755651}
+  boidComputeShader: {fileID: 7200000, guid: e477a5ad8c1864180a4f8a502cff2e79, type: 3}
   boidMaterial: {fileID: 2100000, guid: 09536f1ea42ec4b4f9d697f975d5b32d, type: 2}
   boidMesh: {fileID: 4300000, guid: 8f90fac4ab24148cd85780a66a23ee60, type: 2}
 --- !u!1001 &570514462
@@ -251,7 +253,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_MaxValue
-      value: 1000
+      value: 50000
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target

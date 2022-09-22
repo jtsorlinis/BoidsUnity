@@ -15,6 +15,7 @@ struct Boid3D
 public class Main3D : MonoBehaviour
 {
   [Header("Performance")]
+  [SerializeField] bool useGPU = true;
   [SerializeField] int numBoids = 100;
   [SerializeField] float boidScale = 0.3f;
 
@@ -31,6 +32,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] Text fpsText;
   [SerializeField] Text boidText;
   [SerializeField] Slider boidSlider;
+  [SerializeField] ComputeShader boidComputeShader;
   [SerializeField] Material boidMaterial;
   [SerializeField] Mesh boidMesh;
 
@@ -62,8 +64,22 @@ public class Main3D : MonoBehaviour
       boids.Add(boid);
     }
 
+    // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 48);
     boidBuffer.SetData(boids);
+    boidComputeShader.SetBuffer(0, "boidBuffer", boidBuffer);
+    boidComputeShader.SetInt("numBoids", numBoids);
+    boidComputeShader.SetFloat("maxSpeed", maxSpeed);
+    boidComputeShader.SetFloat("minSpeed", minSpeed);
+    boidComputeShader.SetFloat("edgeMargin", edgeMargin);
+    boidComputeShader.SetFloat("visualRange", visualRange);
+    boidComputeShader.SetFloat("minDistance", minDistance);
+    boidComputeShader.SetFloat("turnSpeed", turnSpeed);
+    boidComputeShader.SetFloat("xBound", xBound);
+    boidComputeShader.SetFloat("yBound", yBound);
+    boidComputeShader.SetFloat("zBound", zBound);
+
+    // Set shader buffer
     boidMaterial.SetBuffer("boidBuffer", boidBuffer);
   }
 
@@ -72,18 +88,30 @@ public class Main3D : MonoBehaviour
   {
     fpsText.text = "FPS: " + (int)(1 / Time.smoothDeltaTime);
 
-    for (int i = 0; i < numBoids; i++)
+    if (useGPU)
     {
-      var boid = boids[i];
-      MergedBehaviours(ref boid);
-      LimitSpeed(ref boid);
-      KeepInBounds(ref boid);
-      boid.pos += boid.vel * Time.deltaTime;
-      boid.rot = Quaternion.FromToRotation(Vector3.up, boid.vel);
-      boids[i] = boid;
+      boidComputeShader.SetFloat("deltaTime", Time.deltaTime);
+      boidComputeShader.SetFloat("cohesionFactor", cohesionFactor);
+      boidComputeShader.SetFloat("seperationFactor", seperationFactor);
+      boidComputeShader.SetFloat("alignmentFactor", alignmentFactor);
+      int groups = Mathf.CeilToInt(numBoids / 64f);
+      boidComputeShader.Dispatch(0, groups, 1, 1);
+    }
+    else
+    {
+      for (int i = 0; i < numBoids; i++)
+      {
+        var boid = boids[i];
+        MergedBehaviours(ref boid);
+        LimitSpeed(ref boid);
+        KeepInBounds(ref boid);
+        boid.pos += boid.vel * Time.deltaTime;
+        boid.rot = Quaternion.FromToRotation(Vector3.up, boid.vel);
+        boids[i] = boid;
+      }
+      boidBuffer.SetData(boids);
     }
 
-    boidBuffer.SetData(boids);
     Graphics.DrawMeshInstancedProcedural(boidMesh, 0, boidMaterial, bounds, numBoids);
   }
 
