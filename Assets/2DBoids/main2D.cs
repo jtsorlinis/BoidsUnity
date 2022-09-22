@@ -52,7 +52,7 @@ public class main2D : MonoBehaviour
   float xBound, yBound;
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
-  int cpuLimit = 2000;
+  int cpuLimit = 1500;
   int jobLimit = 20000;
   int gpuLimit = 75000;
 

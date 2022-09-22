@@ -40,7 +40,7 @@ public class Main3D : MonoBehaviour
   float minSpeed;
 
   float turnSpeed;
-  List<Boid3D> boids = new List<Boid3D>();
+  Boid3D[] boids;
   ComputeBuffer boidBuffer;
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
@@ -63,13 +63,15 @@ public class Main3D : MonoBehaviour
     zBound = 15 - edgeMargin;
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.8f;
+
+    boids = new Boid3D[numBoids];
     for (int i = 0; i < numBoids; i++)
     {
       var boid = new Boid3D();
       boid.pos = new Vector3(Random.Range(-xBound, xBound), Random.Range(-yBound, yBound), Random.Range(-zBound, zBound));
       boid.vel = new Vector3(Random.Range(-maxSpeed, maxSpeed), Random.Range(-maxSpeed, maxSpeed), Random.Range(-maxSpeed, maxSpeed));
       boid.rot = Quaternion.identity;
-      boids.Add(boid);
+      boids[i] = boid;
     }
 
     // Setup compute buffer
@@ -204,8 +206,6 @@ public class Main3D : MonoBehaviour
 
   public void sliderChange(float val)
   {
-    boids = new List<Boid3D>();
-
     numBoids = (int)val;
     boidBuffer.Dispose();
     Start();
@@ -220,7 +220,7 @@ public class Main3D : MonoBehaviour
       useGPU = false;
       var tempArray = new Boid3D[numBoids];
       boidBuffer.GetData(tempArray);
-      boids = new List<Boid3D>(tempArray);
+      boids = tempArray;
     }
 
     // GPU
