@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using Unity.Jobs;
 using Unity.Collections;
 using Unity.Burst;
+using System;
 
 struct Boid
 {
@@ -49,6 +50,13 @@ public class main2D : MonoBehaviour
 
   ComputeBuffer boidBuffer;
 
+  // x value is position flattened to 1D array, y value is boidID
+  Vector2Int[] boidGridIDs;
+  uint[] gridIndices;
+  uint[] gridOffsets;
+  int gridRows, gridCols;
+  float gridCellSize = .5f;
+
   float xBound, yBound;
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
@@ -74,13 +82,29 @@ public class main2D : MonoBehaviour
 
     for (int i = 0; i < numBoids; i++)
     {
-      var pos = new Vector2(Random.Range(-xBound, xBound), Random.Range(-yBound, yBound));
-      var vel = new Vector2(Random.Range(-maxSpeed, maxSpeed), Random.Range(-maxSpeed, maxSpeed)).normalized * maxSpeed;
+      var pos = new Vector2(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound));
+      var vel = new Vector2(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed)).normalized * maxSpeed;
       var boid = new Boid();
       boid.pos = pos;
       boid.vel = vel;
       boid.rot = 0;
       boids[i] = boid;
+    }
+
+    // Spatial grid setup
+    gridCols = Mathf.FloorToInt(xBound * 4 / gridCellSize);
+    gridRows = Mathf.FloorToInt(yBound * 4 / gridCellSize);
+    boidGridIDs = new Vector2Int[numBoids];
+    gridIndices = new uint[gridCols * gridRows * 2];
+    gridOffsets = new uint[gridCols * gridRows * 2];
+
+    for (int i = 0; i < gridCols; i++)
+    {
+      Debug.DrawLine(new Vector3(-xBound * 2 + (i * gridCellSize), 10, 0), new Vector3(-xBound * 2 + (i * gridCellSize), -10, 0), Color.black, 100);
+    }
+    for (int i = 0; i < gridRows; i++)
+    {
+      Debug.DrawLine(new Vector3(-10, -yBound * 2 + (i * gridCellSize), 0), new Vector3(10, -yBound * 2 + (i * gridCellSize), 0), Color.black, 100);
     }
 
     // Setup compute buffer
@@ -135,6 +159,10 @@ public class main2D : MonoBehaviour
         boids.CopyFrom(boids2);
       }
 
+      // Spatial grid
+      UpdateGrid();
+      SortGrid();
+
       for (int i = 0; i < numBoids; i++)
       {
         var boid = boids[i];
@@ -164,9 +192,10 @@ public class main2D : MonoBehaviour
     Vector2 avgVel = Vector2.zero;
     int neighbours = 0;
 
-    for (int i = 0; i < numBoids; i++)
+    var nearby = GetNearby(ref boid);
+    for (int i = 0; i < nearby.Count; i++)
     {
-      Boid other = boids[i];
+      Boid other = nearby[i];
       var distance = Vector2.Distance(boid.pos, other.pos);
       if (distance < visualRange)
       {
@@ -226,6 +255,79 @@ public class main2D : MonoBehaviour
       boid.vel.y += Time.deltaTime * turnSpeed;
     }
   }
+
+  void ClearGrid()
+  {
+    for (int i = 0; i < numBoids; i++)
+    {
+      boidGridIDs[i] = Vector2Int.zero;
+    }
+  }
+
+  int getGridID(Boid boid)
+  {
+    int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows);
+    int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols);
+    return (gridCols * boidRow) + boidCol;
+  }
+
+  void UpdateGrid()
+  {
+    gridIndices = new uint[gridCols * gridRows * 2];
+    gridOffsets = new uint[gridCols * gridRows * 2];
+    for (int i = 0; i < numBoids; i++)
+    {
+      int id = getGridID(boids[i]);
+      boidGridIDs[i].x = id;
+      boidGridIDs[i].y = i;
+      gridIndices[id] += 1;
+    }
+  }
+
+  void PrintGrid()
+  {
+    var id = getGridID(boids[0]);
+    var offset = gridOffsets[id];
+    var nextOffset = gridOffsets[id + 1];
+    for (uint i = offset; i < nextOffset; i++)
+    {
+      var boidId = boidGridIDs[i];
+      print(boids[boidId.y]);
+    }
+  }
+
+  List<Boid> GetNearby(ref Boid boid)
+  {
+    List<Boid> neighbours = new List<Boid>();
+    var id = getGridID(boid);
+    for (int row = id - gridCols; row <= id + gridCols; row += gridCols)
+    {
+      var startOffset = gridOffsets[row - 1];
+      var endOffset = gridOffsets[row + 2];
+      for (uint i = startOffset; i < endOffset; i++)
+      {
+        var boidId = boidGridIDs[i].y;
+        neighbours.Add(boids[boidId]);
+      }
+    }
+
+    return neighbours;
+  }
+
+  void SortGrid()
+  {
+    Array.Sort(boidGridIDs, delegate (Vector2Int v1, Vector2Int v2)
+    {
+      return v1.x.CompareTo(v2.x);
+    });
+
+    gridOffsets[0] = 0;
+    for (int i = 1; i < gridIndices.Length; i++)
+    {
+      gridOffsets[i] = gridOffsets[i - 1] + gridIndices[i - 1];
+    }
+  }
+
   [BurstCompile]
   struct BoidBehavioursJob : IJobParallelFor
   {
