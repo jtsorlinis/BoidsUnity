@@ -24,6 +24,7 @@ Shader "Custom/3DBoidShader"
 
         sampler2D _MainTex;
         float _Scale;
+        float4 boidRot; // Seperate rotation out for vertex shader as it doesn't like struct variables
 
         struct Input
         {
@@ -43,16 +44,16 @@ Shader "Custom/3DBoidShader"
         StructuredBuffer<Boid> boidBuffer;
     #endif
 
-        Boid boid;
 
         void vert (inout appdata_full v) {
-            v.vertex.xyz = v.vertex.xyz + 2.0 * cross(boid.rot.xyz, cross(boid.rot.xyz, v.vertex) + boid.rot.w * v.vertex.xyz);
+            v.vertex.xyz = v.vertex.xyz + 2.0 * cross(boidRot.xyz, cross(boidRot.xyz, v.vertex) + boidRot.w * v.vertex.xyz);
         }
 
         void setup()
         {
         #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-            boid = boidBuffer[unity_InstanceID];
+            Boid boid = boidBuffer[unity_InstanceID];
+            boidRot = boid.rot;
 
             // scale
             unity_ObjectToWorld._11_21_31_41 = float4(_Scale, 0, 0, 0);
@@ -61,6 +62,10 @@ Shader "Custom/3DBoidShader"
  
             // position
             unity_ObjectToWorld._14_24_34_44 = float4(boid.pos, 1);
+
+            unity_WorldToObject = unity_ObjectToWorld;
+            unity_WorldToObject._14_24_34 *= -1;
+            unity_WorldToObject._11_22_33 = 1.0f / unity_WorldToObject._11_22_33;
         #endif
         }
 
