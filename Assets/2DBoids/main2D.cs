@@ -62,9 +62,9 @@ public class main2D : MonoBehaviour
   float xBound, yBound;
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
-  int cpuLimit = 4000;
-  int jobLimit = 15000;
-  int gpuLimit = 200000;
+  int cpuLimit = 4096;
+  int jobLimit = 16384;
+  int gpuLimit = 262144;
 
   void Awake()
   {
