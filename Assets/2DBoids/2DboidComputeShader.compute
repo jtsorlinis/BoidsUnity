@@ -25,20 +25,20 @@ uniform float turnSpeed;
 uniform float xBound;
 uniform float yBound;
 
-RWStructuredBuffer<int2> gridBuffer;
-RWStructuredBuffer<uint> gridOffsetsBuffer;
+StructuredBuffer<int2> gridBuffer;
+StructuredBuffer<uint2> gridIndicesBuffer;
 float gridCellSize;
 int gridRows;
 int gridCols;
 
-int getGridID(Boid boid) {
-    int boidRow = floor(boid.pos.y / gridCellSize + gridRows);
-    int boidCol = floor(boid.pos.x / gridCellSize + gridCols);
-    return (gridCols * boidRow) + boidCol;
+uint2 getGridLocation(Boid boid) {
+	int boidRow = floor(boid.pos.y / gridCellSize + (uint)gridRows/2);
+    int boidCol = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
+    return uint2(boidCol, boidRow);
 }
 
-void GetNearby(Boid boid) {
-    
+uint getGridID(uint2 pos) {
+    return (gridCols * pos.y) + pos.x;
 }
 
 void MergedBehaviours(inout Boid boid) {
@@ -47,37 +47,29 @@ void MergedBehaviours(inout Boid boid) {
     float2 avgVel = 0;
     int neighbours = 0;
 
-    int id = getGridID(boid);
-    for(int row = id - gridCols; row <= id + gridCols; row += gridCols) {
-        int startOffset = gridOffsetsBuffer[row - 1];
-        int endOffset = gridOffsetsBuffer[row + 2];
-        for(int i = startOffset; i < endOffset; i++){
-            uint boidID = gridBuffer[i].y;
-            Boid other = boids[boidID];
-            float dist = distance(boid.pos, other.pos);
-            if(dist < visualRange) {
-                if(dist < minDistance) {
-                    close += boid.pos - other.pos;
+    int2 G_XY = getGridLocation(boid);
+
+    // Loop Around Own Cell
+    for (int Y = max(G_XY.y - 1, 0); Y <= G_XY.y + 1; Y++) {
+        for (int X = max(G_XY.x - 1, 0); X <= G_XY.x + 1; X++) {
+            uint G_CELL = getGridID(uint2(X,Y));
+            uint2 G_START_END = gridIndicesBuffer[G_CELL];
+            for (uint N_ID = G_START_END.x; N_ID < G_START_END.y; N_ID++) {
+                int boidIndex = gridBuffer[N_ID].y;
+                Boid other = boids[boidIndex];
+                
+                float dist = distance(boid.pos, other.pos);
+                if(dist < visualRange) {
+                    if(dist < minDistance) {
+                        close += boid.pos - other.pos;
+                    }
+                    center += other.pos;
+                    avgVel += other.vel;
+                    neighbours++;
                 }
-                center += other.pos;
-                avgVel += other.vel;
-                neighbours++;
             }
         }
     }
-
-    // for (int i = 0; i < numBoids; i++) {
-    //     Boid other = boids[i];
-    //     float dist = distance(boid.pos, other.pos);
-    //     if(dist < visualRange) {
-    //         if(dist < minDistance) {
-    //             close += boid.pos - other.pos;
-    //         }
-    //         center += other.pos;
-    //         avgVel += other.vel;
-    //         neighbours++;
-    //     }
-    // }
 
     if (neighbours > 0) {
         center /= neighbours;

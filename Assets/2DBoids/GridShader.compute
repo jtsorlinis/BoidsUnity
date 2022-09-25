@@ -9,8 +9,7 @@ struct Boid {
 
 RWStructuredBuffer<Boid> boids;
 RWStructuredBuffer<int2> gridBuffer;
-RWStructuredBuffer<uint> gridIndicesBuffer;
-RWStructuredBuffer<uint> gridOffsetsBuffer;
+RWStructuredBuffer<uint2> gridIndicesBuffer;
 
 groupshared uint bucket[512];
 
@@ -22,25 +21,10 @@ uint numBoids;
 int block;
 int dim;
 
-int getGridID(Boid boid) {
-    int boidRow = floor(boid.pos.y / gridCellSize + gridRows);
-    int boidCol = floor(boid.pos.x / gridCellSize + gridCols);
+uint getGridID(Boid boid) {
+    int boidRow = floor(boid.pos.y / gridCellSize + (uint)gridRows/2);
+    int boidCol = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
     return (gridCols * boidRow) + boidCol;
-}
-
-void Scan(uint id, uint gi, uint x) {
-    bucket[gi] = x;
- 
-    [unroll]
-    for (uint t = 1; t < 512; t <<= 1) {
-        GroupMemoryBarrierWithGroupSync();
-        uint temp = bucket[gi];
-        if (gi >= t) temp += bucket[gi - t];
-        GroupMemoryBarrierWithGroupSync();
-        bucket[gi] = temp;
-    }
- 
-    gridOffsetsBuffer[id] = bucket[gi];
 }
 
 #pragma kernel UpdateGrid // ID 0
@@ -51,7 +35,6 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
         int gridID = getGridID(boids[id.x]);
         gridBuffer[id.x].x = gridID;
         gridBuffer[id.x].y = id.x; 
-        InterlockedAdd(gridIndicesBuffer[gridID], 1);
     }
 }
    
@@ -59,7 +42,7 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
 [numthreads(256,1,1)]
 void SortGrid (uint3 id : SV_DispatchThreadID) 
 {
-    uint i = id.x + id.y * 262144;
+  uint i = id.x + id.y * 262144;
 	uint j = i^block;
 	
 	if (j < i || i >= numBoids) 
@@ -71,7 +54,7 @@ void SortGrid (uint3 id : SV_DispatchThreadID)
 	int diff = (val_i.x - val_j.x) * ((i&dim) == 0 ? 1 : -1);
 	if (diff > 0) {
 		gridBuffer[i] = val_j;
-        gridBuffer[j] = val_i;
+    gridBuffer[j] = val_i;
 	}
 }
 
@@ -79,31 +62,29 @@ void SortGrid (uint3 id : SV_DispatchThreadID)
 [numthreads(64,1,1)]
 void ClearGrid (uint3 id : SV_DispatchThreadID) 
 {
-    gridIndicesBuffer[id.x] = 0;
-    gridOffsetsBuffer[id.x] = 0;
+    gridIndicesBuffer[id.x] = uint2(0,0);
+
 }
 
-// Perform isolated scans within each group. Shift the input so as to make the final
-// result (obtained after the ScanSums and AddScannedSums calls) exclusive.
-#pragma kernel ScanInGroupsExclusive // ID 3
-[numthreads(512, 1, 1)]
-void ScanInGroupsExclusive(uint id : SV_DispatchThreadID, uint gi : SV_GroupIndex) {
-    uint x = (id == 0) ? 0 : gridIndicesBuffer[id - 1];
-    Scan(id, gi, x);
-}
- 
-// Scan the sums of each of the groups (partial sums) from the preceding ScanInGroupsInclusive/Exclusive call.
-#pragma kernel ScanSums // ID 4
-[numthreads(512, 1, 1)]
-void ScanSums(uint id : SV_DispatchThreadID, uint gi : SV_GroupIndex) {
-    uint x = (id == 0) ? 0 : gridIndicesBuffer[id * 512 - 1];
-    Scan(id, gi, x);
-}
- 
-// Add the scanned sums to the output of the first kernel call, to get the final, complete prefix sum.
-#pragma kernel AddScannedSums // ID 5
-[numthreads(512, 1, 1)]
-void AddScannedSums(uint id : SV_DispatchThreadID, uint gid : SV_GroupID) {
-    gridOffsetsBuffer[id] += gridIndicesBuffer[gid];
-}
+#pragma kernel BuildGridIndices // ID 3
+[numthreads(64, 1, 1)]
+void BuildGridIndices(uint3 DTid : SV_DispatchThreadID) {
+	const unsigned int P_ID = DTid.x;
+	uint P_ID_PREV = (P_ID == 0) ? numBoids : P_ID;
+	P_ID_PREV--;
+	
+	uint P_ID_NEXT = P_ID + 1;
+	if (P_ID_NEXT == numBoids) { P_ID_NEXT = 0; }
 
+	uint cell = gridBuffer[P_ID].x;
+	uint cell_prev = gridBuffer[P_ID_PREV].x;
+	uint cell_next = gridBuffer[P_ID_NEXT].x;
+
+	if (cell != cell_prev) {
+		gridIndicesBuffer[cell].x = P_ID;
+	}
+
+	if (cell != cell_next) {
+		gridIndicesBuffer[cell].y = P_ID + 1;
+	}
+}

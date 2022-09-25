@@ -234,8 +234,8 @@ MonoBehaviour:
   numBoids: 1024
   maxSpeed: 2
   edgeMargin: 0.5
-  visualRange: 0.1
-  minDistance: 0.02
+  visualRange: 0.5
+  minDistance: 0.1
   cohesionFactor: 0.3
   seperationFactor: 30
   alignmentFactor: 5
