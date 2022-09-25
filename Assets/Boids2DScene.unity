@@ -231,11 +231,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f329d85c3aef34d46b308343b8882c42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numBoids: 100
+  numBoids: 1024
   maxSpeed: 2
   edgeMargin: 0.5
-  visualRange: 0.5
-  minDistance: 0.1
+  visualRange: 0.1
+  minDistance: 0.02
   cohesionFactor: 0.3
   seperationFactor: 30
   alignmentFactor: 5
@@ -243,6 +243,7 @@ MonoBehaviour:
   boidText: {fileID: 321516222}
   numSlider: {fileID: 671117610}
   boidShader: {fileID: 7200000, guid: a1454690a72b340d4b8203edc92c1611, type: 3}
+  gridShader: {fileID: 7200000, guid: 53f2660ac43d4400ea62a6e0fdda1c46, type: 3}
   boidMat: {fileID: 2100000, guid: b306058b2105d479ebd81169967e3d99, type: 2}
   quad: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!114 &534247695 stripped

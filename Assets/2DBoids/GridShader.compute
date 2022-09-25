@@ -1,0 +1,109 @@
+struct Boid {
+    float2 pos;
+    float2 vel;
+    float rot;
+    float pad0;
+    float pad1;
+    float pad2;
+};
+
+RWStructuredBuffer<Boid> boids;
+RWStructuredBuffer<int2> gridBuffer;
+RWStructuredBuffer<uint> gridIndicesBuffer;
+RWStructuredBuffer<uint> gridOffsetsBuffer;
+
+groupshared uint bucket[512];
+
+float gridCellSize;
+int gridRows;
+int gridCols;
+uint gridTotalCells;
+uint numBoids;
+int block;
+int dim;
+
+int getGridID(Boid boid) {
+    int boidRow = floor(boid.pos.y / gridCellSize + gridRows);
+    int boidCol = floor(boid.pos.x / gridCellSize + gridCols);
+    return (gridCols * boidRow) + boidCol;
+}
+
+void Scan(uint id, uint gi, uint x) {
+    bucket[gi] = x;
+ 
+    [unroll]
+    for (uint t = 1; t < 512; t <<= 1) {
+        GroupMemoryBarrierWithGroupSync();
+        uint temp = bucket[gi];
+        if (gi >= t) temp += bucket[gi - t];
+        GroupMemoryBarrierWithGroupSync();
+        bucket[gi] = temp;
+    }
+ 
+    gridOffsetsBuffer[id] = bucket[gi];
+}
+
+#pragma kernel UpdateGrid // ID 0
+[numthreads(64,1,1)]
+void UpdateGrid (uint3 id : SV_DispatchThreadID)
+{
+    if(id.x < numBoids) {
+        int gridID = getGridID(boids[id.x]);
+        gridBuffer[id.x].x = gridID;
+        gridBuffer[id.x].y = id.x; 
+        InterlockedAdd(gridIndicesBuffer[gridID], 1);
+    }
+}
+   
+#pragma kernel SortGrid // ID 1
+[numthreads(256,1,1)]
+void SortGrid (uint3 id : SV_DispatchThreadID) 
+{
+    uint i = id.x + id.y * 262144;
+	uint j = i^block;
+	
+	if (j < i || i >= numBoids) 
+		return;
+	
+	int2 val_i = gridBuffer[i];
+	int2 val_j = gridBuffer[j];
+	
+	int diff = (val_i.x - val_j.x) * ((i&dim) == 0 ? 1 : -1);
+	if (diff > 0) {
+		gridBuffer[i] = val_j;
+        gridBuffer[j] = val_i;
+	}
+}
+
+#pragma kernel ClearGrid // ID 2
+[numthreads(64,1,1)]
+void ClearGrid (uint3 id : SV_DispatchThreadID) 
+{
+    gridIndicesBuffer[id.x] = 0;
+    gridOffsetsBuffer[id.x] = 0;
+}
+
+// Perform isolated scans within each group. Shift the input so as to make the final
+// result (obtained after the ScanSums and AddScannedSums calls) exclusive.
+#pragma kernel ScanInGroupsExclusive // ID 3
+[numthreads(512, 1, 1)]
+void ScanInGroupsExclusive(uint id : SV_DispatchThreadID, uint gi : SV_GroupIndex) {
+    uint x = (id == 0) ? 0 : gridIndicesBuffer[id - 1];
+    Scan(id, gi, x);
+}
+ 
+// Scan the sums of each of the groups (partial sums) from the preceding ScanInGroupsInclusive/Exclusive call.
+#pragma kernel ScanSums // ID 4
+[numthreads(512, 1, 1)]
+void ScanSums(uint id : SV_DispatchThreadID, uint gi : SV_GroupIndex) {
+    uint x = (id == 0) ? 0 : gridIndicesBuffer[id * 512 - 1];
+    Scan(id, gi, x);
+}
+ 
+// Add the scanned sums to the output of the first kernel call, to get the final, complete prefix sum.
+#pragma kernel AddScannedSums // ID 5
+[numthreads(512, 1, 1)]
+void AddScannedSums(uint id : SV_DispatchThreadID, uint gid : SV_GroupID) {
+    gridOffsetsBuffer[id] += gridIndicesBuffer[gid];
+}
+

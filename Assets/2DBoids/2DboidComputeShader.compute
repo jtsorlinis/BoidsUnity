@@ -25,24 +25,59 @@ uniform float turnSpeed;
 uniform float xBound;
 uniform float yBound;
 
+RWStructuredBuffer<int2> gridBuffer;
+RWStructuredBuffer<uint> gridOffsetsBuffer;
+float gridCellSize;
+int gridRows;
+int gridCols;
+
+int getGridID(Boid boid) {
+    int boidRow = floor(boid.pos.y / gridCellSize + gridRows);
+    int boidCol = floor(boid.pos.x / gridCellSize + gridCols);
+    return (gridCols * boidRow) + boidCol;
+}
+
+void GetNearby(Boid boid) {
+    
+}
+
 void MergedBehaviours(inout Boid boid) {
     float2 center = 0;
     float2 close = 0;
     float2 avgVel = 0;
     int neighbours = 0;
 
-    for (int i = 0; i < numBoids; i++) {
-        Boid other = boids[i];
-        float dist = distance(boid.pos, other.pos);
-        if(dist < visualRange) {
-            if(dist < minDistance) {
-                close += boid.pos - other.pos;
+    int id = getGridID(boid);
+    for(int row = id - gridCols; row <= id + gridCols; row += gridCols) {
+        int startOffset = gridOffsetsBuffer[row - 1];
+        int endOffset = gridOffsetsBuffer[row + 2];
+        for(int i = startOffset; i < endOffset; i++){
+            uint boidID = gridBuffer[i].y;
+            Boid other = boids[boidID];
+            float dist = distance(boid.pos, other.pos);
+            if(dist < visualRange) {
+                if(dist < minDistance) {
+                    close += boid.pos - other.pos;
+                }
+                center += other.pos;
+                avgVel += other.vel;
+                neighbours++;
             }
-            center += other.pos;
-            avgVel += other.vel;
-            neighbours++;
         }
     }
+
+    // for (int i = 0; i < numBoids; i++) {
+    //     Boid other = boids[i];
+    //     float dist = distance(boid.pos, other.pos);
+    //     if(dist < visualRange) {
+    //         if(dist < minDistance) {
+    //             close += boid.pos - other.pos;
+    //         }
+    //         center += other.pos;
+    //         avgVel += other.vel;
+    //         neighbours++;
+    //     }
+    // }
 
     if (neighbours > 0) {
         center /= neighbours;
