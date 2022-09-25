@@ -480,5 +480,13 @@ public class main2D : MonoBehaviour
     {
       boidBuffer.Release();
     }
+    if (gridBuffer != null)
+    {
+      gridBuffer.Release();
+    }
+    if (gridIndicesBuffer != null)
+    {
+      gridIndicesBuffer.Release();
+    }
   }
 }
