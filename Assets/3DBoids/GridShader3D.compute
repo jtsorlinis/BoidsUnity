@@ -1,0 +1,92 @@
+struct Boid 
+{
+    float3 pos;
+    float3 vel;
+    float4 rot;
+    float pad0;
+    float pad1;
+};
+
+RWStructuredBuffer<Boid> boids;
+RWStructuredBuffer<int2> gridBuffer;
+RWStructuredBuffer<uint2> gridIndicesBuffer;
+
+groupshared uint bucket[512];
+
+float gridCellSize;
+int gridRows;
+int gridCols;
+int gridDepth;
+uint gridTotalCells;
+uint numBoids;
+int block;
+int dim;
+
+uint getGridID(Boid boid) {
+    int boidX = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
+    int boidY = floor(boid.pos.y / gridCellSize + (uint)gridRows/2);
+    int boidZ = floor(boid.pos.z / gridCellSize + (uint)gridDepth/2);
+    return (gridRows * gridCols * boidZ) + (gridCols * boidY) + boidX;
+}
+
+#pragma kernel UpdateGrid // ID 0
+[numthreads(64,1,1)]
+void UpdateGrid (uint3 id : SV_DispatchThreadID)
+{
+    if(id.x < numBoids) {
+        int gridID = getGridID(boids[id.x]);
+        gridBuffer[id.x].x = gridID;
+        gridBuffer[id.x].y = id.x; 
+    }
+}
+   
+#pragma kernel SortGrid // ID 1
+[numthreads(256,1,1)]
+void SortGrid (uint3 id : SV_DispatchThreadID) 
+{
+  uint i = id.x + id.y * 262144;
+	uint j = i^block;
+	
+	if (j < i || i >= numBoids) 
+		return;
+	
+	int2 val_i = gridBuffer[i];
+	int2 val_j = gridBuffer[j];
+	
+	int diff = (val_i.x - val_j.x) * ((i&dim) == 0 ? 1 : -1);
+	if (diff > 0) {
+		gridBuffer[i] = val_j;
+    gridBuffer[j] = val_i;
+	}
+}
+
+#pragma kernel ClearGrid // ID 2
+[numthreads(64,1,1)]
+void ClearGrid (uint3 id : SV_DispatchThreadID) 
+{
+    gridIndicesBuffer[id.x] = uint2(0,0);
+
+}
+
+#pragma kernel BuildGridIndices // ID 3
+[numthreads(64, 1, 1)]
+void BuildGridIndices(uint3 DTid : SV_DispatchThreadID) {
+	const unsigned int P_ID = DTid.x;
+	uint P_ID_PREV = (P_ID == 0) ? numBoids : P_ID;
+	P_ID_PREV--;
+	
+	uint P_ID_NEXT = P_ID + 1;
+	if (P_ID_NEXT == numBoids) { P_ID_NEXT = 0; }
+
+	uint cell = gridBuffer[P_ID].x;
+	uint cell_prev = gridBuffer[P_ID_PREV].x;
+	uint cell_next = gridBuffer[P_ID_NEXT].x;
+
+	if (cell != cell_prev) {
+		gridIndicesBuffer[cell].x = P_ID;
+	}
+
+	if (cell != cell_next) {
+		gridIndicesBuffer[cell].y = P_ID + 1;
+	}
+}

@@ -221,12 +221,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   useGPU: 0
-  numBoids: 100
-  boidScale: 0.3
+  numBoids: 256
+  boidScale: 0.1
   maxSpeed: 5
   edgeMargin: 2
-  visualRange: 2.5
-  minDistance: 0.5
+  visualRange: 1
+  minDistance: 0.2
   cohesionFactor: 0.3
   seperationFactor: 30
   alignmentFactor: 5
@@ -234,6 +234,7 @@ MonoBehaviour:
   boidText: {fileID: 1716913426}
   boidSlider: {fileID: 1037755651}
   boidComputeShader: {fileID: 7200000, guid: e477a5ad8c1864180a4f8a502cff2e79, type: 3}
+  gridShader: {fileID: 7200000, guid: 1fe7a4bc7669a42278700e648c7d2c5c, type: 3}
   boidMaterial: {fileID: 2100000, guid: 09536f1ea42ec4b4f9d697f975d5b32d, type: 2}
   boidMesh: {fileID: 4300000, guid: 8f90fac4ab24148cd85780a66a23ee60, type: 2}
 --- !u!1001 &570514462
