@@ -50,6 +50,7 @@ public class main2D : MonoBehaviour
   BoidBehavioursJob boidJob = new BoidBehavioursJob();
 
   ComputeBuffer boidBuffer;
+  ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
   ComputeBuffer gridIndicesBuffer;
 
@@ -64,7 +65,7 @@ public class main2D : MonoBehaviour
 
   int cpuLimit = 4096;
   int jobLimit = 16384;
-  int gpuLimit = 262144;
+  int gpuLimit = 1048576;
 
   void Awake()
   {
@@ -95,6 +96,7 @@ public class main2D : MonoBehaviour
 
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 32);
+    boidBufferOut = new ComputeBuffer(numBoids, 32);
     boidBuffer.SetData(boids);
     boidShader.SetBuffer(0, "boids", boidBuffer);
     boidShader.SetInt("numBoids", numBoids);
@@ -121,6 +123,7 @@ public class main2D : MonoBehaviour
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridIndicesBuffer = new ComputeBuffer(gridTotalCells, 8);
     gridShader.SetInt("numBoids", numBoids);
+    gridShader.SetBuffer(0, "boids", boidBuffer);
     gridShader.SetBuffer(0, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(0, "gridIndicesBuffer", gridIndicesBuffer);
     gridShader.SetBuffer(1, "gridBuffer", gridBuffer);
@@ -128,13 +131,17 @@ public class main2D : MonoBehaviour
     gridShader.SetBuffer(2, "gridIndicesBuffer", gridIndicesBuffer);
     gridShader.SetBuffer(3, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(3, "gridIndicesBuffer", gridIndicesBuffer);
-    gridShader.SetBuffer(0, "boids", boidBuffer);
+    gridShader.SetBuffer(4, "gridBuffer", gridBuffer);
+    gridShader.SetBuffer(4, "boids", boidBuffer);
+    gridShader.SetBuffer(4, "boidsOut", boidBufferOut);
+    gridShader.SetBuffer(5, "boids", boidBuffer);
+    gridShader.SetBuffer(5, "boidsOut", boidBufferOut);
+
     gridShader.SetFloat("gridCellSize", gridCellSize);
     gridShader.SetInt("gridRows", gridRows);
     gridShader.SetInt("gridCols", gridCols);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
 
-    boidShader.SetBuffer(0, "gridBuffer", gridBuffer);
     boidShader.SetBuffer(0, "gridIndicesBuffer", gridIndicesBuffer);
     boidShader.SetFloat("gridCellSize", gridCellSize);
     boidShader.SetInt("gridRows", gridRows);
@@ -169,6 +176,12 @@ public class main2D : MonoBehaviour
       }
       // Populate indices
       gridShader.Dispatch(3, Mathf.CeilToInt(numBoids / 64f), 1, 1);
+
+      // Rearrange boids
+      gridShader.Dispatch(4, Mathf.CeilToInt(numBoids / 64f), 1, 1);
+
+      // Copy buffer back
+      gridShader.Dispatch(5, Mathf.CeilToInt(numBoids / 64f), 1, 1);
 
       int groups = Mathf.CeilToInt(numBoids / 64f);
       boidShader.Dispatch(0, groups, 1, 1);

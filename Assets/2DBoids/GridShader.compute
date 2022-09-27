@@ -8,6 +8,7 @@ struct Boid {
 };
 
 RWStructuredBuffer<Boid> boids;
+RWStructuredBuffer<Boid> boidsOut;
 RWStructuredBuffer<int2> gridBuffer;
 RWStructuredBuffer<uint2> gridIndicesBuffer;
 
@@ -87,4 +88,19 @@ void BuildGridIndices(uint3 DTid : SV_DispatchThreadID) {
 	if (cell != cell_next) {
 		gridIndicesBuffer[cell].y = P_ID + 1;
 	}
+}
+
+#pragma kernel RearrangeGrid // ID 4
+[numthreads(64, 1, 1)]
+void RearrangeGrid(uint3 DTid : SV_DispatchThreadID) {
+	uint index = DTid.x;
+	uint P_ID = gridBuffer[index].y;
+	boidsOut[index] = boids[P_ID];
+}
+
+#pragma kernel CopyBuffer // ID 5
+[numthreads(64, 1, 1)]
+void CopyBuffer(uint3 DTid : SV_DispatchThreadID) {
+	uint index = DTid.x;
+	boids[index] = boidsOut[index];
 }
