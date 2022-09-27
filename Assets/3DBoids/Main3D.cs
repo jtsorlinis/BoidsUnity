@@ -57,7 +57,7 @@ public class Main3D : MonoBehaviour
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
   int cpuLimit = 2048;
-  int gpuLimit = 262144;
+  int gpuLimit = 524288;
 
   void Awake()
   {
