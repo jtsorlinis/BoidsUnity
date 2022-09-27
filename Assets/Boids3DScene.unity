@@ -135,6 +135,7 @@ GameObject:
   - component: {fileID: 218961744}
   - component: {fileID: 218961743}
   - component: {fileID: 218961746}
+  - component: {fileID: 218961747}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -200,14 +201,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 218961742}
-  m_LocalRotation: {x: 0.2583399, y: 0.0014434778, z: -0.00039603998, w: 0.9660529}
+  m_LocalRotation: {x: 0.2588191, y: 0, z: 0, w: 0.9659258}
   m_LocalPosition: {x: 1.113715, y: 8.254816, z: -24.832226}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 10, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
 --- !u!114 &218961746
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -237,6 +238,19 @@ MonoBehaviour:
   gridShader: {fileID: 7200000, guid: 1fe7a4bc7669a42278700e648c7d2c5c, type: 3}
   boidMaterial: {fileID: 2100000, guid: 09536f1ea42ec4b4f9d697f975d5b32d, type: 2}
   boidMesh: {fileID: 4300000, guid: 8f90fac4ab24148cd85780a66a23ee60, type: 2}
+--- !u!114 &218961747
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 218961742}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a13c6049b15b14cdaa0ffb5b91f62a8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moveSpeed: 25
 --- !u!1001 &570514462
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -379,6 +393,14 @@ PrefabInstance:
     - target: {fileID: 7065921368886143012, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Name
       value: Stats
+      objectReference: {fileID: 0}
+    - target: {fileID: 7240228519051741116, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_VerticalAxis
+      value: Fire1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7240228519051741116, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_HorizontalAxis
+      value: Fire1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
