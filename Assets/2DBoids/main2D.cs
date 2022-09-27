@@ -21,6 +21,7 @@ public class main2D : MonoBehaviour
 {
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
+  int bufferLength;
   enum Modes { Cpu, Jobs, Gpu };
   Modes mode = Modes.Cpu;
 
@@ -82,6 +83,7 @@ public class main2D : MonoBehaviour
     yBound = Camera.main.orthographicSize - edgeMargin;
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.8f;
+    bufferLength = Mathf.NextPowerOfTwo(numBoids);
 
     for (int i = 0; i < numBoids; i++)
     {
@@ -120,9 +122,10 @@ public class main2D : MonoBehaviour
     gridTotalCells = gridCols * gridRows * 2;
     gridIndices = new Vector2Int[gridTotalCells];
 
-    gridBuffer = new ComputeBuffer(numBoids, 8);
+    gridBuffer = new ComputeBuffer(bufferLength, 8);
     gridIndicesBuffer = new ComputeBuffer(gridTotalCells, 8);
     gridShader.SetInt("numBoids", numBoids);
+    gridShader.SetInt("bufferLength", bufferLength);
     gridShader.SetBuffer(0, "boids", boidBuffer);
     gridShader.SetBuffer(0, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(0, "gridIndicesBuffer", gridIndicesBuffer);
@@ -163,17 +166,18 @@ public class main2D : MonoBehaviour
       // Clear indices
       gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 64f), 1, 1);
       // Populate grid
-      gridShader.Dispatch(0, Mathf.CeilToInt(numBoids / 64f), 1, 1);
+      gridShader.Dispatch(0, Mathf.CeilToInt(bufferLength / 64f), 1, 1);
       // Sort grid
-      for (var dim = 2; dim <= numBoids; dim <<= 1)
+      for (var dim = 2; dim <= bufferLength; dim <<= 1)
       {
         gridShader.SetInt("dim", dim);
         for (var block = dim >> 1; block > 0; block >>= 1)
         {
           gridShader.SetInt("block", block);
-          gridShader.Dispatch(1, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+          gridShader.Dispatch(1, Mathf.CeilToInt(bufferLength / 256f), 1, 1);
         }
       }
+
       // Populate indices
       gridShader.Dispatch(3, Mathf.CeilToInt(numBoids / 64f), 1, 1);
 
@@ -441,11 +445,13 @@ public class main2D : MonoBehaviour
 
   public void sliderChange(float val)
   {
-    var next = Mathf.NextPowerOfTwo((int)val);
-    numBoids = next;
+    numBoids = (int)val;
     boids.Dispose();
     boids2.Dispose();
+    boidBufferOut.Dispose();
     boidBuffer.Dispose();
+    gridBuffer.Dispose();
+    gridIndicesBuffer.Dispose();
     Start();
   }
 

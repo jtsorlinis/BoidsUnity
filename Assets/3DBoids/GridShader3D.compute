@@ -1,3 +1,5 @@
+#define MAXINT 2147483647;
+
 struct Boid 
 {
     float3 pos;
@@ -18,6 +20,7 @@ int gridCols;
 int gridDepth;
 uint gridTotalCells;
 uint numBoids;
+uint bufferLength;
 int block;
 int dim;
 
@@ -36,7 +39,9 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
         int gridID = getGridID(boids[id.x]);
         gridBuffer[id.x].x = gridID;
         gridBuffer[id.x].y = id.x; 
-    }
+		} else {
+				gridBuffer[id.x].x = MAXINT;
+		}
 }
    
 #pragma kernel SortGrid // ID 1
@@ -46,7 +51,7 @@ void SortGrid (uint3 id : SV_DispatchThreadID)
   uint i = id.x + id.y * 262144;
 	uint j = i^block;
 	
-	if (j < i || i >= numBoids) 
+	if (j < i || i >= bufferLength) 
 		return;
 	
 	int2 val_i = gridBuffer[i];
