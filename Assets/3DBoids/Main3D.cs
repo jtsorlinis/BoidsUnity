@@ -118,7 +118,7 @@ public class Main3D : MonoBehaviour
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridIndicesBuffer = new ComputeBuffer(gridTotalCells, 8);
     gridShader.SetInt("numBoids", numBoids);
-    gridShader.SetBuffer(0, "boids", boidBufferOut);
+    gridShader.SetBuffer(0, "boids", boidBuffer);
     gridShader.SetBuffer(0, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(0, "gridIndicesBuffer", gridIndicesBuffer);
     gridShader.SetBuffer(1, "gridBuffer", gridBuffer);
@@ -173,7 +173,7 @@ public class Main3D : MonoBehaviour
       // Populate indices
       gridShader.Dispatch(3, Mathf.CeilToInt(numBoids / 64f), 1, 1);
 
-      // Rearrange grid
+      // Rearrange boids
       gridShader.Dispatch(4, Mathf.CeilToInt(numBoids / 64f), 1, 1);
 
       // Copy buffer back
