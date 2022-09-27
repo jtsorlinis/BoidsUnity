@@ -29,7 +29,6 @@ uniform float xBound;
 uniform float yBound;
 uniform float zBound;
 
-StructuredBuffer<int2> gridBuffer;
 StructuredBuffer<uint2> gridIndicesBuffer;
 float gridCellSize;
 int gridRows;
@@ -62,8 +61,7 @@ void MergedBehaviours(inout Boid boid) {
                 uint2 G_START_END = gridIndicesBuffer[G_CELL];
 
                 for (uint N_ID = G_START_END.x; N_ID < G_START_END.y; N_ID++) {
-                    int boidIndex = gridBuffer[N_ID].y;
-                    Boid other = boidBuffer[boidIndex];
+                    Boid other = boidBuffer[N_ID];
 
                     float dist = distance(boid.pos, other.pos);
                     if(dist < visualRange) {

@@ -44,6 +44,7 @@ public class Main3D : MonoBehaviour
   float turnSpeed;
   Boid3D[] boids;
   ComputeBuffer boidBuffer;
+  ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
   ComputeBuffer gridIndicesBuffer;
 
@@ -55,8 +56,8 @@ public class Main3D : MonoBehaviour
 
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
-  int cpuLimit = 1500;
-  int gpuLimit = 70000;
+  int cpuLimit = 2048;
+  int gpuLimit = 262144;
 
   void Awake()
   {
@@ -87,6 +88,7 @@ public class Main3D : MonoBehaviour
 
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 48);
+    boidBufferOut = new ComputeBuffer(numBoids, 48);
     boidBuffer.SetData(boids);
     boidComputeShader.SetBuffer(0, "boidBuffer", boidBuffer);
     boidComputeShader.SetInt("numBoids", numBoids);
@@ -116,6 +118,7 @@ public class Main3D : MonoBehaviour
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridIndicesBuffer = new ComputeBuffer(gridTotalCells, 8);
     gridShader.SetInt("numBoids", numBoids);
+    gridShader.SetBuffer(0, "boids", boidBufferOut);
     gridShader.SetBuffer(0, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(0, "gridIndicesBuffer", gridIndicesBuffer);
     gridShader.SetBuffer(1, "gridBuffer", gridBuffer);
@@ -123,14 +126,17 @@ public class Main3D : MonoBehaviour
     gridShader.SetBuffer(2, "gridIndicesBuffer", gridIndicesBuffer);
     gridShader.SetBuffer(3, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(3, "gridIndicesBuffer", gridIndicesBuffer);
-    gridShader.SetBuffer(0, "boids", boidBuffer);
+    gridShader.SetBuffer(4, "gridBuffer", gridBuffer);
+    gridShader.SetBuffer(4, "boids", boidBuffer);
+    gridShader.SetBuffer(4, "boidsOut", boidBufferOut);
+    gridShader.SetBuffer(5, "boids", boidBuffer);
+    gridShader.SetBuffer(5, "boidsOut", boidBufferOut);
     gridShader.SetFloat("gridCellSize", gridCellSize);
     gridShader.SetInt("gridRows", gridRows);
     gridShader.SetInt("gridCols", gridCols);
     gridShader.SetInt("gridDepth", gridDepth);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
 
-    boidComputeShader.SetBuffer(0, "gridBuffer", gridBuffer);
     boidComputeShader.SetBuffer(0, "gridIndicesBuffer", gridIndicesBuffer);
     boidComputeShader.SetFloat("gridCellSize", gridCellSize);
     boidComputeShader.SetInt("gridRows", gridRows);
@@ -167,6 +173,12 @@ public class Main3D : MonoBehaviour
       // Populate indices
       gridShader.Dispatch(3, Mathf.CeilToInt(numBoids / 64f), 1, 1);
 
+      // Rearrange grid
+      gridShader.Dispatch(4, Mathf.CeilToInt(numBoids / 64f), 1, 1);
+
+      // Copy buffer back
+      gridShader.Dispatch(5, Mathf.CeilToInt(numBoids / 64f), 1, 1);
+
       int groups = Mathf.CeilToInt(numBoids / 64f);
       boidComputeShader.Dispatch(0, groups, 1, 1);
     }
@@ -174,11 +186,6 @@ public class Main3D : MonoBehaviour
     {
       for (int i = 0; i < numBoids; i++)
       {
-        // Update grid
-        UpdateGrid();
-        SortGrid();
-        GenerateGridIndices();
-
         var boid = boids[i];
         MergedBehaviours(ref boid);
         LimitSpeed(ref boid);
@@ -200,10 +207,9 @@ public class Main3D : MonoBehaviour
     Vector3 avgVel = Vector3.zero;
     int neighbours = 0;
 
-    var nearby = GetNearby(ref boid);
-    for (int i = 0; i < nearby.Count; i++)
+    for (int i = 0; i < numBoids; i++)
     {
-      Boid3D other = nearby[i];
+      Boid3D other = boids[i];
       float distance = Vector3.Distance(boid.pos, other.pos);
 
       if (distance < visualRange)
