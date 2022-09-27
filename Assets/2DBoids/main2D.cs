@@ -171,7 +171,7 @@ public class main2D : MonoBehaviour
         for (var block = dim >> 1; block > 0; block >>= 1)
         {
           gridShader.SetInt("block", block);
-          gridShader.Dispatch(1, Mathf.CeilToInt(numBoids / 64f), 1, 1);
+          gridShader.Dispatch(1, Mathf.CeilToInt(numBoids / 256f), 1, 1);
         }
       }
       // Populate indices

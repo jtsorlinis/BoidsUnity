@@ -12,8 +12,6 @@ RWStructuredBuffer<Boid> boidsOut;
 RWStructuredBuffer<int2> gridBuffer;
 RWStructuredBuffer<uint2> gridIndicesBuffer;
 
-groupshared uint bucket[512];
-
 float gridCellSize;
 int gridRows;
 int gridCols;
