@@ -222,7 +222,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   useGPU: 0
-  numBoids: 256
+  numBoids: 100
   boidScale: 0.2
   maxSpeed: 3
   edgeMargin: 2
