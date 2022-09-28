@@ -1,4 +1,4 @@
-#define MAXINT 2147483647;
+#define MAXINT 0x7FFFFFFF;
 
 struct Boid {
     float2 pos;
