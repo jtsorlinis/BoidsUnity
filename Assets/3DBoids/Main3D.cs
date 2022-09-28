@@ -71,8 +71,8 @@ public class Main3D : MonoBehaviour
     boidMaterial.SetFloat("_Scale", boidScale);
     boidText.text = "Boids: " + numBoids;
 
-    xBound = 15 - edgeMargin;
-    yBound = 7.5f - edgeMargin;
+    xBound = 30 - edgeMargin;
+    yBound = 15 - edgeMargin;
     zBound = 15 - edgeMargin;
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.8f;
