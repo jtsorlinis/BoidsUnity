@@ -62,11 +62,11 @@ public class main2D : MonoBehaviour
   float gridCellSize;
 
   float xBound, yBound;
-  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
+  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 300);
 
   int cpuLimit = 4096;
   int jobLimit = 16384;
-  int gpuLimit = 1048576;
+  int gpuLimit = 2097152;
 
   void Awake()
   {
@@ -76,6 +76,10 @@ public class main2D : MonoBehaviour
   // Start is called before the first frame update
   void Start()
   {
+    // Zoom camera based on number of boids
+    Camera.main.orthographicSize = Mathf.Max(5, Mathf.Sqrt(numBoids) / 20);
+    Camera.main.transform.position = new Vector3(0, 0, -10);
+
     boidText.text = "Boids: " + numBoids;
     boids = new NativeArray<Boid>(numBoids, Allocator.Persistent);
     boids2 = new NativeArray<Boid>(numBoids, Allocator.Persistent);
