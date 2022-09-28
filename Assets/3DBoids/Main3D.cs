@@ -18,6 +18,7 @@ public class Main3D : MonoBehaviour
   [Header("Performance")]
   [SerializeField] bool useGPU = true;
   [SerializeField] int numBoids = 100;
+  [SerializeField] float spaceBounds = 15;
   int bufferLength;
   [SerializeField] float boidScale = 0.3f;
 
@@ -38,6 +39,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
   [SerializeField] Mesh boidMesh;
+  [SerializeField] Transform floorPlane;
 
   float xBound, yBound, zBound;
   float minSpeed;
@@ -71,9 +73,14 @@ public class Main3D : MonoBehaviour
     boidMaterial.SetFloat("_Scale", boidScale);
     boidText.text = "Boids: " + numBoids;
 
-    xBound = 30 - edgeMargin;
-    yBound = 15 - edgeMargin;
-    zBound = 15 - edgeMargin;
+    spaceBounds = Mathf.Max(2, Mathf.Pow(numBoids, 1f / 3f) / 5);
+    Camera.main.transform.position = new Vector3(0, 0, -spaceBounds * 3.8f);
+    Camera.main.transform.rotation = Quaternion.identity;
+    floorPlane.localScale = new Vector3(spaceBounds / 2.5f, 1, spaceBounds / 2.5f);
+    floorPlane.position = new Vector3(0, -spaceBounds - 1f, 0);
+    xBound = 2 * spaceBounds - edgeMargin;
+    yBound = spaceBounds - edgeMargin;
+    zBound = 2 * spaceBounds - edgeMargin;
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.8f;
     bufferLength = Mathf.NextPowerOfTwo(numBoids);

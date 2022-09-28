@@ -16,7 +16,7 @@ public class MoveCamera3D : MonoBehaviour
   void Start()
   {
     cam = Camera.main;
-    rotation = new Vector3(0, 15, 0);
+    rotation = Vector3.zero;
   }
 
   // Update is called once per frame
