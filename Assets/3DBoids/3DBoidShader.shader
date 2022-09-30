@@ -44,7 +44,7 @@ Shader "Custom/3DBoidShader"
         Boid boid;
     #endif
 
-        void vert (inout appdata_base v) 
+        void vert (inout appdata_full v) 
         {
         #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
             v.vertex.xyz = v.vertex.xyz + 2.0 * cross(boid.rot.xyz, cross(boid.rot.xyz, v.vertex) + boid.rot.w * v.vertex.xyz);
