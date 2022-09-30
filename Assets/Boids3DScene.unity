@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.4465766, g: 0.49641156, b: 0.5748176, a: 1}
+  m_IndirectSpecularColor: {r: 0.44657755, g: 0.4964127, b: 0.57481825, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -284,9 +284,13 @@ PrefabInstance:
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
       value: Main3D, Assembly-CSharp
       objectReference: {fileID: 0}
+    - target: {fileID: 1304125128319669946, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_FontData.m_FontSize
+      value: 13
+      objectReference: {fileID: 0}
     - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Options.m_Options.Array.size
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Options.m_Options.Array.data[1].m_Text
@@ -294,7 +298,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Options.m_Options.Array.data[2].m_Text
-      value: CPU (Jobs)
+      value: GPU (No Shadows)
       objectReference: {fileID: 0}
     - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target

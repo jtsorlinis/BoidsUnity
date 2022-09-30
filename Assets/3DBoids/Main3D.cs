@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using UnityEngine.Rendering;
 
 struct Boid3D
 {
@@ -17,6 +18,7 @@ public class Main3D : MonoBehaviour
 {
   [Header("Performance")]
   [SerializeField] bool useGPU = true;
+  ShadowCastingMode shadows = ShadowCastingMode.On;
   [SerializeField] int numBoids = 100;
   [SerializeField] float spaceBounds = 15;
   int bufferLength;
@@ -61,6 +63,7 @@ public class Main3D : MonoBehaviour
 
   int cpuLimit = 1024;
   int gpuLimit = 524288;
+  int gpuNoShadowsLimit = 1048576;
 
   void Awake()
   {
@@ -208,7 +211,7 @@ public class Main3D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    Graphics.DrawMeshInstancedProcedural(boidMesh, 0, boidMaterial, bounds, numBoids);
+    Graphics.DrawMeshInstancedProcedural(boidMesh, 0, boidMaterial, bounds, numBoids, null, shadows);
   }
 
   void MergedBehaviours(ref Boid3D boid)
@@ -397,6 +400,7 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = cpuLimit;
       useGPU = false;
+      shadows = ShadowCastingMode.Off;
       var tempArray = new Boid3D[numBoids];
       boidBuffer.GetData(tempArray);
       boids = tempArray;
@@ -407,6 +411,15 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = gpuLimit;
       useGPU = true;
+      shadows = ShadowCastingMode.On;
+    }
+
+    // GPU (No Shadows)
+    if (val == 2)
+    {
+      boidSlider.maxValue = gpuNoShadowsLimit;
+      useGPU = true;
+      shadows = ShadowCastingMode.Off;
     }
   }
 
