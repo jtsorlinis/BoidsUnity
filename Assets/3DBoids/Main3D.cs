@@ -8,8 +8,8 @@ struct Boid3D
   public Vector3 pos;
   public Vector3 vel;
   public Quaternion rot;
-  public float pad0;
-  public float pad1;
+  float pad0;
+  float pad1;
 }
 
 public class Main3D : MonoBehaviour
@@ -171,8 +171,10 @@ public class Main3D : MonoBehaviour
 
       // Clear indices
       gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 64f), 1, 1);
+
       // Populate grid
       gridShader.Dispatch(0, Mathf.CeilToInt(bufferLength / 64f), 1, 1);
+
       // Sort grid
       for (var dim = 2; dim <= bufferLength; dim <<= 1)
       {
@@ -193,8 +195,8 @@ public class Main3D : MonoBehaviour
       // Copy buffer back
       gridShader.Dispatch(5, Mathf.CeilToInt(numBoids / 64f), 1, 1);
 
-      int groups = Mathf.CeilToInt(numBoids / 64f);
-      boidComputeShader.Dispatch(0, groups, 1, 1);
+      // Compute boid behaviours
+      boidComputeShader.Dispatch(0, Mathf.CeilToInt(numBoids / 64f), 1, 1);
     }
     else
     {
@@ -403,7 +405,7 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = cpuLimit;
       useGPU = false;
-      shadows = ShadowCastingMode.Off;
+      shadows = ShadowCastingMode.On;
       var tempArray = new Boid3D[numBoids];
       boidBuffer.GetData(tempArray);
       boids = tempArray;
@@ -431,6 +433,18 @@ public class Main3D : MonoBehaviour
     if (boidBuffer != null)
     {
       boidBuffer.Release();
+    }
+    if (boidBufferOut != null)
+    {
+      boidBufferOut.Release();
+    }
+    if (gridBuffer != null)
+    {
+      gridBuffer.Release();
+    }
+    if (gridIndicesBuffer != null)
+    {
+      gridIndicesBuffer.Release();
     }
   }
 }

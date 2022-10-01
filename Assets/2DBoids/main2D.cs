@@ -169,8 +169,10 @@ public class main2D : MonoBehaviour
 
       // Clear indices
       gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 64f), 1, 1);
+
       // Populate grid
       gridShader.Dispatch(0, Mathf.CeilToInt(bufferLength / 64f), 1, 1);
+
       // Sort grid
       for (var dim = 2; dim <= bufferLength; dim <<= 1)
       {
@@ -191,8 +193,8 @@ public class main2D : MonoBehaviour
       // Copy buffer back
       gridShader.Dispatch(5, Mathf.CeilToInt(numBoids / 64f), 1, 1);
 
-      int groups = Mathf.CeilToInt(numBoids / 64f);
-      boidShader.Dispatch(0, groups, 1, 1);
+      // Compute boid behaviours
+      boidShader.Dispatch(0, Mathf.CeilToInt(numBoids / 64f), 1, 1);
     }
     else
     {
