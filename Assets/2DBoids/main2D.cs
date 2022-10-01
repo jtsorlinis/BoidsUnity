@@ -217,6 +217,7 @@ public class main2D : MonoBehaviour
       UpdateGrid();
       SortGrid();
       GenerateGridIndices();
+      RearrangeBoids();
 
       for (int i = 0; i < numBoids; i++)
       {
@@ -247,20 +248,28 @@ public class main2D : MonoBehaviour
     Vector2 avgVel = Vector2.zero;
     int neighbours = 0;
 
-    var nearby = GetNearby(ref boid);
-    for (int i = 0; i < nearby.Count; i++)
+    var gridXY = getGridLocation(boid);
+    for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++)
     {
-      Boid other = nearby[i];
-      var distance = Vector2.Distance(boid.pos, other.pos);
-      if (distance < visualRange)
+      for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++)
       {
-        if (distance < minDistance)
+        int gridCell = getGridIDbyLoc(x, y);
+        Vector2Int startEnd = gridIndices[gridCell];
+        for (int i = startEnd.x; i < startEnd.y; i++)
         {
-          close += boid.pos - other.pos;
+          Boid other = boids[i];
+          var distance = Vector2.Distance(boid.pos, other.pos);
+          if (distance < visualRange)
+          {
+            if (distance < minDistance)
+            {
+              close += boid.pos - other.pos;
+            }
+            center += other.pos;
+            avgVel += other.vel;
+            neighbours++;
+          }
         }
-        center += other.pos;
-        avgVel += other.vel;
-        neighbours++;
       }
     }
 
@@ -318,9 +327,9 @@ public class main2D : MonoBehaviour
     return (gridCols * boidRow) + boidCol;
   }
 
-  int getGridIDbyLoc(Vector2Int pos)
+  int getGridIDbyLoc(int x, int y)
   {
-    return (gridCols * pos.y) + pos.x;
+    return (gridCols * y) + x;
   }
 
   Vector2Int getGridLocation(Boid boid)
@@ -341,33 +350,21 @@ public class main2D : MonoBehaviour
     }
   }
 
-  List<Boid> GetNearby(ref Boid boid)
-  {
-    List<Boid> neighbours = new List<Boid>();
-    var gridXY = getGridLocation(boid);
-    for (int row = gridXY.y - 1; row <= gridXY.y + 1; row++)
-    {
-      for (int col = gridXY.x - 1; col <= gridXY.x + 1; col++)
-      {
-        int gridCell = getGridIDbyLoc(new Vector2Int(col, row));
-        Vector2Int startEnd = gridIndices[gridCell];
-        for (int j = startEnd.x; j < startEnd.y; j++)
-        {
-          int boidIndex = boidGridIDs[j].y;
-          neighbours.Add(boids[boidIndex]);
-        }
-      }
-    }
-
-    return neighbours;
-  }
-
   void SortGrid()
   {
     Array.Sort(boidGridIDs, delegate (Vector2Int v1, Vector2Int v2)
     {
       return v1.x.CompareTo(v2.x);
     });
+  }
+
+  void RearrangeBoids()
+  {
+    for (int i = 0; i < numBoids; i++)
+    {
+      boids2[i] = boids[boidGridIDs[i].y];
+    }
+    boids.CopyFrom(boids2);
   }
 
   void GenerateGridIndices()
