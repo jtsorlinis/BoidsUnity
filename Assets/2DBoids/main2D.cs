@@ -227,8 +227,6 @@ public class main2D : MonoBehaviour
 
       }
 
-      var watch = System.Diagnostics.Stopwatch.StartNew();
-
       for (int i = 0; i < numBoids; i++)
       {
         var boid = boids[i];
