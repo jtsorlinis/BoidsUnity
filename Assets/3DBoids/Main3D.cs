@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
@@ -10,8 +8,8 @@ struct Boid3D
   public Vector3 pos;
   public Vector3 vel;
   public Quaternion rot;
-  float pad0;
-  float pad1;
+  public float pad0;
+  public float pad1;
 }
 
 public class Main3D : MonoBehaviour
@@ -48,6 +46,7 @@ public class Main3D : MonoBehaviour
 
   float turnSpeed;
   Boid3D[] boids;
+  Boid3D[] boids2;
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
@@ -61,7 +60,7 @@ public class Main3D : MonoBehaviour
 
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
-  int cpuLimit = 1024;
+  int cpuLimit = 2048;
   int gpuLimit = 524288;
   int gpuNoShadowsLimit = 1048576;
 
@@ -89,6 +88,7 @@ public class Main3D : MonoBehaviour
     bufferLength = Mathf.NextPowerOfTwo(numBoids);
 
     boids = new Boid3D[numBoids];
+    boids2 = new Boid3D[numBoids];
     for (int i = 0; i < numBoids; i++)
     {
       var boid = new Boid3D();
@@ -198,6 +198,12 @@ public class Main3D : MonoBehaviour
     }
     else
     {
+      // Spatial grid
+      UpdateGrid();
+      SortGrid();
+      GenerateGridIndices();
+      RearrangeBoids();
+
       for (int i = 0; i < numBoids; i++)
       {
         var boid = boids[i];
@@ -221,20 +227,32 @@ public class Main3D : MonoBehaviour
     Vector3 avgVel = Vector3.zero;
     int neighbours = 0;
 
-    for (int i = 0; i < numBoids; i++)
+    var gridXYZ = getGridLocation(boid);
+    for (int z = gridXYZ.z - 1; z <= gridXYZ.z + 1; z++)
     {
-      Boid3D other = boids[i];
-      float distance = Vector3.Distance(boid.pos, other.pos);
-
-      if (distance < visualRange)
+      for (int y = gridXYZ.y - 1; y <= gridXYZ.y + 1; y++)
       {
-        if (distance < minDistance)
+        for (int x = gridXYZ.x - 1; x <= gridXYZ.x + 1; x++)
         {
-          close += boid.pos - other.pos;
+          int gridCell = getGridIDbyLoc(new Vector3Int(x, y, z));
+          Vector2Int startEnd = gridIndices[gridCell];
+          for (int i = startEnd.x; i < startEnd.y; i++)
+          {
+            Boid3D other = boids[i];
+            float distance = Vector3.Distance(boid.pos, other.pos);
+
+            if (distance < visualRange)
+            {
+              if (distance < minDistance)
+              {
+                close += boid.pos - other.pos;
+              }
+              center += other.pos;
+              avgVel += other.vel;
+              neighbours++;
+            }
+          }
         }
-        center += other.pos;
-        avgVel += other.vel;
-        neighbours++;
       }
     }
 
@@ -325,30 +343,6 @@ public class Main3D : MonoBehaviour
     }
   }
 
-  List<Boid3D> GetNearby(ref Boid3D boid)
-  {
-    List<Boid3D> neighbours = new List<Boid3D>();
-    var gridXYZ = getGridLocation(boid);
-    for (int z = gridXYZ.z - 1; z <= gridXYZ.z + 1; z++)
-    {
-      for (int y = gridXYZ.y - 1; y <= gridXYZ.y + 1; y++)
-      {
-        for (int x = gridXYZ.x - 1; x <= gridXYZ.x + 1; x++)
-        {
-          int gridCell = getGridIDbyLoc(new Vector3Int(x, y, z));
-          Vector2Int startEnd = gridIndices[gridCell];
-          for (int j = startEnd.x; j < startEnd.y; j++)
-          {
-            int boidIndex = boidGridIDs[j].y;
-            neighbours.Add(boids[boidIndex]);
-          }
-        }
-      }
-    }
-
-    return neighbours;
-  }
-
   void SortGrid()
   {
     Array.Sort(boidGridIDs, delegate (Vector2Int v1, Vector2Int v2)
@@ -381,6 +375,15 @@ public class Main3D : MonoBehaviour
         gridIndices[cell].y = i + 1;
       }
     }
+  }
+
+  void RearrangeBoids()
+  {
+    for (int i = 0; i < numBoids; i++)
+    {
+      boids2[i] = boids[boidGridIDs[i].y];
+    }
+    boids2.CopyTo(boids, 0);
   }
 
   public void sliderChange(float val)
