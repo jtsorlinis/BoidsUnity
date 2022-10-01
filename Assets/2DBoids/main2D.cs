@@ -56,8 +56,8 @@ public class main2D : MonoBehaviour
   ComputeBuffer gridIndicesBuffer;
 
   // x value is position flattened to 1D array, y value is boidID
-  Vector2Int[] boidGridIDs;
-  Vector2Int[] gridIndices;
+  NativeArray<Vector2Int> boidGridIDs;
+  NativeArray<Vector2Int> gridIndices;
   int gridRows, gridCols, gridTotalCells;
   float gridCellSize;
 
@@ -65,7 +65,7 @@ public class main2D : MonoBehaviour
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 300);
 
   int cpuLimit = 4096;
-  int jobLimit = 16384;
+  int jobLimit = 65536;
   int gpuLimit = 2097152;
 
   void Awake()
@@ -122,9 +122,9 @@ public class main2D : MonoBehaviour
     gridCellSize = visualRange;
     gridCols = Mathf.FloorToInt(xBound * 4 / gridCellSize);
     gridRows = Mathf.FloorToInt(yBound * 4 / gridCellSize);
-    boidGridIDs = new Vector2Int[numBoids];
+    boidGridIDs = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
     gridTotalCells = gridCols * gridRows * 2;
-    gridIndices = new Vector2Int[gridTotalCells];
+    gridIndices = new NativeArray<Vector2Int>(gridTotalCells, Allocator.Persistent);
 
     gridBuffer = new ComputeBuffer(bufferLength, 8);
     gridIndicesBuffer = new ComputeBuffer(gridTotalCells, 8);
@@ -196,10 +196,22 @@ public class main2D : MonoBehaviour
     }
     else
     {
+
+      // Spatial grid
+      UpdateGrid();
+      SortGrid();
+      GenerateGridIndices();
+      RearrangeBoids();
+
       if (mode == Modes.Jobs)
       {
         boidJob.inBoids = boids;
         boidJob.outBoids = boids2;
+        boidJob.grid = boidGridIDs;
+        boidJob.gridCellSize = gridCellSize;
+        boidJob.gridCols = gridCols;
+        boidJob.gridRows = gridRows;
+        boidJob.gridIndices = gridIndices;
         boidJob.deltaTime = Time.deltaTime;
         boidJob.numBoids = numBoids;
         boidJob.visualRange = visualRange;
@@ -208,16 +220,14 @@ public class main2D : MonoBehaviour
         boidJob.alignmentFactor = alignmentFactor;
         boidJob.seperationFactor = seperationFactor;
 
+
         JobHandle handle = boidJob.Schedule(numBoids, 8);
         handle.Complete();
         boids.CopyFrom(boids2);
+
       }
 
-      // Spatial grid
-      UpdateGrid();
-      SortGrid();
-      GenerateGridIndices();
-      RearrangeBoids();
+      var watch = System.Diagnostics.Stopwatch.StartNew();
 
       for (int i = 0; i < numBoids; i++)
       {
@@ -235,7 +245,6 @@ public class main2D : MonoBehaviour
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);
-
     }
 
     Graphics.DrawMeshInstancedProcedural(quad, 0, boidMat, bounds, numBoids);
@@ -341,21 +350,27 @@ public class main2D : MonoBehaviour
 
   void UpdateGrid()
   {
-    gridIndices = new Vector2Int[gridTotalCells];
     for (int i = 0; i < numBoids; i++)
     {
       int id = getGridID(boids[i]);
-      boidGridIDs[i].x = id;
-      boidGridIDs[i].y = i;
+      var boidGrid = boidGridIDs[i];
+      boidGrid.x = id;
+      boidGrid.y = i;
+      boidGridIDs[i] = boidGrid;
+    }
+  }
+
+  struct boidGridComparer : IComparer<Vector2Int>
+  {
+    public int Compare(Vector2Int v1, Vector2Int v2)
+    {
+      return v1.x.CompareTo(v2.x);
     }
   }
 
   void SortGrid()
   {
-    Array.Sort(boidGridIDs, delegate (Vector2Int v1, Vector2Int v2)
-    {
-      return v1.x.CompareTo(v2.x);
-    });
+    boidGridIDs.Sort(new boidGridComparer());
   }
 
   void RearrangeBoids()
@@ -369,6 +384,8 @@ public class main2D : MonoBehaviour
 
   void GenerateGridIndices()
   {
+    gridIndices.Dispose();
+    gridIndices = new NativeArray<Vector2Int>(gridTotalCells, Allocator.Persistent);
     for (int i = 0; i < numBoids; i++)
     {
       int prev = (i == 0) ? numBoids : i;
@@ -380,16 +397,18 @@ public class main2D : MonoBehaviour
       int cell = boidGridIDs[i].x;
       int cell_prev = boidGridIDs[prev].x;
       int cell_next = boidGridIDs[next].x;
+      Vector2Int indicesCell = gridIndices[cell];
 
       if (cell != cell_prev)
       {
-        gridIndices[cell].x = i;
+        indicesCell.x = i;
       }
 
       if (cell != cell_next)
       {
-        gridIndices[cell].y = i + 1;
+        indicesCell.y = i + 1;
       }
+      gridIndices[cell] = indicesCell;
     }
   }
 
@@ -397,8 +416,13 @@ public class main2D : MonoBehaviour
   struct BoidBehavioursJob : IJobParallelFor
   {
     [ReadOnly]
+    public NativeArray<Vector2Int> grid;
+    [ReadOnly]
+    public NativeArray<Vector2Int> gridIndices;
+    [ReadOnly]
     public NativeArray<Boid> inBoids;
     public NativeArray<Boid> outBoids;
+    [ReadOnly]
     public float deltaTime;
     public int numBoids;
     public float visualRange;
@@ -406,6 +430,16 @@ public class main2D : MonoBehaviour
     public float cohesionFactor;
     public float alignmentFactor;
     public float seperationFactor;
+    public float gridCellSize;
+    public int gridRows;
+    public int gridCols;
+
+    Vector2Int jobGetGridLocation(Boid boid)
+    {
+      int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
+      int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
+      return new Vector2Int(boidCol, boidRow);
+    }
 
     public void Execute(int index)
     {
@@ -415,18 +449,28 @@ public class main2D : MonoBehaviour
       Vector2 avgVel = Vector2.zero;
       int neighbours = 0;
 
-      for (int i = 0; i < numBoids; i++)
+      var gridXY = jobGetGridLocation(boid);
+      for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++)
       {
-        var distance = Vector2.Distance(boid.pos, inBoids[i].pos);
-        if (distance < visualRange)
+        for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++)
         {
-          if (distance < minDistance)
+          int gridCell = gridCols * y + x;
+          Vector2Int startEnd = gridIndices[gridCell];
+          for (int i = startEnd.x; i < startEnd.y; i++)
           {
-            close += boid.pos - inBoids[i].pos;
+            var other = inBoids[i];
+            var distance = Vector2.Distance(boid.pos, other.pos);
+            if (distance < visualRange)
+            {
+              if (distance < minDistance)
+              {
+                close += boid.pos - inBoids[i].pos;
+              }
+              center += other.pos;
+              avgVel += other.vel;
+              neighbours++;
+            }
           }
-          center += inBoids[i].pos;
-          avgVel += inBoids[i].vel;
-          neighbours++;
         }
       }
 
@@ -453,6 +497,8 @@ public class main2D : MonoBehaviour
     boidBuffer.Dispose();
     gridBuffer.Dispose();
     gridIndicesBuffer.Dispose();
+    boidGridIDs.Dispose();
+    gridIndices.Dispose();
     Start();
   }
 
@@ -496,9 +542,21 @@ public class main2D : MonoBehaviour
     {
       boids2.Dispose();
     }
+    if (boidGridIDs != null)
+    {
+      boidGridIDs.Dispose();
+    }
+    if (gridIndices != null)
+    {
+      gridIndices.Dispose();
+    }
     if (boidBuffer != null)
     {
       boidBuffer.Release();
+    }
+    if (boidBufferOut != null)
+    {
+      boidBufferOut.Release();
     }
     if (gridBuffer != null)
     {
