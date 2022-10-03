@@ -46,7 +46,7 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
 [numthreads(256,1,1)]
 void SortGrid (uint3 id : SV_DispatchThreadID) 
 {
-  uint i = id.x + id.y * 262144;
+  uint i = id.x;
 	uint j = i^block;
 	
 	if (j < i || i >= bufferLength) 
