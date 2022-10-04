@@ -49,6 +49,10 @@ public class main2D : MonoBehaviour
   NativeArray<Boid> boids;
   NativeArray<Boid> boids2;
   BoidBehavioursJob boidJob = new BoidBehavioursJob();
+  UpdateGridJob updateGridJob = new UpdateGridJob();
+  SortGridJob sortGridJob = new SortGridJob();
+  GenerateGridIndicesJob generateGridIndicesJob = new GenerateGridIndicesJob();
+  RearrangeBoidsJob rearrangeBoidsJob = new RearrangeBoidsJob();
 
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
@@ -169,6 +173,14 @@ public class main2D : MonoBehaviour
     boidJob.maxSpeed = maxSpeed;
     boidJob.minSpeed = minSpeed;
     boidJob.turnSpeed = turnSpeed;
+
+    updateGridJob.gridCellSize = gridCellSize;
+    updateGridJob.gridRows = gridRows;
+    updateGridJob.gridCols = gridCols;
+
+    generateGridIndicesJob.numBoids = numBoids;
+
+    rearrangeBoidsJob.numBoids = numBoids;
   }
 
   // Update is called once per frame
@@ -214,27 +226,53 @@ public class main2D : MonoBehaviour
     }
     else // CPU
     {
-      // Spatial grid
-      UpdateGrid();
-      SortGrid();
-      GenerateGridIndices();
-      RearrangeBoids();
-
       // Using jobs (multicore)
       if (mode == Modes.Jobs)
       {
+        // Generate grid
+        updateGridJob.boids = boids;
+        updateGridJob.grid = boidGridIDs;
+        updateGridJob.Run(numBoids);
+
+        // Sort grid
+        sortGridJob.grid = boidGridIDs;
+        sortGridJob.Run();
+
+        // Clear grid indices
+        gridIndices.Dispose();
+        gridIndices = new NativeArray<Vector2Int>(gridTotalCells, Allocator.TempJob);
+
+        // Generate grid indices
+        generateGridIndicesJob.grid = boidGridIDs;
+        generateGridIndicesJob.gridIndices = gridIndices;
+        generateGridIndicesJob.Run();
+
+        // Rearrange boids
+        rearrangeBoidsJob.grid = boidGridIDs;
+        rearrangeBoidsJob.boids = boids;
+        rearrangeBoidsJob.boids2 = boids2;
+        rearrangeBoidsJob.Run();
+
+        // Update boids
         boidJob.inBoids = boids;
         boidJob.outBoids = boids2;
         boidJob.grid = boidGridIDs;
         boidJob.gridIndices = gridIndices;
         boidJob.deltaTime = Time.deltaTime;
-
-        JobHandle handle = boidJob.Schedule(numBoids, 8);
+        JobHandle handle = boidJob.Schedule(numBoids, 32);
         handle.Complete();
+
+        // Copy boids back
         boids.CopyFrom(boids2);
       }
       else // basic cpu
       {
+        // Spatial grid
+        UpdateGrid();
+        SortGrid();
+        GenerateGridIndices();
+        RearrangeBoids();
+
         for (int i = 0; i < numBoids; i++)
         {
           var boid = boids[i];
@@ -392,7 +430,7 @@ public class main2D : MonoBehaviour
   void GenerateGridIndices()
   {
     gridIndices.Dispose();
-    gridIndices = new NativeArray<Vector2Int>(gridTotalCells, Allocator.Persistent);
+    gridIndices = new NativeArray<Vector2Int>(gridTotalCells, Allocator.TempJob);
     for (int i = 0; i < numBoids; i++)
     {
       int prev = (i == 0) ? numBoids : i;
@@ -420,6 +458,100 @@ public class main2D : MonoBehaviour
   }
 
   [BurstCompile]
+  struct SortGridJob : IJob
+  {
+    public NativeArray<Vector2Int> grid;
+
+    public void Execute()
+    {
+      grid.Sort(new boidGridComparer());
+    }
+  }
+
+  [BurstCompile]
+  struct GenerateGridIndicesJob : IJob
+  {
+    public int numBoids;
+    [ReadOnly]
+    public NativeArray<Vector2Int> grid;
+    public NativeArray<Vector2Int> gridIndices;
+
+    public void Execute()
+    {
+      for (int i = 0; i < numBoids; i++)
+      {
+        int prev = (i == 0) ? numBoids : i;
+        prev--;
+
+        int next = i + 1;
+        if (next == numBoids) { next = 0; }
+
+        int cell = grid[i].x;
+        int cell_prev = grid[prev].x;
+        int cell_next = grid[next].x;
+        Vector2Int indicesCell = gridIndices[cell];
+
+        if (cell != cell_prev)
+        {
+          indicesCell.x = i;
+        }
+
+        if (cell != cell_next)
+        {
+          indicesCell.y = i + 1;
+        }
+        gridIndices[cell] = indicesCell;
+      }
+    }
+  }
+
+  [BurstCompile]
+  struct UpdateGridJob : IJobParallelFor
+  {
+    public NativeArray<Vector2Int> grid;
+    [ReadOnly]
+    public NativeArray<Boid> boids;
+    public float gridCellSize;
+    public int gridRows;
+    public int gridCols;
+
+    int jobGetGridID(Boid boid)
+    {
+      int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
+      int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
+      return (gridCols * boidRow) + boidCol;
+    }
+
+    public void Execute(int index)
+    {
+      int id = jobGetGridID(boids[index]);
+      var boidGrid = grid[index];
+      boidGrid.x = id;
+      boidGrid.y = index;
+      grid[index] = boidGrid;
+    }
+  }
+
+  [BurstCompile]
+  struct RearrangeBoidsJob : IJob
+  {
+    public int numBoids;
+    public NativeArray<Boid> boids;
+    public NativeArray<Boid> boids2;
+    [ReadOnly]
+    public NativeArray<Vector2Int> grid;
+
+    public void Execute()
+    {
+      for (int i = 0; i < numBoids; i++)
+      {
+        boids2[i] = boids[grid[i].y];
+      }
+      boids.CopyFrom(boids2);
+    }
+  }
+
+  [BurstCompile]
   struct BoidBehavioursJob : IJobParallelFor
   {
     [ReadOnly]
@@ -429,7 +561,6 @@ public class main2D : MonoBehaviour
     [ReadOnly]
     public NativeArray<Boid> inBoids;
     public NativeArray<Boid> outBoids;
-    [ReadOnly]
     public float deltaTime;
     public int numBoids;
     public float visualRange;
