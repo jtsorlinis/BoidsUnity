@@ -22,7 +22,7 @@ public class main2D : MonoBehaviour
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
   int bufferLength;
-  enum Modes { Cpu, Jobs, Gpu };
+  enum Modes { Cpu, Burst, Jobs, Gpu };
   Modes mode = Modes.Cpu;
 
   [Header("Settings")]
@@ -69,6 +69,7 @@ public class main2D : MonoBehaviour
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 300);
 
   int cpuLimit = 4096;
+  int burstLimit = 16384;
   int jobLimit = 65536;
   int gpuLimit = 2097152;
 
@@ -226,8 +227,8 @@ public class main2D : MonoBehaviour
     }
     else // CPU
     {
-      // Using jobs (multicore)
-      if (mode == Modes.Jobs)
+      // Using Burst or Jobs (multicore)
+      if (mode == Modes.Burst || mode == Modes.Jobs)
       {
         // Generate grid
         updateGridJob.boids = boids;
@@ -259,8 +260,18 @@ public class main2D : MonoBehaviour
         boidJob.grid = boidGridIDs;
         boidJob.gridIndices = gridIndices;
         boidJob.deltaTime = Time.deltaTime;
-        JobHandle handle = boidJob.Schedule(numBoids, 32);
-        handle.Complete();
+
+        // Burst compiled (Single core)
+        if (mode == Modes.Burst)
+        {
+          boidJob.Run(numBoids);
+        }
+        // Jobs (Multicore)
+        else
+        {
+          JobHandle boidJobHandle = boidJob.Schedule(numBoids, 32);
+          boidJobHandle.Complete();
+        }
 
         // Copy boids back
         boids.CopyFrom(boids2);
@@ -702,8 +713,18 @@ public class main2D : MonoBehaviour
       boids.CopyFrom(tempArray);
     }
 
-    // CPU Jobs
+    // CPU Burst
     if (val == 1)
+    {
+      numSlider.maxValue = burstLimit;
+      mode = Modes.Burst;
+      var tempArray = new Boid[numBoids];
+      boidBuffer.GetData(tempArray);
+      boids.CopyFrom(tempArray);
+    }
+
+    // CPU Burst Jobs
+    if (val == 2)
     {
       numSlider.maxValue = jobLimit;
       mode = Modes.Jobs;
@@ -713,7 +734,7 @@ public class main2D : MonoBehaviour
     }
 
     // GPU
-    if (val == 2)
+    if (val == 3)
     {
       numSlider.maxValue = gpuLimit;
       mode = Modes.Gpu;
