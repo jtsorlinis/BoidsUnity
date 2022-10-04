@@ -153,6 +153,22 @@ public class main2D : MonoBehaviour
     boidShader.SetFloat("gridCellSize", gridCellSize);
     boidShader.SetInt("gridRows", gridRows);
     boidShader.SetInt("gridCols", gridCols);
+
+    // Job variables setup
+    boidJob.gridCellSize = gridCellSize;
+    boidJob.gridCols = gridCols;
+    boidJob.gridRows = gridRows;
+    boidJob.numBoids = numBoids;
+    boidJob.visualRange = visualRange;
+    boidJob.minDistance = minDistance;
+    boidJob.xBound = xBound;
+    boidJob.yBound = yBound;
+    boidJob.cohesionFactor = cohesionFactor;
+    boidJob.alignmentFactor = alignmentFactor;
+    boidJob.seperationFactor = seperationFactor;
+    boidJob.maxSpeed = maxSpeed;
+    boidJob.minSpeed = minSpeed;
+    boidJob.turnSpeed = turnSpeed;
   }
 
   // Update is called once per frame
@@ -196,57 +212,48 @@ public class main2D : MonoBehaviour
       // Compute boid behaviours
       boidShader.Dispatch(0, Mathf.CeilToInt(numBoids / 64f), 1, 1);
     }
-    else
+    else // CPU
     {
-
       // Spatial grid
       UpdateGrid();
       SortGrid();
       GenerateGridIndices();
       RearrangeBoids();
 
+      // Using jobs (multicore)
       if (mode == Modes.Jobs)
       {
         boidJob.inBoids = boids;
         boidJob.outBoids = boids2;
         boidJob.grid = boidGridIDs;
-        boidJob.gridCellSize = gridCellSize;
-        boidJob.gridCols = gridCols;
-        boidJob.gridRows = gridRows;
         boidJob.gridIndices = gridIndices;
         boidJob.deltaTime = Time.deltaTime;
-        boidJob.numBoids = numBoids;
-        boidJob.visualRange = visualRange;
-        boidJob.minDistance = minDistance;
-        boidJob.cohesionFactor = cohesionFactor;
-        boidJob.alignmentFactor = alignmentFactor;
-        boidJob.seperationFactor = seperationFactor;
-
 
         JobHandle handle = boidJob.Schedule(numBoids, 8);
         handle.Complete();
         boids.CopyFrom(boids2);
-
       }
-
-      for (int i = 0; i < numBoids; i++)
+      else // basic cpu
       {
-        var boid = boids[i];
-        if (mode == Modes.Cpu)
+        for (int i = 0; i < numBoids; i++)
         {
+          var boid = boids[i];
           MergedBehaviours(ref boid);
-        }
-        LimitSpeed(ref boid);
-        KeepInBounds(ref boid);
+          LimitSpeed(ref boid);
+          KeepInBounds(ref boid);
 
-        // Update boid positions and rotation
-        boid.pos += boid.vel * Time.deltaTime;
-        boid.rot = Mathf.Atan2(boid.vel.y, boid.vel.x) - (Mathf.PI / 2);
-        boids[i] = boid;
+          // Update boid positions and rotation
+          boid.pos += boid.vel * Time.deltaTime;
+          boid.rot = Mathf.Atan2(boid.vel.y, boid.vel.x) - (Mathf.PI / 2);
+          boids[i] = boid;
+        }
       }
+
+      // Send data to gpu buffer
       boidBuffer.SetData(boids);
     }
 
+    // Actually draw the boids
     Graphics.DrawMeshInstancedProcedural(quad, 0, boidMat, bounds, numBoids);
   }
 
@@ -430,20 +437,17 @@ public class main2D : MonoBehaviour
     public float cohesionFactor;
     public float alignmentFactor;
     public float seperationFactor;
+    public float maxSpeed;
+    public float minSpeed;
+    public float turnSpeed;
+    public float xBound;
+    public float yBound;
     public float gridCellSize;
     public int gridRows;
     public int gridCols;
 
-    Vector2Int jobGetGridLocation(Boid boid)
+    void jobMergedBehavious(ref Boid boid)
     {
-      int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
-      int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
-      return new Vector2Int(boidCol, boidRow);
-    }
-
-    public void Execute(int index)
-    {
-      Boid boid = inBoids[index];
       Vector2 center = Vector2.zero;
       Vector2 close = Vector2.zero;
       Vector2 avgVel = Vector2.zero;
@@ -484,6 +488,59 @@ public class main2D : MonoBehaviour
       }
 
       boid.vel += close * seperationFactor * deltaTime;
+    }
+
+    void jobLimitSpeed(ref Boid boid)
+    {
+      var speed = boid.vel.magnitude;
+      if (speed > maxSpeed)
+      {
+        boid.vel = boid.vel.normalized * maxSpeed;
+      }
+      else if (speed < minSpeed)
+      {
+        boid.vel = boid.vel.normalized * minSpeed;
+      }
+    }
+
+    void jobKeepInBounds(ref Boid boid)
+    {
+      if (boid.pos.x < -xBound)
+      {
+        boid.vel.x += deltaTime * turnSpeed;
+      }
+      else if (boid.pos.x > xBound)
+      {
+        boid.vel.x -= deltaTime * turnSpeed;
+      }
+
+      if (boid.pos.y > yBound)
+      {
+        boid.vel.y -= deltaTime * turnSpeed;
+      }
+      else if (boid.pos.y < -yBound)
+      {
+        boid.vel.y += deltaTime * turnSpeed;
+      }
+    }
+
+    Vector2Int jobGetGridLocation(Boid boid)
+    {
+      int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
+      int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
+      return new Vector2Int(boidCol, boidRow);
+    }
+
+    public void Execute(int index)
+    {
+      Boid boid = inBoids[index];
+
+      jobMergedBehavious(ref boid);
+      jobLimitSpeed(ref boid);
+      jobKeepInBounds(ref boid);
+
+      boid.pos += boid.vel * deltaTime;
+      boid.rot = Mathf.Atan2(boid.vel.y, boid.vel.x) - (Mathf.PI / 2);
       outBoids[index] = boid;
     }
   }
