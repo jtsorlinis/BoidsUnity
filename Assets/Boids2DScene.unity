@@ -232,7 +232,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f329d85c3aef34d46b308343b8882c42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numBoids: 100
+  numBoids: 256
   maxSpeed: 2
   edgeMargin: 0.5
   visualRange: 0.5
@@ -289,12 +289,36 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 301399899, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 301399899, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 301399899, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 917479480, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_AnchorMax.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 917479480, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_Value
+      value: 256
+      objectReference: {fileID: 0}
+    - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_MaxValue
+      value: 1000
+      objectReference: {fileID: 0}
+    - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_MinValue
+      value: 256
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target

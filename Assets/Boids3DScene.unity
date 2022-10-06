@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.44657755, g: 0.4964127, b: 0.57481825, a: 1}
+  m_IndirectSpecularColor: {r: 0.4465766, g: 0.49641156, b: 0.5748176, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -222,7 +222,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   useGPU: 0
-  numBoids: 100
+  numBoids: 256
   spaceBounds: 15
   boidScale: 0.1
   maxSpeed: 2
@@ -261,7 +261,19 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 301399899, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 301399899, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 301399899, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 917479480, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_AnchorMax.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 917479480, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
@@ -269,8 +281,16 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_Value
+      value: 256
+      objectReference: {fileID: 0}
+    - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_MaxValue
-      value: 50000
+      value: 1000
+      objectReference: {fileID: 0}
+    - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_MinValue
+      value: 256
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target

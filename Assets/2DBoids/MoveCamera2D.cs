@@ -16,8 +16,8 @@ public class MoveCamera2D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    var mouseX = Input.GetAxis("Mouse X");
-    var mouseY = Input.GetAxis("Mouse Y");
+    var mouseX = Input.GetAxis("Mouse X") * (cam.orthographicSize / 5);
+    var mouseY = Input.GetAxis("Mouse Y") * (cam.orthographicSize / 5);
     var mouseDown = Input.GetMouseButton(1);
     var vscroll = Input.mouseScrollDelta.y;
 

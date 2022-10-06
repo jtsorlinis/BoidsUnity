@@ -66,7 +66,7 @@ public class main2D : MonoBehaviour
   float gridCellSize;
 
   float xBound, yBound;
-  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 300);
+  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 600);
 
   int cpuLimit = 4096;
   int burstLimit = 16384;
@@ -82,7 +82,7 @@ public class main2D : MonoBehaviour
   void Start()
   {
     // Zoom camera based on number of boids
-    Camera.main.orthographicSize = Mathf.Max(5, Mathf.Sqrt(numBoids) / 10);
+    Camera.main.orthographicSize = Mathf.Max(4, Mathf.Sqrt(numBoids) / 10);
     Camera.main.transform.position = new Vector3(0, 0, -10);
 
     boidText.text = "Boids: " + numBoids;
@@ -196,9 +196,6 @@ public class main2D : MonoBehaviour
       boidShader.SetFloat("seperationFactor", seperationFactor);
       boidShader.SetFloat("alignmentFactor", alignmentFactor);
 
-      // Clear indices
-      gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
-
       // Populate grid
       gridShader.Dispatch(0, Mathf.CeilToInt(bufferLength / 64f), 1, 1);
 
@@ -212,6 +209,9 @@ public class main2D : MonoBehaviour
           gridShader.Dispatch(1, Mathf.CeilToInt(bufferLength / 256f), 1, 1);
         }
       }
+
+      // Clear indices
+      gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
 
       // Populate indices
       gridShader.Dispatch(3, Mathf.CeilToInt(numBoids / 64f), 1, 1);

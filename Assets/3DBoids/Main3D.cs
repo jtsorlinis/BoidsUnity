@@ -75,7 +75,7 @@ public class Main3D : MonoBehaviour
     boidMaterial.SetFloat("_Scale", boidScale);
     boidText.text = "Boids: " + numBoids;
 
-    spaceBounds = Mathf.Max(2, Mathf.Pow(numBoids, 1f / 3f) / 5);
+    spaceBounds = Mathf.Max(3, Mathf.Pow(numBoids, 1f / 3f) / 5);
     Camera.main.transform.position = new Vector3(0, 0, -spaceBounds * 3.8f);
     Camera.main.transform.rotation = Quaternion.identity;
     floorPlane.localScale = new Vector3(spaceBounds / 2.5f, 1, spaceBounds / 2.5f);
@@ -169,9 +169,6 @@ public class Main3D : MonoBehaviour
       boidComputeShader.SetFloat("seperationFactor", seperationFactor);
       boidComputeShader.SetFloat("alignmentFactor", alignmentFactor);
 
-      // Clear indices
-      gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 64f), 1, 1);
-
       // Populate grid
       gridShader.Dispatch(0, Mathf.CeilToInt(bufferLength / 64f), 1, 1);
 
@@ -185,6 +182,9 @@ public class Main3D : MonoBehaviour
           gridShader.Dispatch(1, Mathf.CeilToInt(bufferLength / 256f), 1, 1);
         }
       }
+
+      // Clear indices
+      gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 64f), 1, 1);
 
       // Populate indices
       gridShader.Dispatch(3, Mathf.CeilToInt(numBoids / 64f), 1, 1);
