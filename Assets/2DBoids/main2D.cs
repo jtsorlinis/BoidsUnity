@@ -82,7 +82,7 @@ public class main2D : MonoBehaviour
   void Start()
   {
     // Zoom camera based on number of boids
-    Camera.main.orthographicSize = Mathf.Max(5, Mathf.Sqrt(numBoids) / 20);
+    Camera.main.orthographicSize = Mathf.Max(5, Mathf.Sqrt(numBoids) / 10);
     Camera.main.transform.position = new Vector3(0, 0, -10);
 
     boidText.text = "Boids: " + numBoids;
@@ -197,7 +197,7 @@ public class main2D : MonoBehaviour
       boidShader.SetFloat("alignmentFactor", alignmentFactor);
 
       // Clear indices
-      gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 64f), 1, 1);
+      gridShader.Dispatch(2, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
 
       // Populate grid
       gridShader.Dispatch(0, Mathf.CeilToInt(bufferLength / 64f), 1, 1);

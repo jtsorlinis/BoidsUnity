@@ -63,7 +63,7 @@ void SortGrid (uint3 id : SV_DispatchThreadID)
 }
 
 #pragma kernel ClearGrid // ID 2
-[numthreads(64,1,1)]
+[numthreads(256,1,1)]
 void ClearGrid (uint3 id : SV_DispatchThreadID) 
 {
     gridIndicesBuffer[id.x] = uint2(0,0);
