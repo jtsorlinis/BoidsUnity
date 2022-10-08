@@ -59,7 +59,6 @@ void SortGrid (uint3 id : SV_DispatchThreadID)
 			gridBuffer[ij] = temp;
 		}
 	}
-	
 }
 
 #pragma kernel ClearGrid // ID 2

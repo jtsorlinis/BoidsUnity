@@ -36,7 +36,7 @@ int gridCols;
 int gridDepth;
 
 uint3 getGridLocation(Boid boid) {
-	  int boidX = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
+	int boidX = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
     int boidY = floor(boid.pos.y / gridCellSize + (uint)gridRows/2);
     int boidZ = floor(boid.pos.z / gridCellSize + (uint)gridDepth/2);
     return uint3(boidX, boidY, boidZ);
@@ -52,16 +52,16 @@ void MergedBehaviours(inout Boid boid) {
     float3 avgVel = 0;
     int neighbours = 0;
 
-    int3 G_XYZ = getGridLocation(boid);
+    int3 gridXYZ = getGridLocation(boid);
 
-    for (int Z = max(G_XYZ.z - 1, 0); Z <= G_XYZ.z + 1; Z++) {
-        for (int Y = max(G_XYZ.y - 1, 0); Y <= G_XYZ.y + 1; Y++) {
-            for (int X = max(G_XYZ.x - 1, 0); X <= G_XYZ.x + 1; X++) {
-                uint G_CELL = getGridID(uint3(X,Y,Z));
-                uint2 G_START_END = gridIndicesBuffer[G_CELL];
+    for (int z = gridXYZ.z - 1; z <= gridXYZ.z + 1; z++) {
+        for (int y = gridXYZ.y - 1; y <= gridXYZ.y + 1; y++) {
+            for (int x = gridXYZ.x - 1; x <= gridXYZ.x + 1; x++) {
+                uint cell = getGridID(uint3(x,y,z));
+                uint2 cellIndices = gridIndicesBuffer[cell];
 
-                for (uint N_ID = G_START_END.x; N_ID < G_START_END.y; N_ID++) {
-                    Boid other = boidBuffer[N_ID];
+                for (uint i = cellIndices.x; i < cellIndices.y; i++) {
+                    Boid other = boidBuffer[i];
 
                     float dist = distance(boid.pos, other.pos);
                     if(dist < visualRange) {
