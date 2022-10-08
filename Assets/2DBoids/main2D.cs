@@ -200,12 +200,12 @@ public class main2D : MonoBehaviour
       gridShader.Dispatch(0, Mathf.CeilToInt(bufferLength / 64f), 1, 1);
 
       // Sort grid
-      for (var dim = 2; dim <= bufferLength; dim <<= 1)
+      for (var k = 2; k <= bufferLength; k *= 2)
       {
-        gridShader.SetInt("dim", dim);
-        for (var block = dim >> 1; block > 0; block >>= 1)
+        gridShader.SetInt("k", k);
+        for (var j = k / 2; j > 0; j /= 2)
         {
-          gridShader.SetInt("block", block);
+          gridShader.SetInt("j", j);
           gridShader.Dispatch(1, Mathf.CeilToInt(bufferLength / 256f), 1, 1);
         }
       }
