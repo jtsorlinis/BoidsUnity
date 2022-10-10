@@ -588,7 +588,7 @@ public class main2D : MonoBehaviour
     public int gridRows;
     public int gridCols;
 
-    void jobMergedBehavious(ref Boid boid)
+    void jobMergedBehaviours(ref Boid boid)
     {
       Vector2 center = Vector2.zero;
       Vector2 close = Vector2.zero;
@@ -677,7 +677,7 @@ public class main2D : MonoBehaviour
     {
       Boid boid = inBoids[index];
 
-      jobMergedBehavious(ref boid);
+      jobMergedBehaviours(ref boid);
       jobLimitSpeed(ref boid);
       jobKeepInBounds(ref boid);
 
