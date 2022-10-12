@@ -25,7 +25,8 @@ uniform float turnSpeed;
 uniform float xBound;
 uniform float yBound;
 
-StructuredBuffer<uint2> gridIndicesBuffer;
+StructuredBuffer<uint> gridCountBuffer;
+StructuredBuffer<uint> gridOffsetBuffer;
 float gridCellSize;
 int gridRows;
 int gridCols;
@@ -52,12 +53,20 @@ void MergedBehaviours(inout Boid boid) {
     for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++) {
         for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++) {
             uint cell = getGridID(uint2(x,y));
-            uint2 cellIndices = gridIndicesBuffer[cell];
-            for (uint i = cellIndices.x; i < cellIndices.y; i++) {
+            uint end = gridOffsetBuffer[cell];
+            uint start = end - gridCountBuffer[cell];
+            for (uint i = start; i < end; i++) {
                 Boid other = boids[i];
+
+                if(other.pad0 == 1 && boid.pad0 == 0) {
+                    boid.pad1 = 1;
+                }
                 
                 float dist = distance(boid.pos, other.pos);
                 if(dist < visualRange) {
+                    if(other.pad0 == 1 && boid.pad0 == 0) {
+                        boid.pad2 = 1;
+                    }
                     if(dist < minDistance) {
                         close += boid.pos - other.pos;
                     }
@@ -104,7 +113,7 @@ void KeepInBounds(inout Boid boid) {
     }
 }
 
-[numthreads(64,1,1)]
+[numthreads(256,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     Boid boid = boids[id.x];
