@@ -56,7 +56,7 @@ public class main2D : MonoBehaviour
   ComputeBuffer gridOffsetBufferIn;
   ComputeBuffer gridIndexBuffer;
 
-  // x value is position flattened to 1D array, y value is boidID
+  // x value is position flattened to 1D array, y value is boidID, z value is grid cell offset
   NativeArray<Vector3Int> boidGridIDs;
   NativeArray<int> gridCounts;
   NativeArray<int> gridOffsets;
@@ -333,8 +333,8 @@ public class main2D : MonoBehaviour
       for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++)
       {
         int gridCell = getGridIDbyLoc(x, y);
-        int start = gridOffsets[gridCell];
-        int end = start + gridCounts[gridCell];
+        int end = gridOffsets[gridCell];
+        int start = end - gridCounts[gridCell];
         for (int i = start; i < end; i++)
         {
           Boid other = boids[i];
@@ -455,7 +455,7 @@ public class main2D : MonoBehaviour
     {
       int gridID = boidGridIDs[i].x;
       int cellOffset = boidGridIDs[i].z;
-      int index = gridOffsets[gridID] + cellOffset;
+      int index = gridOffsets[gridID] - 1 - cellOffset;
       gridIndexes[index] = boidGridIDs[i].y;
     }
   }
@@ -474,9 +474,10 @@ public class main2D : MonoBehaviour
   {
     gridOffsets.Dispose();
     gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
+    gridOffsets[0] = gridCounts[0];
     for (int i = 1; i < gridTotalCells; i++)
     {
-      gridOffsets[i] = gridOffsets[i - 1] + gridCounts[i - 1];
+      gridOffsets[i] = gridOffsets[i - 1] + gridCounts[i];
     }
   }
 
