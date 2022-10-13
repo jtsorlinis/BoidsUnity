@@ -68,12 +68,12 @@ public class main2D : MonoBehaviour
   float gridCellSize;
 
   float xBound, yBound;
-  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 1000);
+  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 1500);
 
   int cpuLimit = 4096;
   int burstLimit = 16384;
   int jobLimit = 65536;
-  int gpuLimit = 4194304;
+  int gpuLimit = 8388608;
 
   void Awake()
   {
