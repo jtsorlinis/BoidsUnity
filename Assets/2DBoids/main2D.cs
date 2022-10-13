@@ -127,10 +127,10 @@ public class main2D : MonoBehaviour
 
     // Spatial grid setup
     gridCellSize = visualRange;
-    gridCols = Mathf.FloorToInt(xBound * 4 / gridCellSize);
-    gridRows = Mathf.FloorToInt(yBound * 4 / gridCellSize);
+    gridCols = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 30;
+    gridRows = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 30;
     grid = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
-    gridTotalCells = gridCols * gridRows * 2;
+    gridTotalCells = gridCols * gridRows;
     gridCounts = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     gridIndexes = new NativeArray<int>(numBoids, Allocator.Persistent);
@@ -232,6 +232,10 @@ public class main2D : MonoBehaviour
         gridShader.Dispatch(3, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
         swap = !swap;
       }
+
+      // Swap the buffers if Log2(gridTotalCells) is an odd number
+      gridShader.SetBuffer(1, "gridOffsetBuffer", swap ? gridOffsetBuffer : gridOffsetBufferIn);
+      boidShader.SetBuffer(0, "gridOffsetBuffer", swap ? gridOffsetBuffer : gridOffsetBufferIn);
 
       // Sort grid indices
       gridShader.Dispatch(1, Mathf.CeilToInt(numBoids / 256f), 1, 1);
