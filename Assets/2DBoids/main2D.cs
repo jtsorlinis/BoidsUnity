@@ -173,23 +173,6 @@ public class main2D : MonoBehaviour
     boidShader.SetFloat("gridCellSize", gridCellSize);
     boidShader.SetInt("gridRows", gridRows);
     boidShader.SetInt("gridCols", gridCols);
-
-    // var counts = new int[gridTotalCells];
-    // gridCountBuffer.GetData(counts);
-    // var offsets = new int[gridTotalCells];
-    // gridOffsetBuffer.GetData(offsets);
-
-    // for (int i = gridTotalCells; i > 0; i--)
-    // {
-    //   if (counts[i] > 0)
-    //   {
-    //     if (numBoids != offsets[i])
-    //     {
-    //       print(numBoids + " " + counts[i] + " " + offsets[i]);
-    //       break;
-    //     }
-    //   }
-    // }
   }
 
   // Update is called once per frame
@@ -214,9 +197,9 @@ public class main2D : MonoBehaviour
       gridShader.SetBuffer(3, "gridOffsetBufferIn", gridCountBuffer);
       gridShader.SetBuffer(3, "gridOffsetBuffer", gridOffsetBuffer);
       bool swap = false;
-      for (int d = 0; d < Mathf.Log(gridTotalCells, 2); d++)
+      for (int d = 1; d < gridTotalCells; d *= 2)
       {
-        if (d > 0)
+        if (d > 1)
         {
           gridShader.SetBuffer(3, "gridOffsetBufferIn", swap ? gridOffsetBuffer : gridOffsetBufferIn);
           gridShader.SetBuffer(3, "gridOffsetBuffer", swap ? gridOffsetBufferIn : gridOffsetBuffer);
@@ -225,6 +208,24 @@ public class main2D : MonoBehaviour
         gridShader.Dispatch(3, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
         swap = !swap;
       }
+
+      // // Prefix sum check
+      // var counts = new int[gridTotalCells];
+      // gridCountBuffer.GetData(counts);
+      // var offsets = new int[gridTotalCells];
+      // gridOffsetBuffer.GetData(offsets);
+
+      // for (int i = gridTotalCells - 1; i > 0; i--)
+      // {
+      //   if (counts[i] > 0)
+      //   {
+      //     if (numBoids != offsets[i])
+      //     {
+      //       print(numBoids + " " + counts[i] + " " + offsets[i]);
+      //     }
+      //     break;
+      //   }
+      // }
 
       // Sort grid indices
       gridShader.Dispatch(1, Mathf.CeilToInt(numBoids / 256f), 1, 1);
@@ -254,7 +255,7 @@ public class main2D : MonoBehaviour
 
         //   // Clear grid indices
         //   gridIndices.Dispose();
-        //   gridIndices = new NativeArray<Vector2Int>(gridTotalCells, Allocator.TempJob);
+        //   gridIndices = new NativeArray<Vector2Int>(gridTotalCells, Allocator.Persistent);
 
         //   // Generate grid indices
         //   generateGridIndicesJob.grid = boidGridIDs;
@@ -472,7 +473,7 @@ public class main2D : MonoBehaviour
   void GenerateGridOffsets()
   {
     gridOffsets.Dispose();
-    gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.TempJob);
+    gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     for (int i = 1; i < gridTotalCells; i++)
     {
       gridOffsets[i] = gridOffsets[i - 1] + gridCounts[i - 1];
@@ -484,10 +485,16 @@ public class main2D : MonoBehaviour
     numBoids = (int)val;
     boids.Dispose();
     boids2.Dispose();
+    gridCounts.Dispose();
+    gridOffsets.Dispose();
+    gridIndexes.Dispose();
     boidBufferOut.Dispose();
     boidBuffer.Dispose();
     gridBuffer.Dispose();
     gridCountBuffer.Dispose();
+    gridOffsetBuffer.Dispose();
+    gridOffsetBufferIn.Dispose();
+    gridIndexBuffer.Dispose();
     boidGridIDs.Dispose();
     Start();
   }
@@ -546,7 +553,18 @@ public class main2D : MonoBehaviour
     {
       boidGridIDs.Dispose();
     }
-
+    if (gridCounts != null)
+    {
+      gridCounts.Dispose();
+    }
+    if (gridOffsets != null)
+    {
+      gridOffsets.Dispose();
+    }
+    if (gridIndexes != null)
+    {
+      gridIndexes.Dispose();
+    }
     if (boidBuffer != null)
     {
       boidBuffer.Release();
@@ -562,6 +580,18 @@ public class main2D : MonoBehaviour
     if (gridCountBuffer != null)
     {
       gridCountBuffer.Release();
+    }
+    if (gridOffsetBuffer != null)
+    {
+      gridOffsetBuffer.Release();
+    }
+    if (gridOffsetBufferIn != null)
+    {
+      gridOffsetBufferIn.Release();
+    }
+    if (gridIndexBuffer != null)
+    {
+      gridIndexBuffer.Release();
     }
   }
 }
