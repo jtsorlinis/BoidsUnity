@@ -224,7 +224,7 @@ public class Main3D : MonoBehaviour
 
       for (int i = 0; i < numBoids; i++)
       {
-        var boid = boids[i];
+        var boid = boidsTemp[i];
         MergedBehaviours(ref boid);
         LimitSpeed(ref boid);
         KeepInBounds(ref boid);
@@ -257,7 +257,7 @@ public class Main3D : MonoBehaviour
           int start = end - gridCounts[gridCell];
           for (int i = start; i < end; i++)
           {
-            Boid3D other = boids[i];
+            Boid3D other = boidsTemp[i];
             float distance = Vector3.Distance(boid.pos, other.pos);
 
             if (distance < visualRange)
@@ -398,7 +398,6 @@ public class Main3D : MonoBehaviour
       var index = gridIndexes[i];
       boidsTemp[i] = boids[index];
     }
-    boidsTemp.CopyTo(boids, 0);
   }
 
   public void sliderChange(float val)
