@@ -271,13 +271,13 @@ public class main2D : MonoBehaviour
 
         // Rearrange boids
         rearrangeBoidsJob.gridIndexes = gridIndexes;
-        rearrangeBoidsJob.boids = boids;
-        rearrangeBoidsJob.boidsTemp = boidsTemp;
+        rearrangeBoidsJob.inBoids = boids;
+        rearrangeBoidsJob.outBoids = boidsTemp;
         rearrangeBoidsJob.Run();
 
         // Update boids
-        boidJob.inBoids = boids;
-        boidJob.outBoids = boidsTemp;
+        boidJob.inBoids = boidsTemp;
+        boidJob.outBoids = boids;
         boidJob.gridOffsets = gridOffsets;
         boidJob.gridCounts = gridCounts;
         boidJob.deltaTime = Time.deltaTime;
@@ -293,9 +293,6 @@ public class main2D : MonoBehaviour
           JobHandle boidJobHandle = boidJob.Schedule(numBoids, 32);
           boidJobHandle.Complete();
         }
-
-        // Copy boids back
-        boids.CopyFrom(boidsTemp);
       }
       else // basic cpu
       {
@@ -308,7 +305,7 @@ public class main2D : MonoBehaviour
 
         for (int i = 0; i < numBoids; i++)
         {
-          var boid = boids[i];
+          var boid = boidsTemp[i];
           MergedBehaviours(ref boid);
           LimitSpeed(ref boid);
           KeepInBounds(ref boid);
@@ -345,7 +342,7 @@ public class main2D : MonoBehaviour
         int start = end - gridCounts[gridCell];
         for (int i = start; i < end; i++)
         {
-          Boid other = boids[i];
+          Boid other = boidsTemp[i];
           var distance = Vector2.Distance(boid.pos, other.pos);
           if (distance < visualRange)
           {
@@ -476,7 +473,6 @@ public class main2D : MonoBehaviour
       var index = gridIndexes[i];
       boidsTemp[i] = boids[index];
     }
-    boids.CopyFrom(boidsTemp);
   }
 
   // Jobs
@@ -572,8 +568,9 @@ public class main2D : MonoBehaviour
   {
     [ReadOnly]
     public NativeArray<int> gridIndexes;
-    public NativeArray<Boid> boids;
-    public NativeArray<Boid> boidsTemp;
+    [ReadOnly]
+    public NativeArray<Boid> inBoids;
+    public NativeArray<Boid> outBoids;
     public int numBoids;
 
     public void Execute()
@@ -581,9 +578,8 @@ public class main2D : MonoBehaviour
       for (int i = 0; i < numBoids; i++)
       {
         int index = gridIndexes[i];
-        boidsTemp[i] = boids[index];
+        outBoids[i] = inBoids[index];
       }
-      boids.CopyFrom(boidsTemp);
     }
   }
 
