@@ -59,8 +59,8 @@ public class main2D : MonoBehaviour
   ComputeBuffer gridOffsetBufferIn;
   ComputeBuffer gridIndexBuffer;
 
-  // x value is position flattened to 1D array, y value is boidID, z value is grid cell offset
-  NativeArray<Vector3Int> grid;
+  // Index is particle ID, x value is position flattened to 1D array, y value is grid cell offset
+  NativeArray<Vector2Int> grid;
   NativeArray<int> gridCounts;
   NativeArray<int> gridOffsets;
   NativeArray<int> gridIndexes;
@@ -128,13 +128,13 @@ public class main2D : MonoBehaviour
     gridCellSize = visualRange;
     gridCols = Mathf.FloorToInt(xBound * 4 / gridCellSize);
     gridRows = Mathf.FloorToInt(yBound * 4 / gridCellSize);
-    grid = new NativeArray<Vector3Int>(numBoids, Allocator.Persistent);
+    grid = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
     gridTotalCells = gridCols * gridRows * 2;
     gridCounts = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     gridIndexes = new NativeArray<int>(numBoids, Allocator.Persistent);
 
-    gridBuffer = new ComputeBuffer(numBoids, 12);
+    gridBuffer = new ComputeBuffer(numBoids, 8);
     gridCountBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
@@ -441,8 +441,7 @@ public class main2D : MonoBehaviour
       int id = getGridID(boids[i]);
       var boidGrid = grid[i];
       boidGrid.x = id;
-      boidGrid.y = i;
-      boidGrid.z = gridCounts[id];
+      boidGrid.y = gridCounts[id];
       grid[i] = boidGrid;
       gridCounts[id]++;
     }
@@ -453,9 +452,9 @@ public class main2D : MonoBehaviour
     for (int i = 0; i < numBoids; i++)
     {
       int gridID = grid[i].x;
-      int cellOffset = grid[i].z;
+      int cellOffset = grid[i].y;
       int index = gridOffsets[gridID] - 1 - cellOffset;
-      gridIndexes[index] = grid[i].y;
+      gridIndexes[index] = i;
     }
   }
 
@@ -497,7 +496,7 @@ public class main2D : MonoBehaviour
   [BurstCompile]
   struct UpdateGridJob : IJob
   {
-    public NativeArray<Vector3Int> grid;
+    public NativeArray<Vector2Int> grid;
     public NativeArray<int> gridCounts;
     [ReadOnly]
     public NativeArray<Boid> boids;
@@ -520,8 +519,7 @@ public class main2D : MonoBehaviour
         int id = jobGetGridID(boids[i]);
         var boidGrid = grid[i];
         boidGrid.x = id;
-        boidGrid.y = i;
-        boidGrid.z = gridCounts[id];
+        boidGrid.y = gridCounts[id];
         grid[i] = boidGrid;
         gridCounts[id]++;
       }
@@ -551,7 +549,7 @@ public class main2D : MonoBehaviour
   struct SortGridIndexesJob : IJob
   {
     [ReadOnly]
-    public NativeArray<Vector3Int> grid;
+    public NativeArray<Vector2Int> grid;
     [ReadOnly]
     public NativeArray<int> gridOffsets;
     public NativeArray<int> gridIndexes;
@@ -562,9 +560,9 @@ public class main2D : MonoBehaviour
       for (int i = 0; i < numBoids; i++)
       {
         int gridID = grid[i].x;
-        int cellOffset = grid[i].z;
+        int cellOffset = grid[i].y;
         int index = gridOffsets[gridID] - 1 - cellOffset;
-        gridIndexes[index] = grid[i].y;
+        gridIndexes[index] = i;
       }
     }
   }

@@ -11,7 +11,7 @@ struct Boid {
 
 RWStructuredBuffer<Boid> boids;
 RWStructuredBuffer<Boid> boidsOut;
-RWStructuredBuffer<uint3> gridBuffer;
+RWStructuredBuffer<uint2> gridBuffer;
 RWStructuredBuffer<uint> gridCountBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
 RWStructuredBuffer<uint> gridOffsetBufferIn;
@@ -40,8 +40,7 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
 
 	int gridID = getGridID(boids[id.x]);
 	gridBuffer[id.x].x = gridID;
-	gridBuffer[id.x].y = id.x;
-	InterlockedAdd(gridCountBuffer[gridID], 1, gridBuffer[id.x].z);
+	InterlockedAdd(gridCountBuffer[gridID], 1, gridBuffer[id.x].y);
 }
    
 #pragma kernel SortGridIndexes // ID 1
@@ -49,9 +48,9 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
 void SortGridIndexes (uint3 id : SV_DispatchThreadID) 
 {
 	uint gridID = gridBuffer[id.x].x;
-	uint cellOffset = gridBuffer[id.x].z;
+	uint cellOffset = gridBuffer[id.x].y;
 	uint index = gridOffsetBuffer[gridID] - 1 - cellOffset;
-	gridIndexBuffer[index] = gridBuffer[id.x].y;
+	gridIndexBuffer[index] = id.x;
 }
 	
 #pragma kernel ClearGrid // ID 2
@@ -86,4 +85,5 @@ void RearrangeGrid(uint3 id : SV_DispatchThreadID) {
 void CopyBuffer(uint3 id : SV_DispatchThreadID) {
 	uint index = id.x;
 	boids[index] = boidsOut[index];
+	boids[index].pad1 = 0;
 }
