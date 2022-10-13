@@ -305,6 +305,7 @@ public class main2D : MonoBehaviour
       else // basic cpu
       {
         // Spatial grid
+        ClearGrid();
         UpdateGrid();
         GenerateGridOffsets();
         SortGridIndexes();
@@ -431,11 +432,17 @@ public class main2D : MonoBehaviour
     return new Vector2Int(boidCol, boidRow);
   }
 
+  void ClearGrid()
+  {
+    for (int i = 0; i < gridTotalCells; i++)
+    {
+      gridCounts[i] = 0;
+      gridOffsets[i] = 0;
+    }
+  }
+
   void UpdateGrid()
   {
-    gridCounts.Dispose();
-    gridCounts = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
-
     for (int i = 0; i < numBoids; i++)
     {
       int id = getGridID(boids[i]);
@@ -460,8 +467,6 @@ public class main2D : MonoBehaviour
 
   void GenerateGridOffsets()
   {
-    gridOffsets.Dispose();
-    gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     gridOffsets[0] = gridCounts[0];
     for (int i = 1; i < gridTotalCells; i++)
     {
