@@ -186,17 +186,35 @@ public class main2D : MonoBehaviour
     boidJob.maxSpeed = maxSpeed;
     boidJob.minSpeed = minSpeed;
     boidJob.turnSpeed = turnSpeed;
+    boidJob.inBoids = boidsTemp;
+    boidJob.outBoids = boids;
+    boidJob.gridOffsets = gridOffsets;
+    boidJob.gridCounts = gridCounts;
+
+    clearGridJob.gridCounts = gridCounts;
+    clearGridJob.gridOffsets = gridOffsets;
 
     updateGridJob.numBoids = numBoids;
     updateGridJob.gridCellSize = gridCellSize;
     updateGridJob.gridDimY = gridDimY;
     updateGridJob.gridDimX = gridDimX;
+    updateGridJob.boids = boids;
+    updateGridJob.grid = grid;
+    updateGridJob.gridCounts = gridCounts;
 
     generateGridOffsetsJob.gridTotalCells = gridTotalCells;
+    generateGridOffsetsJob.gridCounts = gridCounts;
+    generateGridOffsetsJob.gridOffsets = gridOffsets;
 
     sortGridIndexesJob.numBoids = numBoids;
+    sortGridIndexesJob.grid = grid;
+    sortGridIndexesJob.gridOffsets = gridOffsets;
+    sortGridIndexesJob.gridIndexes = gridIndexes;
 
     rearrangeBoidsJob.numBoids = numBoids;
+    rearrangeBoidsJob.gridIndexes = gridIndexes;
+    rearrangeBoidsJob.inBoids = boids;
+    rearrangeBoidsJob.outBoids = boidsTemp;
   }
 
   // Update is called once per frame
@@ -252,38 +270,21 @@ public class main2D : MonoBehaviour
       if (mode == Modes.Burst || mode == Modes.Jobs)
       {
         // Clear grid counts/offsets
-        clearGridJob.gridCounts = gridCounts;
-        clearGridJob.gridOffsets = gridOffsets;
         clearGridJob.Run(gridTotalCells);
 
         // Update grid
-        updateGridJob.boids = boids;
-        updateGridJob.grid = grid;
-        updateGridJob.gridCounts = gridCounts;
         updateGridJob.Run();
 
         // Generate grid offsets
-        generateGridOffsetsJob.gridCounts = gridCounts;
-        generateGridOffsetsJob.gridOffsets = gridOffsets;
         generateGridOffsetsJob.Run();
 
         // Sort grid indexes
-        sortGridIndexesJob.grid = grid;
-        sortGridIndexesJob.gridOffsets = gridOffsets;
-        sortGridIndexesJob.gridIndexes = gridIndexes;
         sortGridIndexesJob.Run();
 
         // Rearrange boids
-        rearrangeBoidsJob.gridIndexes = gridIndexes;
-        rearrangeBoidsJob.inBoids = boids;
-        rearrangeBoidsJob.outBoids = boidsTemp;
         rearrangeBoidsJob.Run();
 
         // Update boids
-        boidJob.inBoids = boidsTemp;
-        boidJob.outBoids = boids;
-        boidJob.gridOffsets = gridOffsets;
-        boidJob.gridCounts = gridCounts;
         boidJob.deltaTime = Time.deltaTime;
 
         // Burst compiled (Single core)
@@ -291,7 +292,7 @@ public class main2D : MonoBehaviour
         {
           boidJob.Run(numBoids);
         }
-        // Jobs (Multicore)
+        // Burst Jobs (Multicore)
         else
         {
           JobHandle boidJobHandle = boidJob.Schedule(numBoids, 32);
