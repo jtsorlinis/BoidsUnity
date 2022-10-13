@@ -53,8 +53,8 @@ public class Main3D : MonoBehaviour
   ComputeBuffer gridOffsetBufferIn;
   ComputeBuffer gridIndexBuffer;
 
-  // x value is position flattened to 1D array, y value is boidID, z value is grid cell offset
-  Vector3Int[] grid;
+  // Index is particle ID, x value is position flattened to 1D array, y value is grid cell offset
+  Vector2Int[] grid;
   int[] gridCounts;
   int[] gridOffsets;
   int[] gridIndexes;
@@ -124,13 +124,13 @@ public class Main3D : MonoBehaviour
     gridCols = Mathf.FloorToInt(xBound * 4 / gridCellSize);
     gridRows = Mathf.FloorToInt(yBound * 4 / gridCellSize);
     gridDepth = Mathf.FloorToInt(zBound * 4 / gridCellSize);
-    grid = new Vector3Int[numBoids];
+    grid = new Vector2Int[numBoids];
     gridTotalCells = gridCols * gridRows * gridDepth * 2;
     gridCounts = new int[gridTotalCells];
     gridOffsets = new int[gridTotalCells];
     gridIndexes = new int[numBoids];
 
-    gridBuffer = new ComputeBuffer(numBoids, 12);
+    gridBuffer = new ComputeBuffer(numBoids, 8);
     gridCountBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
@@ -371,8 +371,7 @@ public class Main3D : MonoBehaviour
     {
       int id = getGridID(boids[i]);
       grid[i].x = id;
-      grid[i].y = i;
-      grid[i].z = gridCounts[id];
+      grid[i].y = gridCounts[id];
       gridCounts[id]++;
     }
   }
@@ -382,9 +381,9 @@ public class Main3D : MonoBehaviour
     for (int i = 0; i < numBoids; i++)
     {
       int gridID = grid[i].x;
-      int cellOffset = grid[i].z;
+      int cellOffset = grid[i].y;
       int index = gridOffsets[gridID] - 1 - cellOffset;
-      gridIndexes[index] = grid[i].y;
+      gridIndexes[index] = i;
     }
   }
 
