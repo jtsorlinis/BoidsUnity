@@ -22,7 +22,6 @@ int gridRows;
 int gridCols;
 uint gridTotalCells;
 uint numBoids;
-uint bufferLength;
 int d;
 
 uint getGridID(Boid boid) {

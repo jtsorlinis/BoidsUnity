@@ -11,8 +11,11 @@ struct Boid
 
 RWStructuredBuffer<Boid> boids;
 RWStructuredBuffer<Boid> boidsOut;
-RWStructuredBuffer<int2> gridBuffer;
-RWStructuredBuffer<uint2> gridIndicesBuffer;
+RWStructuredBuffer<uint3> gridBuffer;
+RWStructuredBuffer<uint> gridCountBuffer;
+RWStructuredBuffer<uint> gridOffsetBuffer;
+RWStructuredBuffer<uint> gridOffsetBufferIn;
+RWStructuredBuffer<uint> gridIndexBuffer;
 
 float gridCellSize;
 int gridRows;
@@ -20,9 +23,7 @@ int gridCols;
 int gridDepth;
 uint gridTotalCells;
 uint numBoids;
-uint bufferLength;
-int k;
-int j;
+int d;
 
 uint getGridID(Boid boid) {
     int boidX = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
@@ -32,78 +33,59 @@ uint getGridID(Boid boid) {
 }
 
 #pragma kernel UpdateGrid // ID 0
-[numthreads(64,1,1)]
+[numthreads(256,1,1)]
 void UpdateGrid (uint3 id : SV_DispatchThreadID)
 {
-    if(id.x < numBoids) {
-        int gridID = getGridID(boids[id.x]);
-        gridBuffer[id.x].x = gridID;
-        gridBuffer[id.x].y = id.x; 
-		} else {
-				gridBuffer[id.x].x = MAXINT;
-		}
+	if(id.x >= numBoids) {
+		return;
+	}
+
+	int gridID = getGridID(boids[id.x]);
+	gridBuffer[id.x].x = gridID;
+	gridBuffer[id.x].y = id.x;
+	InterlockedAdd(gridCountBuffer[gridID], 1, gridBuffer[id.x].z);
 }
    
-#pragma kernel SortGrid // ID 1
+#pragma kernel SortGridIndexes // ID 1
 [numthreads(256,1,1)]
-void SortGrid (uint3 id : SV_DispatchThreadID) 
+void SortGridIndexes (uint3 id : SV_DispatchThreadID) 
 {
-  uint i = id.x;
-	uint ij = i^j;
-	
-	if(ij > i) {
-		int comp = (i&k) == 0 ? 1 : -1;
-		int diff = gridBuffer[i].x - gridBuffer[ij].x;
-
-		if (comp * diff > 0) {
-			int2 temp = gridBuffer[i];
-			gridBuffer[i] = gridBuffer[ij];
-			gridBuffer[ij] = temp;
-		}
-	}
+  uint gridID = gridBuffer[id.x].x;
+	uint cellOffset = gridBuffer[id.x].z;
+	uint index = gridOffsetBuffer[gridID] - 1 - cellOffset;
+	gridIndexBuffer[index] = gridBuffer[id.x].y;
 }
 
 #pragma kernel ClearGrid // ID 2
-[numthreads(64,1,1)]
+[numthreads(256,1,1)]
 void ClearGrid (uint3 id : SV_DispatchThreadID) 
 {
-    gridIndicesBuffer[id.x] = uint2(0,0);
-
+    gridCountBuffer[id.x] = 0;
+		gridOffsetBuffer[id.x] = 0;
 }
 
-#pragma kernel BuildGridIndices // ID 3
-[numthreads(64, 1, 1)]
-void BuildGridIndices(uint3 DTid : SV_DispatchThreadID) {
-	uint i = DTid.x;
-	uint iPrev = (i == 0) ? numBoids - 1 : i - 1;
-	
-	uint iNext = i + 1;
-	if (iNext == numBoids) { iNext = 0; }
+#pragma kernel PrefixSum // ID 3
+[numthreads(256, 1, 1)]
+void PrefixSum(uint id : SV_DispatchThreadID) {
+    int k = id.x;
 
-	uint cell = gridBuffer[i].x;
-	uint cellPrev = gridBuffer[iPrev].x;
-	uint cellNext = gridBuffer[iNext].x;
-
-	if (cell != cellPrev) {
-		gridIndicesBuffer[cell].x = i;
-	}
-
-	if (cell != cellNext) {
-		gridIndicesBuffer[cell].y = i + 1;
-	}
+		if(k < d) {
+			gridOffsetBuffer[k] = gridOffsetBufferIn[k];
+		} else {
+			gridOffsetBuffer[k] = gridOffsetBufferIn[k] + gridOffsetBufferIn[k-d];
+		}
 }
 
 #pragma kernel RearrangeGrid // ID 4
-[numthreads(64, 1, 1)]
-void RearrangeGrid(uint3 DTid : SV_DispatchThreadID) {
-	uint index = DTid.x;
-	uint id = gridBuffer[index].y;
-	boidsOut[index] = boids[id];
+[numthreads(256, 1, 1)]
+void RearrangeGrid(uint3 id : SV_DispatchThreadID) {
+	uint index = gridIndexBuffer[id.x];
+	boidsOut[id.x] = boids[index];
 }
 
 #pragma kernel CopyBuffer // ID 5
-[numthreads(64, 1, 1)]
-void CopyBuffer(uint3 DTid : SV_DispatchThreadID) {
-	uint index = DTid.x;
+[numthreads(256, 1, 1)]
+void CopyBuffer(uint3 id : SV_DispatchThreadID) {
+	uint index = id.x;
 	boids[index] = boidsOut[index];
 }
