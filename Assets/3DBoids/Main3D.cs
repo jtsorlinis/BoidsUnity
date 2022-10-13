@@ -59,7 +59,7 @@ public class Main3D : MonoBehaviour
   int[] gridCounts;
   int[] gridOffsets;
   int[] gridIndexes;
-  int gridRows, gridCols, gridDepth, gridTotalCells;
+  int gridDimY, gridDimX, gridDimZ, gridTotalCells;
   float gridCellSize;
 
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
@@ -123,11 +123,11 @@ public class Main3D : MonoBehaviour
 
     // Spatial grid setup
     gridCellSize = visualRange;
-    gridCols = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 20;
-    gridRows = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 20;
-    gridDepth = Mathf.FloorToInt(zBound * 2 / gridCellSize) + 20;
+    gridDimX = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 20;
+    gridDimY = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 20;
+    gridDimZ = Mathf.FloorToInt(zBound * 2 / gridCellSize) + 20;
     grid = new Vector2Int[numBoids];
-    gridTotalCells = gridCols * gridRows * gridDepth;
+    gridTotalCells = gridDimX * gridDimY * gridDimZ;
     gridCounts = new int[gridTotalCells];
     gridOffsets = new int[gridTotalCells];
     gridIndexes = new int[numBoids];
@@ -158,17 +158,17 @@ public class Main3D : MonoBehaviour
     gridShader.SetBuffer(4, "boidsOut", boidBufferOut);
 
     gridShader.SetFloat("gridCellSize", gridCellSize);
-    gridShader.SetInt("gridRows", gridRows);
-    gridShader.SetInt("gridCols", gridCols);
-    gridShader.SetInt("gridDepth", gridDepth);
+    gridShader.SetInt("gridDimY", gridDimY);
+    gridShader.SetInt("gridDimX", gridDimX);
+    gridShader.SetInt("gridDimZ", gridDimZ);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
 
     boidComputeShader.SetBuffer(0, "gridCountBuffer", gridCountBuffer);
     boidComputeShader.SetBuffer(0, "gridOffsetBuffer", gridOffsetBuffer);
     boidComputeShader.SetFloat("gridCellSize", gridCellSize);
-    boidComputeShader.SetInt("gridRows", gridRows);
-    boidComputeShader.SetInt("gridCols", gridCols);
-    boidComputeShader.SetInt("gridDepth", gridDepth);
+    boidComputeShader.SetInt("gridDimY", gridDimY);
+    boidComputeShader.SetInt("gridDimX", gridDimX);
+    boidComputeShader.SetInt("gridDimZ", gridDimZ);
   }
 
   // Update is called once per frame
@@ -337,22 +337,22 @@ public class Main3D : MonoBehaviour
 
   int getGridID(Boid3D boid)
   {
-    int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
-    int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
-    int boidz = Mathf.FloorToInt(boid.pos.z / gridCellSize + gridDepth / 2);
-    return (gridRows * gridCols * boidz) + (gridCols * boidy) + boidx;
+    int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
+    int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
+    int boidz = Mathf.FloorToInt(boid.pos.z / gridCellSize + gridDimZ / 2);
+    return (gridDimY * gridDimX * boidz) + (gridDimX * boidy) + boidx;
   }
 
   int getGridIDbyLoc(Vector3Int pos)
   {
-    return (gridRows * gridCols * pos.z) + (gridCols * pos.y) + pos.x;
+    return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
   }
 
   Vector3Int getGridLocation(Boid3D boid)
   {
-    int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
-    int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
-    int boidz = Mathf.FloorToInt(boid.pos.z / gridCellSize + gridDepth / 2);
+    int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
+    int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
+    int boidz = Mathf.FloorToInt(boid.pos.z / gridCellSize + gridDimZ / 2);
     return new Vector3Int(boidx, boidy, boidz);
   }
 

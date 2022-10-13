@@ -64,7 +64,7 @@ public class main2D : MonoBehaviour
   NativeArray<int> gridCounts;
   NativeArray<int> gridOffsets;
   NativeArray<int> gridIndexes;
-  int gridRows, gridCols, gridTotalCells;
+  int gridDimY, gridDimX, gridTotalCells;
   float gridCellSize;
 
   float xBound, yBound;
@@ -127,10 +127,10 @@ public class main2D : MonoBehaviour
 
     // Spatial grid setup
     gridCellSize = visualRange;
-    gridCols = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 30;
-    gridRows = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 30;
+    gridDimX = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 30;
+    gridDimY = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 30;
     grid = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
-    gridTotalCells = gridCols * gridRows;
+    gridTotalCells = gridDimX * gridDimY;
     gridCounts = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     gridIndexes = new NativeArray<int>(numBoids, Allocator.Persistent);
@@ -161,20 +161,20 @@ public class main2D : MonoBehaviour
     gridShader.SetBuffer(4, "boidsOut", boidBufferOut);
 
     gridShader.SetFloat("gridCellSize", gridCellSize);
-    gridShader.SetInt("gridRows", gridRows);
-    gridShader.SetInt("gridCols", gridCols);
+    gridShader.SetInt("gridDimY", gridDimY);
+    gridShader.SetInt("gridDimX", gridDimX);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
 
     boidShader.SetBuffer(0, "gridCountBuffer", gridCountBuffer);
     boidShader.SetBuffer(0, "gridOffsetBuffer", gridOffsetBuffer);
     boidShader.SetFloat("gridCellSize", gridCellSize);
-    boidShader.SetInt("gridRows", gridRows);
-    boidShader.SetInt("gridCols", gridCols);
+    boidShader.SetInt("gridDimY", gridDimY);
+    boidShader.SetInt("gridDimX", gridDimX);
 
     // Job variables setup
     boidJob.gridCellSize = gridCellSize;
-    boidJob.gridCols = gridCols;
-    boidJob.gridRows = gridRows;
+    boidJob.gridDimX = gridDimX;
+    boidJob.gridDimY = gridDimY;
     boidJob.numBoids = numBoids;
     boidJob.visualRange = visualRange;
     boidJob.minDistance = minDistance;
@@ -189,8 +189,8 @@ public class main2D : MonoBehaviour
 
     updateGridJob.numBoids = numBoids;
     updateGridJob.gridCellSize = gridCellSize;
-    updateGridJob.gridRows = gridRows;
-    updateGridJob.gridCols = gridCols;
+    updateGridJob.gridDimY = gridDimY;
+    updateGridJob.gridDimX = gridDimX;
 
     generateGridOffsetsJob.gridTotalCells = gridTotalCells;
 
@@ -411,21 +411,21 @@ public class main2D : MonoBehaviour
 
   int getGridID(Boid boid)
   {
-    int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
-    int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
-    return (gridCols * boidRow) + boidCol;
+    int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
+    int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
+    return (gridDimX * gridY) + gridX;
   }
 
   int getGridIDbyLoc(int x, int y)
   {
-    return (gridCols * y) + x;
+    return (gridDimX * y) + x;
   }
 
   Vector2Int getGridLocation(Boid boid)
   {
-    int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
-    int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
-    return new Vector2Int(boidCol, boidRow);
+    int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
+    int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
+    return new Vector2Int(gridX, gridY);
   }
 
   void ClearGrid()
@@ -502,14 +502,14 @@ public class main2D : MonoBehaviour
     public NativeArray<Boid> boids;
     public int numBoids;
     public float gridCellSize;
-    public int gridRows;
-    public int gridCols;
+    public int gridDimY;
+    public int gridDimX;
 
     int jobGetGridID(Boid boid)
     {
-      int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
-      int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
-      return (gridCols * boidRow) + boidCol;
+      int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
+      int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
+      return (gridDimX * gridY) + gridX;
     }
 
     public void Execute()
@@ -610,8 +610,8 @@ public class main2D : MonoBehaviour
     public float xBound;
     public float yBound;
     public float gridCellSize;
-    public int gridRows;
-    public int gridCols;
+    public int gridDimY;
+    public int gridDimX;
 
     void jobMergedBehaviours(ref Boid boid)
     {
@@ -625,7 +625,7 @@ public class main2D : MonoBehaviour
       {
         for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++)
         {
-          int gridCell = gridCols * y + x;
+          int gridCell = gridDimX * y + x;
           int end = gridOffsets[gridCell];
           int start = end - gridCounts[gridCell];
           for (int i = start; i < end; i++)
@@ -694,9 +694,9 @@ public class main2D : MonoBehaviour
 
     Vector2Int jobGetGridLocation(Boid boid)
     {
-      int boidRow = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridRows / 2);
-      int boidCol = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridCols / 2);
-      return new Vector2Int(boidCol, boidRow);
+      int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
+      int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
+      return new Vector2Int(gridX, gridY);
     }
 
     public void Execute(int index)

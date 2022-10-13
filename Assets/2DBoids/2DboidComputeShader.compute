@@ -29,17 +29,17 @@ uniform float yBound;
 StructuredBuffer<uint> gridCountBuffer;
 StructuredBuffer<uint> gridOffsetBuffer;
 float gridCellSize;
-int gridRows;
-int gridCols;
+uint gridDimY;
+uint gridDimX;
 
 uint2 getGridLocation(Boid boid) {
-    int x = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
-	int y = floor(boid.pos.y / gridCellSize + (uint)gridRows/2);
+    int x = floor(boid.pos.x / gridCellSize + gridDimX/2);
+	int y = floor(boid.pos.y / gridCellSize + gridDimY/2);
     return uint2(x, y);
 }
 
 uint getGridID(uint2 pos) {
-    return (gridCols * pos.y) + pos.x;
+    return (gridDimX * pos.y) + pos.x;
 }
 
 void MergedBehaviours(inout Boid boid) {

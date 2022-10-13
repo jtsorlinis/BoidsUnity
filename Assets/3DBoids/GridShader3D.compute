@@ -18,18 +18,18 @@ RWStructuredBuffer<uint> gridOffsetBufferIn;
 RWStructuredBuffer<uint> gridIndexBuffer;
 
 float gridCellSize;
-int gridRows;
-int gridCols;
-int gridDepth;
+uint gridDimX;
+uint gridDimY;
+uint gridDimZ;
 uint gridTotalCells;
 uint numBoids;
 int d;
 
 uint getGridID(Boid boid) {
-    int boidX = floor(boid.pos.x / gridCellSize + (uint)gridCols/2);
-    int boidY = floor(boid.pos.y / gridCellSize + (uint)gridRows/2);
-    int boidZ = floor(boid.pos.z / gridCellSize + (uint)gridDepth/2);
-    return (gridRows * gridCols * boidZ) + (gridCols * boidY) + boidX;
+    int boidX = floor(boid.pos.x / gridCellSize + gridDimX/2);
+    int boidY = floor(boid.pos.y / gridCellSize + gridDimY/2);
+    int boidZ = floor(boid.pos.z / gridCellSize + gridDimZ/2);
+    return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
 }
 
 #pragma kernel UpdateGrid // ID 0
