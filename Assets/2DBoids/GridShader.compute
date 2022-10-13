@@ -85,5 +85,4 @@ void RearrangeGrid(uint3 id : SV_DispatchThreadID) {
 void CopyBuffer(uint3 id : SV_DispatchThreadID) {
 	uint index = id.x;
 	boids[index] = boidsOut[index];
-	boids[index].pad1 = 0;
 }
