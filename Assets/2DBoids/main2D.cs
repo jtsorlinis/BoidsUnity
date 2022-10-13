@@ -9,9 +9,9 @@ struct Boid
   public Vector2 pos;
   public Vector2 vel;
   public float rot;
-  public float pad0;
-  public float pad1;
-  public float pad2;
+  float pad0;
+  float pad1;
+  float pad2;
 }
 
 public class main2D : MonoBehaviour
@@ -68,7 +68,7 @@ public class main2D : MonoBehaviour
   float gridCellSize;
 
   float xBound, yBound;
-  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 600);
+  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 1000);
 
   int cpuLimit = 4096;
   int burstLimit = 16384;
@@ -103,10 +103,6 @@ public class main2D : MonoBehaviour
       boid.pos = pos;
       boid.vel = vel;
       boid.rot = 0;
-      if (i == 0)
-      {
-        boid.pad0 = 1;
-      }
       boids[i] = boid;
     }
 
@@ -239,24 +235,6 @@ public class main2D : MonoBehaviour
         swap = !swap;
       }
 
-      // // Prefix sum check
-      // var counts = new int[gridTotalCells];
-      // gridCountBuffer.GetData(counts);
-      // var offsets = new int[gridTotalCells];
-      // gridOffsetBuffer.GetData(offsets);
-
-      // for (int i = gridTotalCells - 1; i > 0; i--)
-      // {
-      //   if (counts[i] > 0)
-      //   {
-      //     if (numBoids != offsets[i])
-      //     {
-      //       print(numBoids + " " + counts[i] + " " + offsets[i]);
-      //     }
-      //     break;
-      //   }
-      // }
-
       // Sort grid indices
       gridShader.Dispatch(1, Mathf.CeilToInt(numBoids / 256f), 1, 1);
 
@@ -372,18 +350,9 @@ public class main2D : MonoBehaviour
         for (int i = start; i < end; i++)
         {
           Boid other = boids[i];
-
-          if (other.pad0 > 0 && boid.pad0 == 0)
-          {
-            boid.pad1 = 1;
-          }
           var distance = Vector2.Distance(boid.pos, other.pos);
           if (distance < visualRange)
           {
-            if (other.pad0 > 0 && boid.pad0 == 0)
-            {
-              boid.pad2 = 1;
-            }
             if (distance < minDistance)
             {
               close += boid.pos - other.pos;
@@ -469,10 +438,6 @@ public class main2D : MonoBehaviour
 
     for (int i = 0; i < numBoids; i++)
     {
-      var temp = boids[i];
-      temp.pad1 = 0;
-      temp.pad2 = 0;
-      boids[i] = temp;
       int id = getGridID(boids[i]);
       var boidGrid = grid[i];
       boidGrid.x = id;
@@ -668,17 +633,9 @@ public class main2D : MonoBehaviour
           for (int i = start; i < end; i++)
           {
             var other = inBoids[i];
-            if (other.pad0 > 0 && boid.pad0 == 0)
-            {
-              boid.pad1 = 1;
-            }
             var distance = Vector2.Distance(boid.pos, other.pos);
             if (distance < visualRange)
             {
-              if (other.pad0 > 0 && boid.pad0 == 0)
-              {
-                boid.pad2 = 1;
-              }
               if (distance < minDistance)
               {
                 close += boid.pos - inBoids[i].pos;

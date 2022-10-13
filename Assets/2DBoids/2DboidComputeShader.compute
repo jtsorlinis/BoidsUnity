@@ -57,16 +57,8 @@ void MergedBehaviours(inout Boid boid) {
             uint start = end - gridCountBuffer[cell];
             for (uint i = start; i < end; i++) {
                 Boid other = boids[i];
-
-                if(other.pad0 == 1 && boid.pad0 == 0) {
-                    boid.pad1 = 1;
-                }
-                
                 float dist = distance(boid.pos, other.pos);
                 if(dist < visualRange) {
-                    if(other.pad0 == 1 && boid.pad0 == 0) {
-                        boid.pad2 = 1;
-                    }
                     if(dist < minDistance) {
                         close += boid.pos - other.pos;
                     }
