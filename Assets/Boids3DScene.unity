@@ -239,6 +239,7 @@ MonoBehaviour:
   gridShader: {fileID: 7200000, guid: 1fe7a4bc7669a42278700e648c7d2c5c, type: 3}
   boidMaterial: {fileID: 2100000, guid: 09536f1ea42ec4b4f9d697f975d5b32d, type: 2}
   boidMesh: {fileID: 4300000, guid: 8f90fac4ab24148cd85780a66a23ee60, type: 2}
+  quadMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
   floorPlane: {fileID: 2028868350}
 --- !u!114 &218961747
 MonoBehaviour:
@@ -318,7 +319,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Options.m_Options.Array.data[2].m_Text
-      value: GPU (No Shadows)
+      value: GPU (Quads)
       objectReference: {fileID: 0}
     - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target

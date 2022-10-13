@@ -15,7 +15,6 @@ public class Main3D : MonoBehaviour
 {
   [Header("Performance")]
   [SerializeField] bool useGPU = true;
-  ShadowCastingMode shadows = ShadowCastingMode.On;
   [SerializeField] int numBoids = 100;
   [SerializeField] float spaceBounds = 15;
   [SerializeField] float boidScale = 0.3f;
@@ -37,6 +36,8 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
   [SerializeField] Mesh boidMesh;
+  [SerializeField] Mesh quadMesh;
+  bool drawQuads = false;
   [SerializeField] Transform floorPlane;
 
   float xBound, yBound, zBound;
@@ -65,7 +66,7 @@ public class Main3D : MonoBehaviour
 
   int cpuLimit = 2048;
   int gpuLimit = 524288;
-  int gpuNoShadowsLimit = 1048576;
+  int gpuQuadLimit = 2097152;
 
   void Awake()
   {
@@ -239,7 +240,7 @@ public class Main3D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    Graphics.DrawMeshInstancedProcedural(boidMesh, 0, boidMaterial, bounds, numBoids, null, shadows);
+    Graphics.DrawMeshInstancedProcedural(drawQuads ? quadMesh : boidMesh, 0, boidMaterial, bounds, numBoids);
   }
 
   void MergedBehaviours(ref Boid3D boid)
@@ -424,7 +425,7 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = cpuLimit;
       useGPU = false;
-      shadows = ShadowCastingMode.On;
+      drawQuads = false;
       var tempArray = new Boid3D[numBoids];
       boidBuffer.GetData(tempArray);
       boids = tempArray;
@@ -435,15 +436,15 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = gpuLimit;
       useGPU = true;
-      shadows = ShadowCastingMode.On;
+      drawQuads = false;
     }
 
-    // GPU (No Shadows)
+    // GPU (Quads)
     if (val == 2)
     {
-      boidSlider.maxValue = gpuNoShadowsLimit;
+      boidSlider.maxValue = gpuQuadLimit;
       useGPU = true;
-      shadows = ShadowCastingMode.Off;
+      drawQuads = true;
     }
   }
 
