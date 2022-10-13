@@ -104,7 +104,8 @@ public class Main3D : MonoBehaviour
     boidBuffer = new ComputeBuffer(numBoids, 48);
     boidBufferOut = new ComputeBuffer(numBoids, 48);
     boidBuffer.SetData(boids);
-    boidComputeShader.SetBuffer(0, "boidBuffer", boidBuffer);
+    boidComputeShader.SetBuffer(0, "boidBufferIn", boidBufferOut);
+    boidComputeShader.SetBuffer(0, "boidBufferOut", boidBuffer);
     boidComputeShader.SetInt("numBoids", numBoids);
     boidComputeShader.SetFloat("maxSpeed", maxSpeed);
     boidComputeShader.SetFloat("minSpeed", minSpeed);
@@ -154,9 +155,6 @@ public class Main3D : MonoBehaviour
     gridShader.SetBuffer(4, "gridIndexBuffer", gridIndexBuffer);
     gridShader.SetBuffer(4, "boids", boidBuffer);
     gridShader.SetBuffer(4, "boidsOut", boidBufferOut);
-
-    gridShader.SetBuffer(5, "boids", boidBuffer);
-    gridShader.SetBuffer(5, "boidsOut", boidBufferOut);
 
     gridShader.SetFloat("gridCellSize", gridCellSize);
     gridShader.SetInt("gridRows", gridRows);
@@ -211,9 +209,6 @@ public class Main3D : MonoBehaviour
 
       // Rearrange boids
       gridShader.Dispatch(4, Mathf.CeilToInt(numBoids / 256f), 1, 1);
-
-      // Copy buffer back
-      gridShader.Dispatch(5, Mathf.CeilToInt(numBoids / 256f), 1, 1);
 
       // Compute boid behaviours
       boidComputeShader.Dispatch(0, Mathf.CeilToInt(numBoids / 256f), 1, 1);

@@ -9,7 +9,7 @@ struct Boid {
     float pad2;
 };
 
-RWStructuredBuffer<Boid> boids;
+StructuredBuffer<Boid> boids;
 RWStructuredBuffer<Boid> boidsOut;
 RWStructuredBuffer<uint2> gridBuffer;
 RWStructuredBuffer<uint> gridCountBuffer;
@@ -78,11 +78,4 @@ void PrefixSum(uint id : SV_DispatchThreadID) {
 void RearrangeGrid(uint3 id : SV_DispatchThreadID) {
 	uint index = gridIndexBuffer[id.x];
 	boidsOut[id.x] = boids[index];
-}
-
-#pragma kernel CopyBuffer // ID 5
-[numthreads(256, 1, 1)]
-void CopyBuffer(uint3 id : SV_DispatchThreadID) {
-	uint index = id.x;
-	boids[index] = boidsOut[index];
 }

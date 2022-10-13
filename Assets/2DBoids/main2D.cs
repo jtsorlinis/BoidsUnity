@@ -73,7 +73,7 @@ public class main2D : MonoBehaviour
   int cpuLimit = 4096;
   int burstLimit = 16384;
   int jobLimit = 65536;
-  int gpuLimit = 2097152 * 2;
+  int gpuLimit = 4194304;
 
   void Awake()
   {
@@ -110,7 +110,8 @@ public class main2D : MonoBehaviour
     boidBuffer = new ComputeBuffer(numBoids, 32);
     boidBufferOut = new ComputeBuffer(numBoids, 32);
     boidBuffer.SetData(boids);
-    boidShader.SetBuffer(0, "boids", boidBuffer);
+    boidShader.SetBuffer(0, "boidsIn", boidBufferOut);
+    boidShader.SetBuffer(0, "boidsOut", boidBuffer);
     boidShader.SetInt("numBoids", numBoids);
     boidShader.SetFloat("maxSpeed", maxSpeed);
     boidShader.SetFloat("minSpeed", minSpeed);
@@ -158,9 +159,6 @@ public class main2D : MonoBehaviour
     gridShader.SetBuffer(4, "gridIndexBuffer", gridIndexBuffer);
     gridShader.SetBuffer(4, "boids", boidBuffer);
     gridShader.SetBuffer(4, "boidsOut", boidBufferOut);
-
-    gridShader.SetBuffer(5, "boids", boidBuffer);
-    gridShader.SetBuffer(5, "boidsOut", boidBufferOut);
 
     gridShader.SetFloat("gridCellSize", gridCellSize);
     gridShader.SetInt("gridRows", gridRows);
@@ -240,9 +238,6 @@ public class main2D : MonoBehaviour
 
       // Rearrange boids
       gridShader.Dispatch(4, Mathf.CeilToInt(numBoids / 256f), 1, 1);
-
-      // Copy buffer back
-      gridShader.Dispatch(5, Mathf.CeilToInt(numBoids / 256f), 1, 1);
 
       // Compute boid behaviours
       boidShader.Dispatch(0, Mathf.CeilToInt(numBoids / 256f), 1, 1);

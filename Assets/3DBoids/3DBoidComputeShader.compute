@@ -13,7 +13,8 @@ struct Boid
     float pad1;
 };
 
-RWStructuredBuffer<Boid> boidBuffer;
+StructuredBuffer<Boid> boidBufferIn;
+RWStructuredBuffer<Boid> boidBufferOut;
 uniform int numBoids;
 uniform float deltaTime;
 uniform float maxSpeed;
@@ -63,7 +64,7 @@ void MergedBehaviours(inout Boid boid) {
                 uint start = end - gridCountBuffer[cell];
 
                 for (uint i = start; i < end; i++) {
-                    Boid other = boidBuffer[i];
+                    Boid other = boidBufferIn[i];
                     
                     float dist = distance(boid.pos, other.pos);
                     if(dist < visualRange) {
@@ -123,7 +124,7 @@ void KeepInBounds(inout Boid boid) {
 [numthreads(256,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    Boid boid = boidBuffer[id.x];
+    Boid boid = boidBufferIn[id.x];
     
     MergedBehaviours(boid);
     LimitSpeed(boid);
@@ -138,7 +139,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     q.w = sqrt((pow(length(float3(0,1,0)),2)) * (pow(length(boid.vel),2))) + dot(float3(0,1,0), boid.vel);
     boid.rot = normalize(q);
 
-    boidBuffer[id.x] = boid;
+    boidBufferOut[id.x] = boid;
 }
 
 
