@@ -1,9 +1,3 @@
-// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
-
-#define QUATERNION_IDENTITY float4(0, 0, 0, 1)
-#define PI 3.14159265359f
-
 struct Boid 
 {
     float3 pos;
@@ -13,8 +7,8 @@ struct Boid
     float pad1;
 };
 
-StructuredBuffer<Boid> boidBufferIn;
-RWStructuredBuffer<Boid> boidBufferOut;
+StructuredBuffer<Boid> boidsIn;
+RWStructuredBuffer<Boid> boidsOut;
 uniform int numBoids;
 uniform float deltaTime;
 uniform float maxSpeed;
@@ -64,7 +58,7 @@ void MergedBehaviours(inout Boid boid) {
                 uint start = end - gridCountBuffer[cell];
 
                 for (uint i = start; i < end; i++) {
-                    Boid other = boidBufferIn[i];
+                    Boid other = boidsIn[i];
                     
                     float dist = distance(boid.pos, other.pos);
                     if(dist < visualRange) {
@@ -121,10 +115,11 @@ void KeepInBounds(inout Boid boid) {
     }
 }
 
+#pragma kernel UpdateBoids // ID 0
 [numthreads(256,1,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
+void UpdateBoids (uint3 id : SV_DispatchThreadID)
 {
-    Boid boid = boidBufferIn[id.x];
+    Boid boid = boidsIn[id.x];
     
     MergedBehaviours(boid);
     LimitSpeed(boid);
@@ -139,7 +134,31 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     q.w = sqrt((pow(length(float3(0,1,0)),2)) * (pow(length(boid.vel),2))) + dot(float3(0,1,0), boid.vel);
     boid.rot = normalize(q);
 
-    boidBufferOut[id.x] = boid;
+    boidsOut[id.x] = boid;
 }
 
+// Basic random generation
+uint randSeed;
+uint state;
+float wangHash()
+{
+    state = (state ^ 61) ^ (state >> 16);
+    state *= 9;
+    state = state ^ (state >> 4);
+    state *= 0x27d4eb2d;
+    state = state ^ (state >> 15);
+    return state / 4294967296.0;
+}
 
+float randRange(float a, float b) {
+    return wangHash() * (b - a) + a;
+}
+
+#pragma kernel GenerateBoids // ID 1
+[numthreads(256,1,1)]
+void GenerateBoids(uint3 id : SV_DispatchThreadID) {
+    state = randSeed + id.x;
+    boidsOut[id.x].pos = float3(randRange(-xBound,xBound), randRange(-yBound,yBound), randRange(-zBound,zBound));
+    boidsOut[id.x].vel = float3(randRange(-maxSpeed,maxSpeed), randRange(-maxSpeed,maxSpeed), randRange(-maxSpeed,maxSpeed));
+    boidsOut[id.x].rot = 0;
+}

@@ -88,28 +88,14 @@ public class main2D : MonoBehaviour
     Camera.main.transform.position = new Vector3(0, 0, -10);
 
     boidText.text = "Boids: " + numBoids;
-    boids = new NativeArray<Boid>(numBoids, Allocator.Persistent);
-    boidsTemp = new NativeArray<Boid>(numBoids, Allocator.Persistent);
     xBound = Camera.main.orthographicSize * Camera.main.aspect - edgeMargin;
     yBound = Camera.main.orthographicSize - edgeMargin;
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.8f;
 
-    for (int i = 0; i < numBoids; i++)
-    {
-      var pos = new Vector2(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound));
-      var vel = new Vector2(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed)).normalized * maxSpeed;
-      var boid = new Boid();
-      boid.pos = pos;
-      boid.vel = vel;
-      boid.rot = 0;
-      boids[i] = boid;
-    }
-
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 32);
     boidBufferOut = new ComputeBuffer(numBoids, 32);
-    boidBuffer.SetData(boids);
     boidShader.SetBuffer(0, "boidsIn", boidBufferOut);
     boidShader.SetBuffer(0, "boidsOut", boidBuffer);
     boidShader.SetInt("numBoids", numBoids);
@@ -121,6 +107,31 @@ public class main2D : MonoBehaviour
     boidShader.SetFloat("turnSpeed", turnSpeed);
     boidShader.SetFloat("xBound", xBound);
     boidShader.SetFloat("yBound", yBound);
+
+    // Generate boids on GPU if over CPU limit
+    if (numBoids <= jobLimit)
+    {
+      // Populate initial boids
+      boids = new NativeArray<Boid>(numBoids, Allocator.Persistent);
+      boidsTemp = new NativeArray<Boid>(numBoids, Allocator.Persistent);
+      for (int i = 0; i < numBoids; i++)
+      {
+        var pos = new Vector2(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound));
+        var vel = new Vector2(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed)).normalized * maxSpeed;
+        var boid = new Boid();
+        boid.pos = pos;
+        boid.vel = vel;
+        boid.rot = 0;
+        boids[i] = boid;
+      }
+      boidBuffer.SetData(boids);
+    }
+    else
+    {
+      boidShader.SetBuffer(1, "boidsOut", boidBuffer);
+      boidShader.SetInt("randSeed", Random.Range(0, int.MaxValue));
+      boidShader.Dispatch(1, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+    }
 
     // Set material buffer
     boidMat.SetBuffer("boids", boidBuffer);
@@ -717,19 +728,7 @@ public class main2D : MonoBehaviour
   public void sliderChange(float val)
   {
     numBoids = (int)val;
-    boids.Dispose();
-    boidsTemp.Dispose();
-    gridCounts.Dispose();
-    gridOffsets.Dispose();
-    gridIndexes.Dispose();
-    boidBufferOut.Dispose();
-    boidBuffer.Dispose();
-    gridBuffer.Dispose();
-    gridCountBuffer.Dispose();
-    gridOffsetBuffer.Dispose();
-    gridOffsetBufferIn.Dispose();
-    gridIndexBuffer.Dispose();
-    grid.Dispose();
+    OnDestroy();
     Start();
   }
 
@@ -775,57 +774,21 @@ public class main2D : MonoBehaviour
 
   void OnDestroy()
   {
-    if (boids != null)
+    if (boids.IsCreated)
     {
       boids.Dispose();
-    }
-    if (boidsTemp != null)
-    {
       boidsTemp.Dispose();
     }
-    if (grid != null)
-    {
-      grid.Dispose();
-    }
-    if (gridCounts != null)
-    {
-      gridCounts.Dispose();
-    }
-    if (gridOffsets != null)
-    {
-      gridOffsets.Dispose();
-    }
-    if (gridIndexes != null)
-    {
-      gridIndexes.Dispose();
-    }
-    if (boidBuffer != null)
-    {
-      boidBuffer.Release();
-    }
-    if (boidBufferOut != null)
-    {
-      boidBufferOut.Release();
-    }
-    if (gridBuffer != null)
-    {
-      gridBuffer.Release();
-    }
-    if (gridCountBuffer != null)
-    {
-      gridCountBuffer.Release();
-    }
-    if (gridOffsetBuffer != null)
-    {
-      gridOffsetBuffer.Release();
-    }
-    if (gridOffsetBufferIn != null)
-    {
-      gridOffsetBufferIn.Release();
-    }
-    if (gridIndexBuffer != null)
-    {
-      gridIndexBuffer.Release();
-    }
+    grid.Dispose();
+    gridCounts.Dispose();
+    gridOffsets.Dispose();
+    gridIndexes.Dispose();
+    boidBuffer.Release();
+    boidBufferOut.Release();
+    gridBuffer.Release();
+    gridCountBuffer.Release();
+    gridOffsetBuffer.Release();
+    gridOffsetBufferIn.Release();
+    gridIndexBuffer.Release();
   }
 }

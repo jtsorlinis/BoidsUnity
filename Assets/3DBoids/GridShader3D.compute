@@ -14,7 +14,7 @@ RWStructuredBuffer<Boid> boidsOut;
 RWStructuredBuffer<uint2> gridBuffer;
 RWStructuredBuffer<uint> gridCountBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
-RWStructuredBuffer<uint> gridOffsetBufferIn;
+StructuredBuffer<uint> gridOffsetBufferIn;
 RWStructuredBuffer<uint> gridIndexBuffer;
 
 float gridCellSize;

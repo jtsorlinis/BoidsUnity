@@ -90,23 +90,13 @@ public class Main3D : MonoBehaviour
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.8f;
 
-    boids = new Boid3D[numBoids];
-    boidsTemp = new Boid3D[numBoids];
-    for (int i = 0; i < numBoids; i++)
-    {
-      var boid = new Boid3D();
-      boid.pos = new Vector3(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound), UnityEngine.Random.Range(-zBound, zBound));
-      boid.vel = new Vector3(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed));
-      boid.rot = Quaternion.identity;
-      boids[i] = boid;
-    }
+
 
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 48);
     boidBufferOut = new ComputeBuffer(numBoids, 48);
-    boidBuffer.SetData(boids);
-    boidComputeShader.SetBuffer(0, "boidBufferIn", boidBufferOut);
-    boidComputeShader.SetBuffer(0, "boidBufferOut", boidBuffer);
+    boidComputeShader.SetBuffer(0, "boidsIn", boidBufferOut);
+    boidComputeShader.SetBuffer(0, "boidsOut", boidBuffer);
     boidComputeShader.SetInt("numBoids", numBoids);
     boidComputeShader.SetFloat("maxSpeed", maxSpeed);
     boidComputeShader.SetFloat("minSpeed", minSpeed);
@@ -117,6 +107,30 @@ public class Main3D : MonoBehaviour
     boidComputeShader.SetFloat("xBound", xBound);
     boidComputeShader.SetFloat("yBound", yBound);
     boidComputeShader.SetFloat("zBound", zBound);
+
+    // Generate boids on GPU if over CPU limit
+    if (numBoids <= cpuLimit)
+    {
+      // Populate on CPU and send to GPU
+      boids = new Boid3D[numBoids];
+      boidsTemp = new Boid3D[numBoids];
+      for (int i = 0; i < numBoids; i++)
+      {
+        var boid = new Boid3D();
+        boid.pos = new Vector3(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound), UnityEngine.Random.Range(-zBound, zBound));
+        boid.vel = new Vector3(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed));
+        boid.rot = Quaternion.identity;
+        boids[i] = boid;
+      }
+      boidBuffer.SetData(boids);
+    }
+    // Populate on GPU
+    else
+    {
+      boidComputeShader.SetBuffer(1, "boidsOut", boidBuffer);
+      boidComputeShader.SetInt("randSeed", Random.Range(0, int.MaxValue));
+      boidComputeShader.Dispatch(1, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+    }
 
     // Set shader buffer
     boidMaterial.SetBuffer("boidBuffer", boidBuffer);
@@ -408,13 +422,7 @@ public class Main3D : MonoBehaviour
   public void sliderChange(float val)
   {
     numBoids = (int)val;
-    boidBuffer.Dispose();
-    boidBufferOut.Dispose();
-    gridBuffer.Dispose();
-    gridCountBuffer.Dispose();
-    gridOffsetBuffer.Dispose();
-    gridOffsetBufferIn.Dispose();
-    gridIndexBuffer.Dispose();
+    OnDestroy();
     Start();
   }
 
@@ -450,33 +458,12 @@ public class Main3D : MonoBehaviour
 
   void OnDestroy()
   {
-    if (boidBuffer != null)
-    {
-      boidBuffer.Release();
-    }
-    if (boidBufferOut != null)
-    {
-      boidBufferOut.Release();
-    }
-    if (gridBuffer != null)
-    {
-      gridBuffer.Release();
-    }
-    if (gridCountBuffer != null)
-    {
-      gridCountBuffer.Release();
-    }
-    if (gridOffsetBuffer != null)
-    {
-      gridOffsetBuffer.Release();
-    }
-    if (gridOffsetBufferIn != null)
-    {
-      gridOffsetBufferIn.Release();
-    }
-    if (gridIndexBuffer != null)
-    {
-      gridIndexBuffer.Release();
-    }
+    boidBuffer.Release();
+    boidBufferOut.Release();
+    gridBuffer.Release();
+    gridCountBuffer.Release();
+    gridOffsetBuffer.Release();
+    gridOffsetBufferIn.Release();
+    gridIndexBuffer.Release();
   }
 }
