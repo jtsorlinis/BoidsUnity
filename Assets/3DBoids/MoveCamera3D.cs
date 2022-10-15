@@ -13,7 +13,7 @@ public class MoveCamera3D : MonoBehaviour
   float sensitivity = 3f;
 
   // Start is called before the first frame update
-  void Start()
+  public void Start()
   {
     cam = Camera.main;
     rotation = Vector3.zero;
