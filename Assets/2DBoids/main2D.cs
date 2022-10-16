@@ -84,7 +84,7 @@ public class main2D : MonoBehaviour
   void Start()
   {
     // Zoom camera based on number of boids
-    Camera.main.orthographicSize = Mathf.Max(3, Mathf.Sqrt(numBoids) / 10);
+    Camera.main.orthographicSize = Mathf.Max(2, Mathf.Sqrt(numBoids) / 10 + edgeMargin);
     Camera.main.transform.position = new Vector3(0, 0, -10);
     GetComponent<MoveCamera2D>().Start();
 

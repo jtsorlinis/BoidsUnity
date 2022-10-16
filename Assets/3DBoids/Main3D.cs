@@ -78,8 +78,7 @@ public class Main3D : MonoBehaviour
   {
     boidMaterial.SetFloat("_Scale", boidScale);
     boidText.text = "Boids: " + numBoids;
-
-    spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f);
+    spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
     Camera.main.transform.position = new Vector3(0, 0, -spaceBounds * 3.8f);
     Camera.main.transform.rotation = Quaternion.identity;
     GetComponent<MoveCamera3D>().Start();
