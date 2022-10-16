@@ -91,8 +91,6 @@ public class Main3D : MonoBehaviour
     turnSpeed = maxSpeed * 3;
     minSpeed = maxSpeed * 0.75f;
 
-
-
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 48);
     boidBufferOut = new ComputeBuffer(numBoids, 48);
@@ -141,11 +139,16 @@ public class Main3D : MonoBehaviour
     gridDimX = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 20;
     gridDimY = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 20;
     gridDimZ = Mathf.FloorToInt(zBound * 2 / gridCellSize) + 20;
-    grid = new Vector2Int[numBoids];
     gridTotalCells = gridDimX * gridDimY * gridDimZ;
-    gridCounts = new int[gridTotalCells];
-    gridOffsets = new int[gridTotalCells];
-    gridIndexes = new int[numBoids];
+
+    // Don't generate grid on CPU if over CPU limit
+    if (numBoids <= cpuLimit)
+    {
+      grid = new Vector2Int[numBoids];
+      gridCounts = new int[gridTotalCells];
+      gridOffsets = new int[gridTotalCells];
+      gridIndexes = new int[numBoids];
+    }
 
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridCountBuffer = new ComputeBuffer(gridTotalCells, 4);

@@ -141,11 +141,16 @@ public class main2D : MonoBehaviour
     gridCellSize = visualRange;
     gridDimX = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 30;
     gridDimY = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 30;
-    grid = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
     gridTotalCells = gridDimX * gridDimY;
-    gridCounts = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
-    gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
-    gridIndexes = new NativeArray<int>(numBoids, Allocator.Persistent);
+
+    // Don't generate grid on CPU if over CPU limit
+    if (numBoids <= jobLimit)
+    {
+      grid = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
+      gridCounts = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
+      gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
+      gridIndexes = new NativeArray<int>(numBoids, Allocator.Persistent);
+    }
 
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridCountBuffer = new ComputeBuffer(gridTotalCells, 4);
@@ -780,10 +785,15 @@ public class main2D : MonoBehaviour
       boids.Dispose();
       boidsTemp.Dispose();
     }
-    grid.Dispose();
-    gridCounts.Dispose();
-    gridOffsets.Dispose();
-    gridIndexes.Dispose();
+
+    if (grid.IsCreated)
+    {
+      grid.Dispose();
+      gridCounts.Dispose();
+      gridOffsets.Dispose();
+      gridIndexes.Dispose();
+    }
+
     boidBuffer.Release();
     boidBufferOut.Release();
     gridBuffer.Release();
