@@ -14,8 +14,8 @@ struct Boid3D
 public class Main3D : MonoBehaviour
 {
   [Header("Performance")]
-  [SerializeField] bool useGPU = true;
-  [SerializeField] int numBoids = 100;
+  bool useGPU = false;
+  [SerializeField] int numBoids = 32;
   [SerializeField] float boidScale = 0.3f;
 
   [Header("Settings")]
@@ -79,7 +79,7 @@ public class Main3D : MonoBehaviour
     boidMaterial.SetFloat("_Scale", boidScale);
     boidText.text = "Boids: " + numBoids;
 
-    spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 5);
+    spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f);
     Camera.main.transform.position = new Vector3(0, 0, -spaceBounds * 3.8f);
     Camera.main.transform.rotation = Quaternion.identity;
     GetComponent<MoveCamera3D>().Start();
