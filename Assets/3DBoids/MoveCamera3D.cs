@@ -49,5 +49,11 @@ public class MoveCamera3D : MonoBehaviour
       Cursor.lockState = CursorLockMode.None;
 
     }
+
+    // Quit on escape
+    if (Input.GetKey("escape"))
+    {
+      Application.Quit();
+    }
   }
 }

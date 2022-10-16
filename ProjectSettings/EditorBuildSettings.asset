@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Boids2DScene.unity
     guid: 2cda990e2423bbf4892e6590ba056729
+  - enabled: 1
+    path: Assets/Boids3DScene.unity
+    guid: 1bc12613238cb489fb47706e1907cb9c
   m_configObjects: {}

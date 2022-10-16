@@ -738,6 +738,11 @@ public class main2D : MonoBehaviour
     Start();
   }
 
+  public void switchTo3D()
+  {
+    UnityEngine.SceneManagement.SceneManager.LoadScene("Boids3DScene");
+  }
+
   public void modeChange(int val)
   {
     // CPU
