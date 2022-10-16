@@ -89,7 +89,7 @@ public class Main3D : MonoBehaviour
     yBound = spaceBounds - edgeMargin;
     zBound = 2 * spaceBounds - edgeMargin;
     turnSpeed = maxSpeed * 3;
-    minSpeed = maxSpeed * 0.8f;
+    minSpeed = maxSpeed * 0.75f;
 
 
 

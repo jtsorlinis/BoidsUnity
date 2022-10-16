@@ -92,7 +92,7 @@ public class main2D : MonoBehaviour
     xBound = Camera.main.orthographicSize * Camera.main.aspect - edgeMargin;
     yBound = Camera.main.orthographicSize - edgeMargin;
     turnSpeed = maxSpeed * 3;
-    minSpeed = maxSpeed * 0.8f;
+    minSpeed = maxSpeed * 0.75f;
 
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 32);

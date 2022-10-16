@@ -224,7 +224,7 @@ MonoBehaviour:
   useGPU: 0
   numBoids: 32
   boidScale: 0.08
-  maxSpeed: 2
+  maxSpeed: 1.5
   edgeMargin: 0.5
   visualRange: 0.5
   minDistance: 0.15
