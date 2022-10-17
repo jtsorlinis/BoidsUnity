@@ -1,5 +1,3 @@
-#define MAXINT 0x7FFFFFFF;
-
 struct Boid {
     float2 pos;
     float2 vel;
@@ -15,7 +13,6 @@ RWStructuredBuffer<uint2> gridBuffer;
 RWStructuredBuffer<uint> gridCountBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
 StructuredBuffer<uint> gridOffsetBufferIn;
-RWStructuredBuffer<uint> gridIndexBuffer;
 
 float gridCellSize;
 uint gridDimY;
@@ -42,18 +39,8 @@ void UpdateGrid (uint3 id : SV_DispatchThreadID)
 	gridBuffer[id.x].x = gridID;
 	InterlockedAdd(gridCountBuffer[gridID], 1, gridBuffer[id.x].y);
 }
-   
-#pragma kernel SortGridIndexes // ID 1
-[numthreads(256,1,1)]
-void SortGridIndexes (uint3 id : SV_DispatchThreadID) 
-{
-	uint gridID = gridBuffer[id.x].x;
-	uint cellOffset = gridBuffer[id.x].y;
-	uint index = gridOffsetBuffer[gridID] - 1 - cellOffset;
-	gridIndexBuffer[index] = id.x;
-}
 	
-#pragma kernel ClearGrid // ID 2
+#pragma kernel ClearGrid // ID 1
 [numthreads(256,1,1)]
 void ClearGrid (uint3 id : SV_DispatchThreadID) 
 {
@@ -61,7 +48,7 @@ void ClearGrid (uint3 id : SV_DispatchThreadID)
 		gridOffsetBuffer[id.x] = 0;
 }
 
-#pragma kernel PrefixSum // ID 3
+#pragma kernel PrefixSum // ID 2
 [numthreads(256, 1, 1)]
 void PrefixSum(uint id : SV_DispatchThreadID) {
     int k = id.x;
@@ -73,9 +60,11 @@ void PrefixSum(uint id : SV_DispatchThreadID) {
 		}
 }
 
-#pragma kernel RearrangeGrid // ID 4
+#pragma kernel RearrangeBoids // ID 3
 [numthreads(256, 1, 1)]
-void RearrangeGrid(uint3 id : SV_DispatchThreadID) {
-	uint index = gridIndexBuffer[id.x];
-	boidsOut[id.x] = boids[index];
+void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
+	uint gridID = gridBuffer[id.x].x;
+	uint cellOffset = gridBuffer[id.x].y;
+	uint index = gridOffsetBuffer[gridID] - 1 - cellOffset;
+	boidsOut[index] = boids[id.x];
 }
