@@ -27,7 +27,6 @@ Shader "Unlit/boidShader"
 
             struct v2f
             {
-                float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
             };
 
@@ -57,7 +56,6 @@ Shader "Unlit/boidShader"
                 v2f o;
                 rotate2D(v.vertex.xy, boid.rot);
                 o.vertex = UnityObjectToClipPos((v.vertex * _Scale) + float4(boid.pos.xy, 0, 0));
-                o.uv = v.uv;
                 return o;
             }
 
