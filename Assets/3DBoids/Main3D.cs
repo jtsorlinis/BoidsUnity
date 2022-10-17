@@ -35,8 +35,8 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
   [SerializeField] Mesh boidMesh;
-  [SerializeField] Mesh quadMesh;
-  bool drawQuads = false;
+  Mesh triangleMesh;
+  bool drawTriangles = false;
   [SerializeField] Transform floorPlane;
 
   float spaceBounds;
@@ -68,11 +68,12 @@ public class Main3D : MonoBehaviour
 
   int cpuLimit = 2048;
   int gpuLimit = 524288;
-  int gpuQuadLimit = 2097152;
+  int gpuTriangleLimit = 2097152;
 
   void Awake()
   {
     boidSlider.maxValue = cpuLimit;
+    triangleMesh = makeTriangle();
   }
 
   // Start is called before the first frame update
@@ -257,7 +258,7 @@ public class Main3D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    Graphics.DrawMeshInstancedProcedural(drawQuads ? quadMesh : boidMesh, 0, boidMaterial, bounds, numBoids);
+    Graphics.DrawMeshInstancedProcedural(drawTriangles ? triangleMesh : boidMesh, 0, boidMaterial, bounds, numBoids);
   }
 
   void MergedBehaviours(ref Boid3D boid)
@@ -432,7 +433,7 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = cpuLimit;
       useGPU = false;
-      drawQuads = false;
+      drawTriangles = false;
       var tempArray = new Boid3D[numBoids];
       boidBuffer.GetData(tempArray);
       boids = tempArray;
@@ -443,15 +444,15 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = gpuLimit;
       useGPU = true;
-      drawQuads = false;
+      drawTriangles = false;
     }
 
-    // GPU (Quads)
+    // GPU (Triangles)
     if (val == 2)
     {
-      boidSlider.maxValue = gpuQuadLimit;
+      boidSlider.maxValue = gpuTriangleLimit;
       useGPU = true;
-      drawQuads = true;
+      drawTriangles = true;
     }
   }
 
@@ -463,5 +464,33 @@ public class Main3D : MonoBehaviour
     gridCountBuffer.Release();
     gridOffsetBuffer.Release();
     gridOffsetBufferIn.Release();
+  }
+
+  Mesh makeTriangle()
+  {
+    Mesh mesh = new Mesh();
+    float width = 0.5f;
+    float height = 0.8f;
+
+    // Duplicate vertices to get back face lighting
+    Vector3[] vertices = {
+      // Front face
+      new Vector3(-width, -height, 0),
+      new Vector3(0, height, 0),
+      new Vector3(width, -height, 0),
+      // Back face
+      new Vector3(-width, -height, 0),
+      new Vector3(0, height, 0),
+      new Vector3(width, -height, 0),
+    };
+    mesh.vertices = vertices;
+
+    int[] tris = {
+      0, 1, 2, // Front facing
+      5, 4, 3}; // Back facing
+    mesh.triangles = tris;
+    mesh.RecalculateNormals();
+
+    return mesh;
   }
 }
