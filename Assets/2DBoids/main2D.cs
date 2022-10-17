@@ -71,8 +71,8 @@ public class main2D : MonoBehaviour
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 1500);
 
   int cpuLimit = 4096;
-  int burstLimit = 16384;
-  int jobLimit = 65536;
+  int burstLimit = 32768;
+  int jobLimit = 131072;
   int gpuLimit = 8388608;
 
   void Awake()
