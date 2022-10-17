@@ -2,7 +2,7 @@ Shader "Unlit/boidShader"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
+        _Colour ("Colour", Color) = (1, 1, 0, 1)
         _Scale ("Scale", Float) = 0.1
     }
     SubShader
@@ -47,7 +47,7 @@ Shader "Unlit/boidShader"
                 v = float2(v.x * c - v.y * s, v.x * s + v.y * c);
             }
 
-            sampler2D _MainTex;
+            float4 _Colour;
             float _Scale;
             StructuredBuffer<Boid> boids;
 
@@ -63,7 +63,7 @@ Shader "Unlit/boidShader"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                return tex2D(_MainTex, i.uv);
+                return _Colour;
             }
             ENDCG
         }

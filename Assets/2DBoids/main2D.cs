@@ -37,7 +37,7 @@ public class main2D : MonoBehaviour
   [SerializeField] ComputeShader boidShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMat;
-  [SerializeField] Mesh quad;
+  Mesh triangle;
 
   float minSpeed;
   float turnSpeed;
@@ -78,6 +78,7 @@ public class main2D : MonoBehaviour
   void Awake()
   {
     numSlider.maxValue = cpuLimit;
+    triangle = makeTriangle();
   }
 
   // Start is called before the first frame update
@@ -335,7 +336,7 @@ public class main2D : MonoBehaviour
     }
 
     // Actually draw the boids
-    Graphics.DrawMeshInstancedProcedural(quad, 0, boidMat, bounds, numBoids);
+    Graphics.DrawMeshInstancedProcedural(triangle, 0, boidMat, bounds, numBoids);
   }
 
   void MergedBehaviours(ref Boid boid)
@@ -768,5 +769,22 @@ public class main2D : MonoBehaviour
     gridCountBuffer.Release();
     gridOffsetBuffer.Release();
     gridOffsetBufferIn.Release();
+  }
+
+  Mesh makeTriangle()
+  {
+    Mesh mesh = new Mesh();
+
+    Vector3[] vertices = {
+      new Vector3(-.5f, -.5f, 0),
+      new Vector3(0, .5f, 0),
+      new Vector3(.5f, -.5f, 0),
+    };
+    mesh.vertices = vertices;
+
+    int[] tris = { 0, 1, 2 };
+    mesh.triangles = tris;
+
+    return mesh;
   }
 }
