@@ -776,9 +776,9 @@ public class main2D : MonoBehaviour
     Mesh mesh = new Mesh();
 
     Vector3[] vertices = {
-      new Vector3(-.5f, -.5f, 0),
+      new Vector3(-.4f, -.5f, 0),
       new Vector3(0, .5f, 0),
-      new Vector3(.5f, -.5f, 0),
+      new Vector3(.4f, -.5f, 0),
     };
     mesh.vertices = vertices;
 
