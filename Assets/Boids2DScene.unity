@@ -237,7 +237,7 @@ MonoBehaviour:
   edgeMargin: 0.5
   visualRange: 0.5
   minDistance: 0.15
-  cohesionFactor: 0.3
+  cohesionFactor: 1
   seperationFactor: 30
   alignmentFactor: 5
   fpsText: {fileID: 534247695}
@@ -246,7 +246,6 @@ MonoBehaviour:
   boidShader: {fileID: 7200000, guid: a1454690a72b340d4b8203edc92c1611, type: 3}
   gridShader: {fileID: 7200000, guid: 53f2660ac43d4400ea62a6e0fdda1c46, type: 3}
   boidMat: {fileID: 2100000, guid: b306058b2105d479ebd81169967e3d99, type: 2}
-  quad: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!114 &519420034
 MonoBehaviour:
   m_ObjectHideFlags: 0
