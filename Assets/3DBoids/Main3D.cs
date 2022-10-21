@@ -283,7 +283,7 @@ public class Main3D : MonoBehaviour
             Boid3D other = boidsTemp[i];
             float distance = Vector3.Distance(boid.pos, other.pos);
 
-            if (distance < visualRange)
+            if (distance > 0 && distance < visualRange)
             {
               if (distance < minDistance)
               {

@@ -358,7 +358,7 @@ public class main2D : MonoBehaviour
         {
           Boid other = boidsTemp[i];
           var distance = Vector2.Distance(boid.pos, other.pos);
-          if (distance < visualRange)
+          if (distance > 0 && distance < visualRange)
           {
             if (distance < minDistance)
             {
@@ -615,7 +615,7 @@ public class main2D : MonoBehaviour
           {
             var other = inBoids[i];
             var distance = Vector2.Distance(boid.pos, other.pos);
-            if (distance < visualRange)
+            if (distance > 0 && distance < visualRange)
             {
               if (distance < minDistance)
               {

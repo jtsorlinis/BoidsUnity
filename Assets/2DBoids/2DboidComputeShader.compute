@@ -56,7 +56,7 @@ void MergedBehaviours(inout Boid boid) {
             for (uint i = start; i < end; i++) {
                 Boid other = boidsIn[i];
                 float dist = distance(boid.pos, other.pos);
-                if(dist < visualRange) {
+                if(dist > 0 && dist < visualRange) {
                     if(dist < minDistance) {
                         close += boid.pos - other.pos;
                     }
