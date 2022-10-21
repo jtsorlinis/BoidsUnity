@@ -6,7 +6,7 @@ I first made it in 2D on the CPU, then using Burst/Jobs, and eventually moved ev
 
 The simulation uses a uniform spatial grid as an acceleration structure to determine nearest neighbours, as brute force method would cap out at around 50k entities even on GPU. 
 
-Method used is inspired by this NVIDIA presentation: https://on-demand.gputechconf.com/gtc/2014/presentations/S4117-fast-fixed-radius-nearest-neighbor-gpu.pdf
+Method used is inspired by this presentation: https://on-demand.gputechconf.com/gtc/2014/presentations/S4117-fast-fixed-radius-nearest-neighbor-gpu.pdf
 
 Number of boids before slowdown on my 9700k/2070 Super:
 
