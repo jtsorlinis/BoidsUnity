@@ -72,7 +72,7 @@ public class main2D : MonoBehaviour
 
   int cpuLimit = 4096;
   int burstLimit = 32768;
-  int jobLimit = 131072;
+  int jobLimit = 262144;
   int gpuLimit = 16777216 - 256;
 
   void Awake()

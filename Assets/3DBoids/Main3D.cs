@@ -66,7 +66,7 @@ public class Main3D : MonoBehaviour
 
   Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
-  int cpuLimit = 2048;
+  int cpuLimit = 4096;
   int gpuLimit = 524288;
   int gpuTriangleLimit = 4194304;
 
