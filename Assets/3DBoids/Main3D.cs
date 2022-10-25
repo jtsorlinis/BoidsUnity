@@ -279,7 +279,7 @@ public class Main3D : MonoBehaviour
       {
         for (int x = gridXYZ.x - 1; x <= gridXYZ.x + 1; x++)
         {
-          int gridCell = getGridIDbyLoc(new Vector3Int(x, y, z));
+          int gridCell = getGridIDbyLoc(x, y, z);
           int end = gridOffsets[gridCell];
           int start = end - gridCounts[gridCell];
           for (int i = start; i < end; i++)
@@ -365,9 +365,9 @@ public class Main3D : MonoBehaviour
     return (gridDimY * gridDimX * boidz) + (gridDimX * boidy) + boidx;
   }
 
-  int getGridIDbyLoc(Vector3Int pos)
+  int getGridIDbyLoc(int x, int y, int z)
   {
-    return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
+    return (gridDimY * gridDimX * z) + (gridDimX * y) + x;
   }
 
   Vector3Int getGridLocation(Boid3D boid)
