@@ -35,6 +35,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
   [SerializeField] Mesh boidMesh;
+  RenderParams rp;
   Mesh triangleMesh;
   bool drawTriangles = false;
   [SerializeField] Transform floorPlane;
@@ -64,8 +65,6 @@ public class Main3D : MonoBehaviour
   int gridDimY, gridDimX, gridDimZ, gridTotalCells;
   float gridCellSize;
 
-  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 100);
-
   int cpuLimit = 4096;
   int gpuLimit = 524288;
   int gpuTriangleLimit = 4194304;
@@ -79,7 +78,6 @@ public class Main3D : MonoBehaviour
   // Start is called before the first frame update
   void Start()
   {
-    boidMaterial.SetFloat("_Scale", boidScale);
     boidText.text = "Boids: " + numBoids;
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
     Camera.main.transform.position = new Vector3(0, 0, -spaceBounds * 3.8f);
@@ -141,8 +139,14 @@ public class Main3D : MonoBehaviour
       boidComputeShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
     }
 
-    // Set shader buffer
-    boidMaterial.SetBuffer("boidBuffer", boidBuffer);
+    // Set shader renderParams
+    rp = new RenderParams(boidMaterial);
+    rp.matProps = new MaterialPropertyBlock();
+    rp.matProps.SetFloat("_Scale", boidScale);
+    rp.matProps.SetBuffer("boidBuffer", boidBuffer);
+    rp.shadowCastingMode = ShadowCastingMode.On;
+    rp.receiveShadows = true;
+    rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -258,7 +262,7 @@ public class Main3D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    Graphics.DrawMeshInstancedProcedural(drawTriangles ? triangleMesh : boidMesh, 0, boidMaterial, bounds, numBoids);
+    Graphics.RenderMeshPrimitives(rp, drawTriangles ? triangleMesh : boidMesh, 0, numBoids);
   }
 
   void MergedBehaviours(ref Boid3D boid)

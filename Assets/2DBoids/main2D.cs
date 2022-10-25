@@ -68,7 +68,7 @@ public class main2D : MonoBehaviour
   float gridCellSize;
 
   float xBound, yBound;
-  Bounds bounds = new Bounds(Vector3.zero, Vector3.one * 1500);
+  RenderParams rp;
 
   int cpuLimit = 4096;
   int burstLimit = 32768;
@@ -143,8 +143,11 @@ public class main2D : MonoBehaviour
       boidShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
     }
 
-    // Set material buffer
-    boidMat.SetBuffer("boids", boidBuffer);
+    // Set render params
+    rp = new RenderParams(boidMat);
+    rp.matProps = new MaterialPropertyBlock();
+    rp.matProps.SetBuffer("boids", boidBuffer);
+    rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 2000);
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -336,7 +339,7 @@ public class main2D : MonoBehaviour
     }
 
     // Actually draw the boids
-    Graphics.DrawMeshInstancedProcedural(triangle, 0, boidMat, bounds, numBoids);
+    Graphics.RenderMeshPrimitives(rp, triangle, 0, numBoids);
   }
 
   void MergedBehaviours(ref Boid boid)
