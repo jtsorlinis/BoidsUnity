@@ -143,7 +143,7 @@ public class Main3D : MonoBehaviour
     rp = new RenderParams(boidMaterial);
     rp.matProps = new MaterialPropertyBlock();
     rp.matProps.SetFloat("_Scale", boidScale);
-    rp.matProps.SetBuffer("boidBuffer", boidBuffer);
+    rp.matProps.SetBuffer("boids", boidBuffer);
     rp.shadowCastingMode = ShadowCastingMode.On;
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 100);

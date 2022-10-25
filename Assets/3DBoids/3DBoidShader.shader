@@ -40,7 +40,7 @@ Shader "Custom/3DBoidShader"
         };
 
     #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-        StructuredBuffer<Boid> boidBuffer;
+        StructuredBuffer<Boid> boids;
     #endif
 
         float4x4 quaternion_to_matrix(float4 quat)
@@ -73,7 +73,7 @@ Shader "Custom/3DBoidShader"
         void setup()
         {
         #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-            Boid boid = boidBuffer[unity_InstanceID];
+            Boid boid = boids[unity_InstanceID];
 
             unity_ObjectToWorld = 0.0;
             
