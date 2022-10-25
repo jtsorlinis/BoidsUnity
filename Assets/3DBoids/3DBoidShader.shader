@@ -15,7 +15,7 @@ Shader "Custom/3DBoidShader"
 
         CGPROGRAM
         // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard vertex:vert addshadow fullforwardshadows 
+        #pragma surface surf Standard addshadow fullforwardshadows 
         #pragma multi_compile_instancing
         #pragma instancing_options assumeuniformscaling procedural:setup
 
@@ -41,28 +41,50 @@ Shader "Custom/3DBoidShader"
 
     #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
         StructuredBuffer<Boid> boidBuffer;
-        Boid boid;
     #endif
 
-        void vert (inout appdata_full v) 
+        float4x4 quaternion_to_matrix(float4 quat)
         {
-        #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-            v.vertex.xyz = v.vertex.xyz + 2.0 * cross(boid.rot.xyz, cross(boid.rot.xyz, v.vertex) + boid.rot.w * v.vertex.xyz);
-        #endif
+            float4x4 m = float4x4(float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0));
+
+            float x = quat.x, y = quat.y, z = quat.z, w = quat.w;
+            float x2 = x + x, y2 = y + y, z2 = z + z;
+            float xx = x * x2, xy = x * y2, xz = x * z2;
+            float yy = y * y2, yz = y * z2, zz = z * z2;
+            float wx = w * x2, wy = w * y2, wz = w * z2;
+
+            m[0][0] = 1.0 - (yy + zz);
+            m[0][1] = xy - wz;
+            m[0][2] = xz + wy;
+
+            m[1][0] = xy + wz;
+            m[1][1] = 1.0 - (xx + zz);
+            m[1][2] = yz - wx;
+
+            m[2][0] = xz - wy;
+            m[2][1] = yz + wx;
+            m[2][2] = 1.0 - (xx + yy);
+   
+            m[3][3] = 1.0;
+
+            return m;
         }
 
         void setup()
         {
         #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-            boid = boidBuffer[unity_InstanceID];
-            
+            Boid boid = boidBuffer[unity_InstanceID];
+
             unity_ObjectToWorld = 0.0;
             
             // scale
             unity_ObjectToWorld._m00_m11_m22 = _Scale;
+
+            // rotation
+            unity_ObjectToWorld = mul(unity_ObjectToWorld, quaternion_to_matrix(boid.rot));
  
             // position
-            unity_ObjectToWorld._m03_m13_m23_m33 = float4(boid.pos, 1.0);
+            unity_ObjectToWorld._m03_m13_m23_m33 += float4(boid.pos, 1.0);
         #endif
         }
 
@@ -70,12 +92,6 @@ Shader "Custom/3DBoidShader"
         half _Metallic;
         fixed4 _Color;
 
-        // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
-        // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
-        // #pragma instancing_options assumeuniformscaling
-        UNITY_INSTANCING_BUFFER_START(Props)
-            // put more per-instance properties here
-        UNITY_INSTANCING_BUFFER_END(Props)
 
         
 
