@@ -1,10 +1,9 @@
-struct Boid 
-{
-    float3 pos;
-    float3 vel;
-    float4 rot;
-    float pad0;
-    float pad1;
+struct Boid {
+  float3 pos;
+  float3 vel;
+  float4 rot;
+  float pad0;
+  float pad1;
 };
 
 StructuredBuffer<Boid> boidsIn;
@@ -32,133 +31,130 @@ uint gridDimY;
 uint gridDimZ;
 
 uint3 getGridLocation(Boid boid) {
-	int boidX = floor(boid.pos.x / gridCellSize + gridDimX/2);
-    int boidY = floor(boid.pos.y / gridCellSize + gridDimY/2);
-    int boidZ = floor(boid.pos.z / gridCellSize + gridDimZ/2);
-    return uint3(boidX, boidY, boidZ);
+  int boidX = floor(boid.pos.x / gridCellSize + gridDimX / 2);
+  int boidY = floor(boid.pos.y / gridCellSize + gridDimY / 2);
+  int boidZ = floor(boid.pos.z / gridCellSize + gridDimZ / 2);
+  return uint3(boidX, boidY, boidZ);
 }
 
 uint getGridID(uint3 pos) {
-    return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
+  return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
 }
 
 void MergedBehaviours(inout Boid boid) {
-    float3 center = 0;
-    float3 close = 0;
-    float3 avgVel = 0;
-    int neighbours = 0;
+  float3 center = 0;
+  float3 close = 0;
+  float3 avgVel = 0;
+  int neighbours = 0;
 
-    int3 gridXYZ = getGridLocation(boid);
+  int3 gridXYZ = getGridLocation(boid);
 
-    for (int z = gridXYZ.z - 1; z <= gridXYZ.z + 1; z++) {
-        for (int y = gridXYZ.y - 1; y <= gridXYZ.y + 1; y++) {
-            for (int x = gridXYZ.x - 1; x <= gridXYZ.x + 1; x++) {
-                uint cell = getGridID(uint3(x,y,z));
-                uint end = gridOffsetBuffer[cell];
-                uint start = end - gridCountBuffer[cell];
+  for (int z = gridXYZ.z - 1; z <= gridXYZ.z + 1; z++) {
+    for (int y = gridXYZ.y - 1; y <= gridXYZ.y + 1; y++) {
+      for (int x = gridXYZ.x - 1; x <= gridXYZ.x + 1; x++) {
+        uint cell = getGridID(uint3(x, y, z));
+        uint end = gridOffsetBuffer[cell];
+        uint start = end - gridCountBuffer[cell];
 
-                for (uint i = start; i < end; i++) {
-                    Boid other = boidsIn[i];
-                    
-                    float dist = distance(boid.pos, other.pos);
-                    if(dist > 0 && dist < visualRange) {
-                        if(dist < minDistance) {
-                            close += boid.pos - other.pos;
-                        }
-                        center += other.pos;
-                        avgVel += other.vel;
-                        neighbours++;
-                    }
-                }
+        for (uint i = start; i < end; i++) {
+          Boid other = boidsIn[i];
+          
+          float dist = distance(boid.pos, other.pos);
+          if (dist > 0 && dist < visualRange) {
+            if (dist < minDistance) {
+              close += boid.pos - other.pos;
             }
+            center += other.pos;
+            avgVel += other.vel;
+            neighbours++;
+          }
         }
+      }
     }
+  }
 
-    if (neighbours > 0) {
-        center /= neighbours;
-        avgVel /= neighbours;
+  if (neighbours > 0) {
+    center /= neighbours;
+    avgVel /= neighbours;
 
-        boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
-        boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
-    }
+    boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
+    boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
+  }
 
-    boid.vel += close * seperationFactor * deltaTime;
-
+  boid.vel += close * seperationFactor * deltaTime;
 }
 
 void LimitSpeed(inout Boid boid) {
-    float speed = length(boid.vel);
-    if(speed > maxSpeed) {
-        boid.vel = normalize(boid.vel) * maxSpeed;
-    } else if (speed < minSpeed) {
-        boid.vel = normalize(boid.vel) * minSpeed;
-    }
+  float speed = length(boid.vel);
+  if (speed > maxSpeed) {
+    boid.vel = normalize(boid.vel) * maxSpeed;
+  } else if (speed < minSpeed) {
+    boid.vel = normalize(boid.vel) * minSpeed;
+  }
 }
 
 void KeepInBounds(inout Boid boid) {
-    if (boid.pos.x < -xBound) {
-      boid.vel.x += deltaTime * turnSpeed;
-    } else if (boid.pos.x > xBound) {
-      boid.vel.x -= deltaTime * turnSpeed;
-    }
+  if (boid.pos.x < - xBound) {
+    boid.vel.x += deltaTime * turnSpeed;
+  } else if (boid.pos.x > xBound) {
+    boid.vel.x -= deltaTime * turnSpeed;
+  }
 
-    if (boid.pos.y > yBound) {
-      boid.vel.y -= deltaTime * turnSpeed;
-    } else if (boid.pos.y < -yBound) {
-      boid.vel.y += deltaTime * turnSpeed;
-    }
+  if (boid.pos.y > yBound) {
+    boid.vel.y -= deltaTime * turnSpeed;
+  } else if (boid.pos.y < - yBound) {
+    boid.vel.y += deltaTime * turnSpeed;
+  }
 
-    if (boid.pos.z > zBound) {
-      boid.vel.z -= deltaTime * turnSpeed;
-    } else if (boid.pos.z < -zBound) {
-      boid.vel.z += deltaTime * turnSpeed;
-    }
+  if (boid.pos.z > zBound) {
+    boid.vel.z -= deltaTime * turnSpeed;
+  } else if (boid.pos.z < - zBound) {
+    boid.vel.z += deltaTime * turnSpeed;
+  }
 }
 
 #pragma kernel UpdateBoids // ID 0
-[numthreads(256,1,1)]
-void UpdateBoids (uint3 id : SV_DispatchThreadID)
-{
-    Boid boid = boidsIn[id.x];
-    
-    MergedBehaviours(boid);
-    LimitSpeed(boid);
-    KeepInBounds(boid);
+[numthreads(256, 1, 1)]
+void UpdateBoids(uint3 id : SV_DispatchThreadID) {
+  Boid boid = boidsIn[id.x];
+  
+  MergedBehaviours(boid);
+  LimitSpeed(boid);
+  KeepInBounds(boid);
 
-    // Update positions and rotation
-    boid.pos += boid.vel * deltaTime;
+  // Update positions and rotation
+  boid.pos += boid.vel * deltaTime;
 
-    // Convert direction to quaternion
-    float4 q;
-    q.xyz = cross(float3(0,1,0), boid.vel);
-    q.w = sqrt((pow(length(float3(0,1,0)),2)) * (pow(length(boid.vel),2))) + dot(float3(0,1,0), boid.vel);
-    boid.rot = normalize(q);
+  // Convert direction to quaternion
+  float4 q;
+  q.xyz = cross(float3(0, 1, 0), boid.vel);
+  q.w = sqrt((pow(length(float3(0, 1, 0)), 2)) * (pow(length(boid.vel), 2))) + dot(float3(0, 1, 0), boid.vel);
+  boid.rot = normalize(q);
 
-    boidsOut[id.x] = boid;
+  boidsOut[id.x] = boid;
 }
 
 // Basic random generation
 uint randSeed;
 uint state;
-float wangHash()
-{
-    state = (state ^ 61) ^ (state >> 16);
-    state *= 9;
-    state = state ^ (state >> 4);
-    state *= 0x27d4eb2d;
-    state = state ^ (state >> 15);
-    return state / 4294967296.0;
+float wangHash() {
+  state = (state ^ 61) ^(state >> 16);
+  state *= 9;
+  state = state ^(state >> 4);
+  state *= 0x27d4eb2d;
+  state = state ^(state >> 15);
+  return state / 4294967296.0;
 }
 
 float randRange(float a, float b) {
-    return wangHash() * (b - a) + a;
+  return wangHash() * (b - a) + a;
 }
 
 #pragma kernel GenerateBoids // ID 1
-[numthreads(256,1,1)]
+[numthreads(256, 1, 1)]
 void GenerateBoids(uint3 id : SV_DispatchThreadID) {
-    state = randSeed + id.x;
-    boidsOut[id.x].pos = float3(randRange(-xBound,xBound), randRange(-yBound,yBound), randRange(-zBound,zBound));
-    boidsOut[id.x].vel = float3(randRange(-maxSpeed,maxSpeed), randRange(-maxSpeed,maxSpeed), randRange(-maxSpeed,maxSpeed));
-    boidsOut[id.x].rot = 0;
+  state = randSeed + id.x;
+  boidsOut[id.x].pos = float3(randRange(-xBound, xBound), randRange(-yBound, yBound), randRange(-zBound, zBound));
+  boidsOut[id.x].vel = float3(randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed));
+  boidsOut[id.x].rot = 0;
 }

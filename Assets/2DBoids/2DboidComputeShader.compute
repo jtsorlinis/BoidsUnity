@@ -1,10 +1,10 @@
 struct Boid {
-    float2 pos;
-    float2 vel;
-    float rot;
-    float pad0;
-    float pad1;
-    float pad2;
+  float2 pos;
+  float2 vel;
+  float rot;
+  float pad0;
+  float pad1;
+  float pad2;
 };
 
 StructuredBuffer<Boid> boidsIn;
@@ -30,118 +30,115 @@ uint gridDimY;
 uint gridDimX;
 
 uint2 getGridLocation(Boid boid) {
-    int x = floor(boid.pos.x / gridCellSize + gridDimX/2);
-	int y = floor(boid.pos.y / gridCellSize + gridDimY/2);
-    return uint2(x, y);
+  int x = floor(boid.pos.x / gridCellSize + gridDimX / 2);
+  int y = floor(boid.pos.y / gridCellSize + gridDimY / 2);
+  return uint2(x, y);
 }
 
 uint getGridID(uint2 pos) {
-    return (gridDimX * pos.y) + pos.x;
+  return (gridDimX * pos.y) + pos.x;
 }
 
 void MergedBehaviours(inout Boid boid) {
-    float2 center = 0;
-    float2 close = 0;
-    float2 avgVel = 0;
-    int neighbours = 0;
+  float2 center = 0;
+  float2 close = 0;
+  float2 avgVel = 0;
+  int neighbours = 0;
 
-    int2 gridXY = getGridLocation(boid);
+  int2 gridXY = getGridLocation(boid);
 
-    // Loop Around Own Cell
-    for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++) {
-        for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++) {
-            uint cell = getGridID(uint2(x,y));
-            uint end = gridOffsetBuffer[cell];
-            uint start = end - gridCountBuffer[cell];
-            for (uint i = start; i < end; i++) {
-                Boid other = boidsIn[i];
-                float dist = distance(boid.pos, other.pos);
-                if(dist > 0 && dist < visualRange) {
-                    if(dist < minDistance) {
-                        close += boid.pos - other.pos;
-                    }
-                    center += other.pos;
-                    avgVel += other.vel;
-                    neighbours++;
-                }
-            }
+  // Loop Around Own Cell
+  for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++) {
+    for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++) {
+      uint cell = getGridID(uint2(x, y));
+      uint end = gridOffsetBuffer[cell];
+      uint start = end - gridCountBuffer[cell];
+      for (uint i = start; i < end; i++) {
+        Boid other = boidsIn[i];
+        float dist = distance(boid.pos, other.pos);
+        if (dist > 0 && dist < visualRange) {
+          if (dist < minDistance) {
+            close += boid.pos - other.pos;
+          }
+          center += other.pos;
+          avgVel += other.vel;
+          neighbours++;
         }
+      }
     }
+  }
 
-    if (neighbours > 0) {
-        center /= neighbours;
-        avgVel /= neighbours;
+  if (neighbours > 0) {
+    center /= neighbours;
+    avgVel /= neighbours;
 
-        boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
-        boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
-    }
+    boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
+    boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
+  }
 
-    boid.vel += close * seperationFactor * deltaTime;
-
+  boid.vel += close * seperationFactor * deltaTime;
 }
 
 void LimitSpeed(inout Boid boid) {
-    float speed = length(boid.vel);
-    if(speed > maxSpeed) {
-        boid.vel = normalize(boid.vel) * maxSpeed;
-    } else if (speed < minSpeed) {
-        boid.vel = normalize(boid.vel) * minSpeed;
-    }
+  float speed = length(boid.vel);
+  if (speed > maxSpeed) {
+    boid.vel = normalize(boid.vel) * maxSpeed;
+  } else if (speed < minSpeed) {
+    boid.vel = normalize(boid.vel) * minSpeed;
+  }
 }
 
 void KeepInBounds(inout Boid boid) {
-    if (boid.pos.x < -xBound) {
-      boid.vel.x += deltaTime * turnSpeed;
-    } else if (boid.pos.x > xBound) {
-      boid.vel.x -= deltaTime * turnSpeed;
-    }
+  if (boid.pos.x < - xBound) {
+    boid.vel.x += deltaTime * turnSpeed;
+  } else if (boid.pos.x > xBound) {
+    boid.vel.x -= deltaTime * turnSpeed;
+  }
 
-    if (boid.pos.y > yBound) {
-      boid.vel.y -= deltaTime * turnSpeed;
-    } else if (boid.pos.y < -yBound) {
-      boid.vel.y += deltaTime * turnSpeed;
-    }
+  if (boid.pos.y > yBound) {
+    boid.vel.y -= deltaTime * turnSpeed;
+  } else if (boid.pos.y < - yBound) {
+    boid.vel.y += deltaTime * turnSpeed;
+  }
 }
 
 #pragma kernel UpdateBoids // ID 0
-[numthreads(256,1,1)]
-void UpdateBoids (uint3 id : SV_DispatchThreadID)
-{
-    Boid boid = boidsIn[id.x];
-    
-    MergedBehaviours(boid);
-    LimitSpeed(boid);
-    KeepInBounds(boid);
+[numthreads(256, 1, 1)]
+void UpdateBoids(uint3 id : SV_DispatchThreadID) {
+  Boid boid = boidsIn[id.x];
+  
+  MergedBehaviours(boid);
+  LimitSpeed(boid);
+  KeepInBounds(boid);
 
-    // Update positions and rotation
-    boid.pos += boid.vel * deltaTime;
-    boid.rot = atan2(boid.vel.y, boid.vel.x) - 1.5708f;
-    boidsOut[id.x] = boid;
+  // Update positions and rotation
+  boid.pos += boid.vel * deltaTime;
+  boid.rot = atan2(boid.vel.y, boid.vel.x) - 1.5708f;
+  boidsOut[id.x] = boid;
 }
 
 
 // Basic random generation
 uint randSeed;
 uint state;
-float wangHash()
-{
-    state = (state ^ 61) ^ (state >> 16);
-    state *= 9;
-    state = state ^ (state >> 4);
-    state *= 0x27d4eb2d;
-    state = state ^ (state >> 15);
-    return state / 4294967296.0;
+float wangHash() {
+  state = (state ^ 61) ^(state >> 16);
+  state *= 9;
+  state = state ^(state >> 4);
+  state *= 0x27d4eb2d;
+  state = state ^(state >> 15);
+  return state / 4294967296.0;
 }
 
 float randRange(float a, float b) {
-    return wangHash() * (b - a) + a;
+  return wangHash() * (b - a) + a;
 }
 
 #pragma kernel GenerateBoids // ID 1
-[numthreads(256,1,1)]
+[numthreads(256, 1, 1)]
 void GenerateBoids(uint3 id : SV_DispatchThreadID) {
-    state = randSeed + id.x;
-    boidsOut[id.x].pos = float2(randRange(-xBound,xBound), randRange(-yBound,yBound));
-    boidsOut[id.x].vel = float2(randRange(-maxSpeed,maxSpeed), randRange(-maxSpeed,maxSpeed));
-    boidsOut[id.x].rot = 0;
+  state = randSeed + id.x;
+  boidsOut[id.x].pos = float2(randRange(-xBound, xBound), randRange(-yBound, yBound));
+  boidsOut[id.x].vel = float2(randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed));
+  boidsOut[id.x].rot = 0;
 }
