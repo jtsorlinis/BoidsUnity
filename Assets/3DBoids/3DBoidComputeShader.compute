@@ -1,7 +1,6 @@
 struct Boid {
   float3 pos;
   float3 vel;
-  float4 rot;
   float pad0;
   float pad1;
 };
@@ -122,14 +121,9 @@ void UpdateBoids(uint3 id : SV_DispatchThreadID) {
   LimitSpeed(boid);
   KeepInBounds(boid);
 
-  // Update positions and rotation
+  // Update positions
   boid.pos += boid.vel * deltaTime;
 
-  // Convert direction to quaternion
-  float4 q;
-  q.xyz = cross(float3(0, 1, 0), boid.vel);
-  q.w = sqrt((pow(length(float3(0, 1, 0)), 2)) * (pow(length(boid.vel), 2))) + dot(float3(0, 1, 0), boid.vel);
-  boid.rot = normalize(q);
 
   boidsOut[id.x] = boid;
 }
@@ -156,5 +150,4 @@ void GenerateBoids(uint3 id : SV_DispatchThreadID) {
   state = randSeed + id.x;
   boidsOut[id.x].pos = float3(randRange(-xBound, xBound), randRange(-yBound, yBound), randRange(-zBound, zBound));
   boidsOut[id.x].vel = float3(randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed));
-  boidsOut[id.x].rot = 0;
 }

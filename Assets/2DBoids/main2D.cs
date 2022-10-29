@@ -8,10 +8,6 @@ struct Boid
 {
   public Vector2 pos;
   public Vector2 vel;
-  public float rot;
-  float pad0;
-  float pad1;
-  float pad2;
 }
 
 public class main2D : MonoBehaviour
@@ -104,8 +100,8 @@ public class main2D : MonoBehaviour
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
     // Setup compute buffer
-    boidBuffer = new ComputeBuffer(numBoids, 32);
-    boidBufferOut = new ComputeBuffer(numBoids, 32);
+    boidBuffer = new ComputeBuffer(numBoids, 16);
+    boidBufferOut = new ComputeBuffer(numBoids, 16);
     boidShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBufferOut);
     boidShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBuffer);
     boidShader.SetInt("numBoids", numBoids);
@@ -131,7 +127,6 @@ public class main2D : MonoBehaviour
         var boid = new Boid();
         boid.pos = pos;
         boid.vel = vel;
-        boid.rot = 0;
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);
@@ -327,9 +322,8 @@ public class main2D : MonoBehaviour
           LimitSpeed(ref boid);
           KeepInBounds(ref boid);
 
-          // Update boid positions and rotation
+          // Update boid position
           boid.pos += boid.vel * Time.deltaTime;
-          boid.rot = Mathf.Atan2(boid.vel.y, boid.vel.x) - (Mathf.PI / 2);
           boids[i] = boid;
         }
       }
@@ -694,7 +688,6 @@ public class main2D : MonoBehaviour
       jobKeepInBounds(ref boid);
 
       boid.pos += boid.vel * deltaTime;
-      boid.rot = Mathf.Atan2(boid.vel.y, boid.vel.x) - (Mathf.PI / 2);
       outBoids[index] = boid;
     }
   }

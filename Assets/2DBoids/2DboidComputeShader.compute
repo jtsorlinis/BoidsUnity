@@ -1,10 +1,6 @@
 struct Boid {
   float2 pos;
   float2 vel;
-  float rot;
-  float pad0;
-  float pad1;
-  float pad2;
 };
 
 StructuredBuffer<Boid> boidsIn;
@@ -111,9 +107,8 @@ void UpdateBoids(uint3 id : SV_DispatchThreadID) {
   LimitSpeed(boid);
   KeepInBounds(boid);
 
-  // Update positions and rotation
+  // Update positions
   boid.pos += boid.vel * deltaTime;
-  boid.rot = atan2(boid.vel.y, boid.vel.x) - 1.5708f;
   boidsOut[id.x] = boid;
 }
 
@@ -140,5 +135,4 @@ void GenerateBoids(uint3 id : SV_DispatchThreadID) {
   state = randSeed + id.x;
   boidsOut[id.x].pos = float2(randRange(-xBound, xBound), randRange(-yBound, yBound));
   boidsOut[id.x].vel = float2(randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed));
-  boidsOut[id.x].rot = 0;
 }

@@ -6,7 +6,6 @@ struct Boid3D
 {
   public Vector3 pos;
   public Vector3 vel;
-  public Quaternion rot;
   float pad0;
   float pad1;
 }
@@ -100,8 +99,8 @@ public class Main3D : MonoBehaviour
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
     // Setup compute buffer
-    boidBuffer = new ComputeBuffer(numBoids, 48);
-    boidBufferOut = new ComputeBuffer(numBoids, 48);
+    boidBuffer = new ComputeBuffer(numBoids, 32);
+    boidBufferOut = new ComputeBuffer(numBoids, 32);
     boidComputeShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBufferOut);
     boidComputeShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBuffer);
     boidComputeShader.SetInt("numBoids", numBoids);
@@ -126,7 +125,6 @@ public class Main3D : MonoBehaviour
         var boid = new Boid3D();
         boid.pos = new Vector3(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound), UnityEngine.Random.Range(-zBound, zBound));
         boid.vel = new Vector3(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed));
-        boid.rot = Quaternion.identity;
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);
@@ -256,7 +254,6 @@ public class Main3D : MonoBehaviour
         LimitSpeed(ref boid);
         KeepInBounds(ref boid);
         boid.pos += boid.vel * Time.deltaTime;
-        boid.rot = Quaternion.FromToRotation(Vector3.up, boid.vel);
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);

@@ -29,7 +29,6 @@ Shader "Custom/3DBoidShader" {
     struct Boid {
       float3 pos;
       float3 vel;
-      float4 rot;
       float pad0;
       float pad1;
     };
@@ -38,30 +37,20 @@ Shader "Custom/3DBoidShader" {
       StructuredBuffer<Boid> boids;
     #endif
 
-    float4x4 quaternion_to_matrix(float4 quat) {
-      float4x4 m = float4x4(float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0), float4(0, 0, 0, 0));
+    float4x4 vel_to_matrix(float3 vel) {
+      float3 dir = normalize(vel);
+      float3 up = float3(0, 1, 0);
+      float3 axis = cross(up, dir);
 
-      float x = quat.x, y = quat.y, z = quat.z, w = quat.w;
-      float x2 = x + x, y2 = y + y, z2 = z + z;
-      float xx = x * x2, xy = x * y2, xz = x * z2;
-      float yy = y * y2, yz = y * z2, zz = z * z2;
-      float wx = w * x2, wy = w * y2, wz = w * z2;
+      const float cosA = dot(up, dir);
+      const float k = 1.0f / (1.0f + cosA);
 
-      m[0][0] = 1.0 - (yy + zz);
-      m[0][1] = xy - wz;
-      m[0][2] = xz + wy;
-
-      m[1][0] = xy + wz;
-      m[1][1] = 1.0 - (xx + zz);
-      m[1][2] = yz - wx;
-
-      m[2][0] = xz - wy;
-      m[2][1] = yz + wx;
-      m[2][2] = 1.0 - (xx + yy);
-      
-      m[3][3] = 1.0;
-
-      return m;
+      return float4x4(
+        (axis.x * axis.x * k) + cosA, (axis.y * axis.x * k) - axis.z, (axis.z * axis.x * k) + axis.y, 0,
+        (axis.x * axis.y * k) + axis.z, (axis.y * axis.y * k) + cosA, (axis.z * axis.y * k) - axis.x, 0,
+        (axis.x * axis.z * k) - axis.y, (axis.y * axis.z * k) + axis.x, (axis.z * axis.z * k) + cosA, 0,
+        0, 0, 0, 1
+      );
     }
 
     void setup() {
@@ -74,7 +63,7 @@ Shader "Custom/3DBoidShader" {
         unity_ObjectToWorld._m00_m11_m22 = _Scale;
 
         // rotation
-        unity_ObjectToWorld = mul(unity_ObjectToWorld, quaternion_to_matrix(boid.rot));
+        unity_ObjectToWorld = mul(unity_ObjectToWorld, vel_to_matrix(boid.vel));
         
         // position
         unity_ObjectToWorld._m03_m13_m23_m33 += float4(boid.pos, 1.0);

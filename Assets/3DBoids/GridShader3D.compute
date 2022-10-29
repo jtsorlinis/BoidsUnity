@@ -1,7 +1,6 @@
 struct Boid {
   float3 pos;
   float3 vel;
-  float4 rot;
   float pad0;
   float pad1;
 };
