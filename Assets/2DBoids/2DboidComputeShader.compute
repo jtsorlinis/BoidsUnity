@@ -16,7 +16,7 @@ uniform float minSpeed;
 uniform float edgeMargin;
 uniform float visualRange;
 uniform float cohesionFactor;
-uniform float seperationFactor;
+uniform float separationFactor;
 uniform float alignmentFactor;
 uniform float minDistance;
 uniform float turnSpeed;
@@ -76,7 +76,7 @@ void MergedBehaviours(inout Boid boid) {
     boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
   }
 
-  boid.vel += close * seperationFactor * deltaTime;
+  boid.vel += close * separationFactor * deltaTime;
 }
 
 void LimitSpeed(inout Boid boid) {

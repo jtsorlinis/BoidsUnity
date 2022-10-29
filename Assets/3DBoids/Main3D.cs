@@ -16,15 +16,15 @@ public class Main3D : MonoBehaviour
   [Header("Performance")]
   bool useGPU = false;
   [SerializeField] int numBoids = 32;
-  [SerializeField] float boidScale = 0.3f;
+  [SerializeField] float boidScale = 0.08f;
 
   [Header("Settings")]
-  [SerializeField] float maxSpeed = 5;
-  [SerializeField] float edgeMargin = 2f;
-  [SerializeField] float visualRange = 2.5f;
-  [SerializeField] float minDistance = 0.5f;
-  [SerializeField] float cohesionFactor = .3f;
-  [SerializeField] float seperationFactor = 30;
+  [SerializeField] float maxSpeed = 1.5f;
+  [SerializeField] float edgeMargin = 0.5f;
+  [SerializeField] float visualRange = .5f;
+  [SerializeField] float minDistance = 0.15f;
+  [SerializeField] float cohesionFactor = 1;
+  [SerializeField] float separationFactor = 30;
   [SerializeField] float alignmentFactor = 5;
 
   [Header("Prefabs")]
@@ -206,7 +206,7 @@ public class Main3D : MonoBehaviour
     {
       boidComputeShader.SetFloat("deltaTime", Time.deltaTime);
       boidComputeShader.SetFloat("cohesionFactor", cohesionFactor);
-      boidComputeShader.SetFloat("seperationFactor", seperationFactor);
+      boidComputeShader.SetFloat("separationFactor", separationFactor);
       boidComputeShader.SetFloat("alignmentFactor", alignmentFactor);
 
       // Clear indices
@@ -311,7 +311,7 @@ public class Main3D : MonoBehaviour
       boid.vel += (avgVel - boid.vel) * alignmentFactor * Time.deltaTime;
     }
 
-    boid.vel += close * seperationFactor * Time.deltaTime;
+    boid.vel += close * separationFactor * Time.deltaTime;
   }
 
   void LimitSpeed(ref Boid3D boid)

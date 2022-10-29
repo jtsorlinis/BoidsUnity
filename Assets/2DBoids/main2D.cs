@@ -25,9 +25,9 @@ public class main2D : MonoBehaviour
   [SerializeField] float maxSpeed = 2;
   [SerializeField] float edgeMargin = .5f;
   [SerializeField] float visualRange = .5f;
-  [SerializeField] float minDistance = 0.1f;
-  [SerializeField] float cohesionFactor = .3f;
-  [SerializeField] float seperationFactor = 30;
+  [SerializeField] float minDistance = 0.15f;
+  [SerializeField] float cohesionFactor = 1;
+  [SerializeField] float separationFactor = 30;
   [SerializeField] float alignmentFactor = 5;
 
   [Header("Prefabs")]
@@ -205,7 +205,7 @@ public class main2D : MonoBehaviour
     boidJob.yBound = yBound;
     boidJob.cohesionFactor = cohesionFactor;
     boidJob.alignmentFactor = alignmentFactor;
-    boidJob.seperationFactor = seperationFactor;
+    boidJob.separationFactor = separationFactor;
     boidJob.maxSpeed = maxSpeed;
     boidJob.minSpeed = minSpeed;
     boidJob.turnSpeed = turnSpeed;
@@ -245,7 +245,7 @@ public class main2D : MonoBehaviour
     {
       boidShader.SetFloat("deltaTime", Time.deltaTime);
       boidShader.SetFloat("cohesionFactor", cohesionFactor);
-      boidShader.SetFloat("seperationFactor", seperationFactor);
+      boidShader.SetFloat("separationFactor", separationFactor);
       boidShader.SetFloat("alignmentFactor", alignmentFactor);
 
       // Clear indices
@@ -384,7 +384,7 @@ public class main2D : MonoBehaviour
       boid.vel += (avgVel - boid.vel) * alignmentFactor * Time.deltaTime;
     }
 
-    boid.vel += close * seperationFactor * Time.deltaTime;
+    boid.vel += close * separationFactor * Time.deltaTime;
   }
 
   void LimitSpeed(ref Boid boid)
@@ -589,7 +589,7 @@ public class main2D : MonoBehaviour
     public float minDistance;
     public float cohesionFactor;
     public float alignmentFactor;
-    public float seperationFactor;
+    public float separationFactor;
     public float maxSpeed;
     public float minSpeed;
     public float turnSpeed;
@@ -641,7 +641,7 @@ public class main2D : MonoBehaviour
         boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
       }
 
-      boid.vel += close * seperationFactor * deltaTime;
+      boid.vel += close * separationFactor * deltaTime;
     }
 
     void jobLimitSpeed(ref Boid boid)
