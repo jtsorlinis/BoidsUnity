@@ -74,9 +74,6 @@ Shader "Custom/3DBoidShader" {
     half _Metallic;
     fixed4 _Color;
 
-
-    
-
     void surf(Input IN, inout SurfaceOutputStandard o) {
       // Albedo comes from a texture tinted by color
       o.Albedo = _Color.rgb;

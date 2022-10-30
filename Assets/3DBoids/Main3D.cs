@@ -53,13 +53,11 @@ public class Main3D : MonoBehaviour
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
-  ComputeBuffer gridCountBuffer;
   ComputeBuffer gridOffsetBuffer;
   ComputeBuffer gridOffsetBufferIn;
 
   // Index is particle ID, x value is position flattened to 1D array, y value is grid cell offset
   Vector2Int[] grid;
-  int[] gridCounts;
   int[] gridOffsets;
   int gridDimY, gridDimX, gridDimZ, gridTotalCells;
   float gridCellSize;
@@ -157,21 +155,18 @@ public class Main3D : MonoBehaviour
     if (numBoids <= cpuLimit)
     {
       grid = new Vector2Int[numBoids];
-      gridCounts = new int[gridTotalCells];
       gridOffsets = new int[gridTotalCells];
     }
 
     gridBuffer = new ComputeBuffer(numBoids, 8);
-    gridCountBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
     gridShader.SetInt("numBoids", numBoids);
     gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
-    gridShader.SetBuffer(updateGridKernel, "gridCountBuffer", gridCountBuffer);
+    gridShader.SetBuffer(updateGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
-    gridShader.SetBuffer(clearGridKernel, "gridCountBuffer", gridCountBuffer);
-    gridShader.SetBuffer(clearGridKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    gridShader.SetBuffer(clearGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
     gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", gridOffsetBuffer);
     gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", gridOffsetBufferIn);
@@ -187,7 +182,6 @@ public class Main3D : MonoBehaviour
     gridShader.SetInt("gridDimZ", gridDimZ);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
 
-    boidComputeShader.SetBuffer(updateBoidsKernel, "gridCountBuffer", gridCountBuffer);
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
     boidComputeShader.SetFloat("gridCellSize", gridCellSize);
     boidComputeShader.SetInt("gridDimY", gridDimY);
@@ -214,16 +208,11 @@ public class Main3D : MonoBehaviour
       gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
 
       // Generate offsets (prefix sum)
-      gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", gridCountBuffer);
-      gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", gridOffsetBuffer);
       bool swap = false;
       for (int d = 1; d < gridTotalCells; d *= 2)
       {
-        if (d > 1)
-        {
-          gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", swap ? gridOffsetBuffer : gridOffsetBufferIn);
-          gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", swap ? gridOffsetBufferIn : gridOffsetBuffer);
-        }
+        gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", swap ? gridOffsetBuffer : gridOffsetBufferIn);
+        gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", swap ? gridOffsetBufferIn : gridOffsetBuffer);
         gridShader.SetInt("d", d);
         gridShader.Dispatch(prefixSumKernel, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
         swap = !swap;
@@ -270,30 +259,29 @@ public class Main3D : MonoBehaviour
     int neighbours = 0;
 
     var gridXYZ = getGridLocation(boid);
-    for (int z = gridXYZ.z - 1; z <= gridXYZ.z + 1; z++)
-    {
-      for (int y = gridXYZ.y - 1; y <= gridXYZ.y + 1; y++)
-      {
-        for (int x = gridXYZ.x - 1; x <= gridXYZ.x + 1; x++)
-        {
-          int gridCell = getGridIDbyLoc(x, y, z);
-          int end = gridOffsets[gridCell];
-          int start = end - gridCounts[gridCell];
-          for (int i = start; i < end; i++)
-          {
-            Boid3D other = boidsTemp[i];
-            float distance = Vector3.Distance(boid.pos, other.pos);
+    int gridCell = getGridIDbyLoc(gridXYZ);
+    int zStep = gridDimX * gridDimY;
 
-            if (distance > 0 && distance < visualRange)
+    for (int z = gridCell - zStep; z <= gridCell + zStep; z += zStep)
+    {
+      for (int y = z - gridDimX; y <= z + gridDimX; y += gridDimX)
+      {
+        int start = gridOffsets[y - 2];
+        int end = gridOffsets[y + 1];
+        for (int i = start; i < end; i++)
+        {
+          Boid3D other = boidsTemp[i];
+          float distance = Vector3.Distance(boid.pos, other.pos);
+
+          if (distance > 0 && distance < visualRange)
+          {
+            if (distance < minDistance)
             {
-              if (distance < minDistance)
-              {
-                close += boid.pos - other.pos;
-              }
-              center += other.pos;
-              avgVel += other.vel;
-              neighbours++;
+              close += boid.pos - other.pos;
             }
+            center += other.pos;
+            avgVel += other.vel;
+            neighbours++;
           }
         }
       }
@@ -304,11 +292,11 @@ public class Main3D : MonoBehaviour
       center /= neighbours;
       avgVel /= neighbours;
 
-      boid.vel += (center - boid.pos) * cohesionFactor * Time.deltaTime;
-      boid.vel += (avgVel - boid.vel) * alignmentFactor * Time.deltaTime;
+      boid.vel += (center - boid.pos) * (cohesionFactor * Time.deltaTime);
+      boid.vel += (avgVel - boid.vel) * (alignmentFactor * Time.deltaTime);
     }
 
-    boid.vel += close * separationFactor * Time.deltaTime;
+    boid.vel += close * (separationFactor * Time.deltaTime);
   }
 
   void LimitSpeed(ref Boid3D boid)
@@ -362,9 +350,9 @@ public class Main3D : MonoBehaviour
     return (gridDimY * gridDimX * boidz) + (gridDimX * boidy) + boidx;
   }
 
-  int getGridIDbyLoc(int x, int y, int z)
+  int getGridIDbyLoc(Vector3Int pos)
   {
-    return (gridDimY * gridDimX * z) + (gridDimX * y) + x;
+    return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
   }
 
   Vector3Int getGridLocation(Boid3D boid)
@@ -379,7 +367,6 @@ public class Main3D : MonoBehaviour
   {
     for (int i = 0; i < gridTotalCells; i++)
     {
-      gridCounts[i] = 0;
       gridOffsets[i] = 0;
     }
   }
@@ -390,17 +377,16 @@ public class Main3D : MonoBehaviour
     {
       int id = getGridID(boids[i]);
       grid[i].x = id;
-      grid[i].y = gridCounts[id];
-      gridCounts[id]++;
+      grid[i].y = gridOffsets[id];
+      gridOffsets[id]++;
     }
   }
 
   void GenerateGridOffsets()
   {
-    gridOffsets[0] = gridCounts[0];
     for (int i = 1; i < gridTotalCells; i++)
     {
-      gridOffsets[i] = gridOffsets[i - 1] + gridCounts[i];
+      gridOffsets[i] += gridOffsets[i - 1];
     }
   }
 
@@ -462,7 +448,6 @@ public class Main3D : MonoBehaviour
     boidBuffer.Release();
     boidBufferOut.Release();
     gridBuffer.Release();
-    gridCountBuffer.Release();
     gridOffsetBuffer.Release();
     gridOffsetBufferIn.Release();
   }
