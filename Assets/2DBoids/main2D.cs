@@ -10,7 +10,7 @@ struct Boid
   public Vector2 vel;
 }
 
-public class main2D : MonoBehaviour
+public class Main2D : MonoBehaviour
 {
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
@@ -52,13 +52,11 @@ public class main2D : MonoBehaviour
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
-  ComputeBuffer gridCountBuffer;
   ComputeBuffer gridOffsetBuffer;
   ComputeBuffer gridOffsetBufferIn;
 
   // Index is particle ID, x value is position flattened to 1D array, y value is grid cell offset
   NativeArray<Vector2Int> grid;
-  NativeArray<int> gridCounts;
   NativeArray<int> gridOffsets;
   int gridDimY, gridDimX, gridTotalCells;
   float gridCellSize;
@@ -154,21 +152,18 @@ public class main2D : MonoBehaviour
     if (numBoids <= jobLimit)
     {
       grid = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
-      gridCounts = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
       gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     }
 
     gridBuffer = new ComputeBuffer(numBoids, 8);
-    gridCountBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
     gridShader.SetInt("numBoids", numBoids);
     gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
-    gridShader.SetBuffer(updateGridKernel, "gridCountBuffer", gridCountBuffer);
+    gridShader.SetBuffer(updateGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
-    gridShader.SetBuffer(clearGridKernel, "gridCountBuffer", gridCountBuffer);
-    gridShader.SetBuffer(clearGridKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    gridShader.SetBuffer(clearGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
     gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", gridOffsetBuffer);
     gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", gridOffsetBufferIn);
@@ -183,7 +178,6 @@ public class main2D : MonoBehaviour
     gridShader.SetInt("gridDimX", gridDimX);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
 
-    boidShader.SetBuffer(updateBoidsKernel, "gridCountBuffer", gridCountBuffer);
     boidShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
     boidShader.SetFloat("gridCellSize", gridCellSize);
     boidShader.SetInt("gridDimY", gridDimY);
@@ -207,9 +201,7 @@ public class main2D : MonoBehaviour
     boidJob.inBoids = boidsTemp;
     boidJob.outBoids = boids;
     boidJob.gridOffsets = gridOffsets;
-    boidJob.gridCounts = gridCounts;
 
-    clearGridJob.gridCounts = gridCounts;
     clearGridJob.gridOffsets = gridOffsets;
 
     updateGridJob.numBoids = numBoids;
@@ -218,10 +210,9 @@ public class main2D : MonoBehaviour
     updateGridJob.gridDimX = gridDimX;
     updateGridJob.boids = boids;
     updateGridJob.grid = grid;
-    updateGridJob.gridCounts = gridCounts;
+    updateGridJob.gridOffsets = gridOffsets;
 
     generateGridOffsetsJob.gridTotalCells = gridTotalCells;
-    generateGridOffsetsJob.gridCounts = gridCounts;
     generateGridOffsetsJob.gridOffsets = gridOffsets;
 
     rearrangeBoidsJob.numBoids = numBoids;
@@ -250,16 +241,11 @@ public class main2D : MonoBehaviour
       gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
 
       // Generate offsets (prefix sum)
-      gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", gridCountBuffer);
-      gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", gridOffsetBuffer);
       bool swap = false;
       for (int d = 1; d < gridTotalCells; d *= 2)
       {
-        if (d > 1)
-        {
-          gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", swap ? gridOffsetBuffer : gridOffsetBufferIn);
-          gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", swap ? gridOffsetBufferIn : gridOffsetBuffer);
-        }
+        gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", swap ? gridOffsetBuffer : gridOffsetBufferIn);
+        gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", swap ? gridOffsetBufferIn : gridOffsetBuffer);
         gridShader.SetInt("d", d);
         gridShader.Dispatch(prefixSumKernel, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
         swap = !swap;
@@ -344,27 +330,25 @@ public class main2D : MonoBehaviour
     int neighbours = 0;
 
     var gridXY = getGridLocation(boid);
-    for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++)
+    int gridCell = getGridIDbyLoc(gridXY);
+
+    for (int y = gridCell - gridDimX; y <= gridCell + gridDimX; y += gridDimX)
     {
-      for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++)
+      int start = gridOffsets[y - 2];
+      int end = gridOffsets[y + 1];
+      for (int i = start; i < end; i++)
       {
-        int gridCell = getGridIDbyLoc(x, y);
-        int end = gridOffsets[gridCell];
-        int start = end - gridCounts[gridCell];
-        for (int i = start; i < end; i++)
+        Boid other = boidsTemp[i];
+        var distance = Vector2.Distance(boid.pos, other.pos);
+        if (distance > 0 && distance < visualRange)
         {
-          Boid other = boidsTemp[i];
-          var distance = Vector2.Distance(boid.pos, other.pos);
-          if (distance > 0 && distance < visualRange)
+          if (distance < minDistance)
           {
-            if (distance < minDistance)
-            {
-              close += boid.pos - other.pos;
-            }
-            center += other.pos;
-            avgVel += other.vel;
-            neighbours++;
+            close += boid.pos - other.pos;
           }
+          center += other.pos;
+          avgVel += other.vel;
+          neighbours++;
         }
       }
     }
@@ -374,11 +358,11 @@ public class main2D : MonoBehaviour
       center /= neighbours;
       avgVel /= neighbours;
 
-      boid.vel += (center - boid.pos) * cohesionFactor * Time.deltaTime;
-      boid.vel += (avgVel - boid.vel) * alignmentFactor * Time.deltaTime;
+      boid.vel += (center - boid.pos) * (cohesionFactor * Time.deltaTime);
+      boid.vel += (avgVel - boid.vel) * (alignmentFactor * Time.deltaTime);
     }
 
-    boid.vel += close * separationFactor * Time.deltaTime;
+    boid.vel += close * (separationFactor * Time.deltaTime);
   }
 
   void LimitSpeed(ref Boid boid)
@@ -423,9 +407,9 @@ public class main2D : MonoBehaviour
     return (gridDimX * gridY) + gridX;
   }
 
-  int getGridIDbyLoc(int x, int y)
+  int getGridIDbyLoc(Vector2Int cell)
   {
-    return (gridDimX * y) + x;
+    return (gridDimX * cell.y) + cell.x;
   }
 
   Vector2Int getGridLocation(Boid boid)
@@ -439,7 +423,6 @@ public class main2D : MonoBehaviour
   {
     for (int i = 0; i < gridTotalCells; i++)
     {
-      gridCounts[i] = 0;
       gridOffsets[i] = 0;
     }
   }
@@ -451,18 +434,17 @@ public class main2D : MonoBehaviour
       int id = getGridID(boids[i]);
       var boidGrid = grid[i];
       boidGrid.x = id;
-      boidGrid.y = gridCounts[id];
+      boidGrid.y = gridOffsets[id];
       grid[i] = boidGrid;
-      gridCounts[id]++;
+      gridOffsets[id]++;
     }
   }
 
   void GenerateGridOffsets()
   {
-    gridOffsets[0] = gridCounts[0];
     for (int i = 1; i < gridTotalCells; i++)
     {
-      gridOffsets[i] = gridOffsets[i - 1] + gridCounts[i];
+      gridOffsets[i] += gridOffsets[i - 1];
     }
   }
 
@@ -481,12 +463,10 @@ public class main2D : MonoBehaviour
   [BurstCompile]
   struct ClearGridJob : IJobParallelFor
   {
-    public NativeArray<int> gridCounts;
     public NativeArray<int> gridOffsets;
 
     public void Execute(int i)
     {
-      gridCounts[i] = 0;
       gridOffsets[i] = 0;
     }
   }
@@ -495,7 +475,7 @@ public class main2D : MonoBehaviour
   struct UpdateGridJob : IJob
   {
     public NativeArray<Vector2Int> grid;
-    public NativeArray<int> gridCounts;
+    public NativeArray<int> gridOffsets;
     [ReadOnly]
     public NativeArray<Boid> boids;
     public int numBoids;
@@ -517,9 +497,9 @@ public class main2D : MonoBehaviour
         int id = jobGetGridID(boids[i]);
         var boidGrid = grid[i];
         boidGrid.x = id;
-        boidGrid.y = gridCounts[id];
+        boidGrid.y = gridOffsets[id];
         grid[i] = boidGrid;
-        gridCounts[id]++;
+        gridOffsets[id]++;
       }
 
     }
@@ -529,16 +509,13 @@ public class main2D : MonoBehaviour
   struct GenerateGridOffsetsJob : IJob
   {
     public int gridTotalCells;
-    [ReadOnly]
-    public NativeArray<int> gridCounts;
     public NativeArray<int> gridOffsets;
 
     public void Execute()
     {
-      gridOffsets[0] = gridCounts[0];
       for (int i = 1; i < gridTotalCells; i++)
       {
-        gridOffsets[i] = gridOffsets[i - 1] + gridCounts[i];
+        gridOffsets[i] += gridOffsets[i - 1];
       }
     }
   }
@@ -573,8 +550,6 @@ public class main2D : MonoBehaviour
     [ReadOnly]
     public NativeArray<int> gridOffsets;
     [ReadOnly]
-    public NativeArray<int> gridCounts;
-    [ReadOnly]
     public NativeArray<Boid> inBoids;
     public NativeArray<Boid> outBoids;
     public float deltaTime;
@@ -601,27 +576,25 @@ public class main2D : MonoBehaviour
       int neighbours = 0;
 
       var gridXY = jobGetGridLocation(boid);
-      for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++)
+      int gridCell = gridDimX * gridXY.y + gridXY.x;
+
+      for (int y = gridCell - gridDimX; y <= gridCell + gridDimX; y += gridDimX)
       {
-        for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++)
+        int start = gridOffsets[y - 2];
+        int end = gridOffsets[y + 1];
+        for (int i = start; i < end; i++)
         {
-          int gridCell = gridDimX * y + x;
-          int end = gridOffsets[gridCell];
-          int start = end - gridCounts[gridCell];
-          for (int i = start; i < end; i++)
+          var other = inBoids[i];
+          var distance = Vector2.Distance(boid.pos, other.pos);
+          if (distance > 0 && distance < visualRange)
           {
-            var other = inBoids[i];
-            var distance = Vector2.Distance(boid.pos, other.pos);
-            if (distance > 0 && distance < visualRange)
+            if (distance < minDistance)
             {
-              if (distance < minDistance)
-              {
-                close += boid.pos - inBoids[i].pos;
-              }
-              center += other.pos;
-              avgVel += other.vel;
-              neighbours++;
+              close += boid.pos - inBoids[i].pos;
             }
+            center += other.pos;
+            avgVel += other.vel;
+            neighbours++;
           }
         }
       }
@@ -631,11 +604,11 @@ public class main2D : MonoBehaviour
         center /= neighbours;
         avgVel /= neighbours;
 
-        boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
-        boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
+        boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime);
+        boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime);
       }
 
-      boid.vel += close * separationFactor * deltaTime;
+      boid.vel += close * (separationFactor * deltaTime);
     }
 
     void jobLimitSpeed(ref Boid boid)
@@ -755,14 +728,12 @@ public class main2D : MonoBehaviour
     if (grid.IsCreated)
     {
       grid.Dispose();
-      gridCounts.Dispose();
       gridOffsets.Dispose();
     }
 
     boidBuffer.Release();
     boidBufferOut.Release();
     gridBuffer.Release();
-    gridCountBuffer.Release();
     gridOffsetBuffer.Release();
     gridOffsetBufferIn.Release();
   }

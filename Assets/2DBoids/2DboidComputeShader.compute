@@ -19,7 +19,6 @@ uniform float turnSpeed;
 uniform float xBound;
 uniform float yBound;
 
-StructuredBuffer<uint> gridCountBuffer;
 StructuredBuffer<uint> gridOffsetBuffer;
 float gridCellSize;
 uint gridDimY;
@@ -39,27 +38,25 @@ void MergedBehaviours(inout Boid boid) {
   float2 center = 0;
   float2 close = 0;
   float2 avgVel = 0;
-  int neighbours = 0;
+  uint neighbours = 0;
 
-  int2 gridXY = getGridLocation(boid);
+  uint2 gridXY = getGridLocation(boid);
+  uint cell = getGridID(gridXY);
 
   // Loop Around Own Cell
-  for (int y = gridXY.y - 1; y <= gridXY.y + 1; y++) {
-    for (int x = gridXY.x - 1; x <= gridXY.x + 1; x++) {
-      uint cell = getGridID(uint2(x, y));
-      uint end = gridOffsetBuffer[cell];
-      uint start = end - gridCountBuffer[cell];
-      for (uint i = start; i < end; i++) {
-        Boid other = boidsIn[i];
-        float dist = distance(boid.pos, other.pos);
-        if (dist > 0 && dist < visualRange) {
-          if (dist < minDistance) {
-            close += boid.pos - other.pos;
-          }
-          center += other.pos;
-          avgVel += other.vel;
-          neighbours++;
+  for (uint y = cell - gridDimX; y <= cell + gridDimX; y += gridDimX) {
+    uint start = gridOffsetBuffer[y - 2];
+    uint end = gridOffsetBuffer[y + 1];
+    for (uint i = start; i < end; i++) {
+      Boid other = boidsIn[i];
+      float dist = distance(boid.pos, other.pos);
+      if (dist > 0 && dist < visualRange) {
+        if (dist < minDistance) {
+          close += boid.pos - other.pos;
         }
+        center += other.pos;
+        avgVel += other.vel;
+        neighbours++;
       }
     }
   }
@@ -68,11 +65,11 @@ void MergedBehaviours(inout Boid boid) {
     center /= neighbours;
     avgVel /= neighbours;
 
-    boid.vel += (center - boid.pos) * cohesionFactor * deltaTime;
-    boid.vel += (avgVel - boid.vel) * alignmentFactor * deltaTime;
+    boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime);
+    boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime);
   }
 
-  boid.vel += close * separationFactor * deltaTime;
+  boid.vel += close * (separationFactor * deltaTime);
 }
 
 void LimitSpeed(inout Boid boid) {

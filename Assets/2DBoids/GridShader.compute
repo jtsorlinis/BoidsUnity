@@ -6,7 +6,6 @@ struct Boid {
 StructuredBuffer<Boid> boids;
 RWStructuredBuffer<Boid> boidsOut;
 RWStructuredBuffer<uint2> gridBuffer;
-RWStructuredBuffer<uint> gridCountBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
 StructuredBuffer<uint> gridOffsetBufferIn;
 
@@ -32,13 +31,12 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
 
   int gridID = getGridID(boids[id.x]);
   gridBuffer[id.x].x = gridID;
-  InterlockedAdd(gridCountBuffer[gridID], 1, gridBuffer[id.x].y);
+  InterlockedAdd(gridOffsetBuffer[gridID], 1, gridBuffer[id.x].y);
 }
 
 #pragma kernel ClearGrid // ID 1
 [numthreads(256, 1, 1)]
 void ClearGrid(uint3 id : SV_DispatchThreadID) {
-  gridCountBuffer[id.x] = 0;
   gridOffsetBuffer[id.x] = 0;
 }
 
