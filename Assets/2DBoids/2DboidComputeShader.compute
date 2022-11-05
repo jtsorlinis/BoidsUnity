@@ -5,7 +5,7 @@ struct Boid {
 
 StructuredBuffer<Boid> boidsIn;
 RWStructuredBuffer<Boid> boidsOut;
-uniform int numBoids;
+uniform uint numBoids;
 uniform float deltaTime;
 uniform float maxSpeed;
 uniform float minSpeed;
@@ -98,6 +98,10 @@ void KeepInBounds(inout Boid boid) {
 #pragma kernel UpdateBoids // ID 0
 [numthreads(256, 1, 1)]
 void UpdateBoids(uint3 id : SV_DispatchThreadID) {
+  if (id.x >= numBoids) {
+    return;
+  }
+  
   Boid boid = boidsIn[id.x];
   
   MergedBehaviours(boid);

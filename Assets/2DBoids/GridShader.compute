@@ -14,7 +14,7 @@ uint gridDimY;
 uint gridDimX;
 uint gridTotalCells;
 uint numBoids;
-int d;
+uint d;
 
 uint getGridID(Boid boid) {
   int x = floor(boid.pos.x / gridCellSize + gridDimX / 2);
@@ -37,13 +37,21 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
 #pragma kernel ClearGrid // ID 1
 [numthreads(256, 1, 1)]
 void ClearGrid(uint3 id : SV_DispatchThreadID) {
+  if (id.x >= gridTotalCells) {
+    return;
+  }
+
   gridOffsetBuffer[id.x] = 0;
 }
 
 #pragma kernel PrefixSum // ID 2
 [numthreads(256, 1, 1)]
 void PrefixSum(uint id : SV_DispatchThreadID) {
-  int k = id.x;
+  if (id.x >= gridTotalCells) {
+    return;
+  }
+
+  uint k = id.x;
 
   if (k < d) {
     gridOffsetBuffer[k] = gridOffsetBufferIn[k];
@@ -55,6 +63,10 @@ void PrefixSum(uint id : SV_DispatchThreadID) {
 #pragma kernel RearrangeBoids // ID 3
 [numthreads(256, 1, 1)]
 void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
+  if (id.x >= numBoids) {
+    return;
+  }
+  
   uint gridID = gridBuffer[id.x].x;
   uint cellOffset = gridBuffer[id.x].y;
   uint index = gridOffsetBuffer[gridID] - 1 - cellOffset;
