@@ -67,10 +67,11 @@ public class Main2D : MonoBehaviour
   int cpuLimit = 4096;
   int burstLimit = 32768;
   int jobLimit = 262144;
-  int gpuLimit = 16777216 - 256;
+  int gpuLimit = 2097152;
 
   void Awake()
   {
+    Application.targetFrameRate = 120;
     numSlider.maxValue = cpuLimit;
     triangle = makeTriangle();
   }

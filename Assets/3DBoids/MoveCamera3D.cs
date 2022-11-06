@@ -1,6 +1,5 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class MoveCamera3D : MonoBehaviour
 {
@@ -10,7 +9,7 @@ public class MoveCamera3D : MonoBehaviour
   Vector3 rotation;
 
   float yRotationLimit = 88f;
-  float sensitivity = 3f;
+  [SerializeField] float sensitivity = 3f;
 
   // Start is called before the first frame update
   public void Start()
@@ -22,38 +21,28 @@ public class MoveCamera3D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    var vx = Input.GetAxis("Horizontal");
-    var vz = Input.GetAxis("Vertical");
-    var vy = Input.GetAxis("Jump");
-    var mouseX = Input.GetAxis("Mouse X");
-    var mouseY = Input.GetAxis("Mouse Y");
-    var mouseDown = Input.GetMouseButton(1);
-
-    if (mouseDown)
+    foreach (var touch in Input.touches)
     {
-      Cursor.lockState = CursorLockMode.Locked;
-      rotation.x += mouseX * sensitivity;
-      rotation.y += mouseY * sensitivity;
-      rotation.y = Mathf.Clamp(rotation.y, -yRotationLimit, yRotationLimit);
-      var xQuat = Quaternion.AngleAxis(rotation.x, Vector3.up);
-      var yQuat = Quaternion.AngleAxis(rotation.y, Vector3.left);
-      cam.transform.localRotation = xQuat * yQuat;
+      bool rightSide = touch.position.x / Screen.width > 0.5f;
 
-      var movement = cam.transform.forward * vz * Time.deltaTime * moveSpeed;
-      movement += cam.transform.right * vx * Time.deltaTime * moveSpeed;
-      movement += cam.transform.up * vy * Time.deltaTime * moveSpeed;
-      cam.transform.position += movement;
-    }
-    else
-    {
-      Cursor.lockState = CursorLockMode.None;
+      if (rightSide)
+      {
+        rotation.x += touch.deltaPosition.x * sensitivity;
+        rotation.y += touch.deltaPosition.y * sensitivity;
+        rotation.y = Mathf.Clamp(rotation.y, -yRotationLimit, yRotationLimit);
+        var xQuat = Quaternion.AngleAxis(rotation.x, Vector3.up);
+        var yQuat = Quaternion.AngleAxis(rotation.y, Vector3.left);
+        cam.transform.localRotation = xQuat * yQuat;
+      }
+      else if (touch.position.y < Screen.height * 0.75f)
+      {
+        var vz = touch.position.y - touch.rawPosition.y;
+        var vx = touch.position.x - touch.rawPosition.x;
 
-    }
-
-    // Quit on escape
-    if (Input.GetKey("escape"))
-    {
-      Application.Quit();
+        var movement = cam.transform.forward * vz;
+        movement += cam.transform.right * vx;
+        cam.transform.position += movement * Time.deltaTime * moveSpeed;
+      }
     }
   }
 }

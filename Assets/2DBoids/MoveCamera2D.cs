@@ -9,7 +9,7 @@ public class MoveCamera2D : MonoBehaviour
   float origZoom;
   float maxZoom = 2;
   float minZoom;
-  float smoothing = 5;
+  float smoothing = 10;
 
   // Start is called before the first frame update
   public void Start()
@@ -23,42 +23,38 @@ public class MoveCamera2D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    float panSpeed = (cam.orthographicSize / 20);
-    var mouseX = Input.GetAxis("Mouse X") * panSpeed;
-    var mouseY = Input.GetAxis("Mouse Y") * panSpeed;
-    var mouseDown = Input.GetMouseButton(1);
-    var vscroll = Input.mouseScrollDelta.y;
+    float panSpeed = (cam.orthographicSize / 600);
 
     // Zoom
-    var zoomSpeed = (cam.orthographicSize / 10);
-    zoom -= vscroll * zoomSpeed;
+    if (Input.touchCount == 2)
+    {
+      var touch1 = Input.GetTouch(0);
+      var touch2 = Input.GetTouch(1);
 
-    // Center if fully zoomed out
-    // if (zoom > origZoom)
-    // {
-    //   cam.transform.position = Vector3.Lerp(cam.transform.position, new Vector3(0, 0, -10), 0.1f);
+      var touch1Prev = touch1.position - touch1.deltaPosition;
+      var touch2Prev = touch2.position - touch2.deltaPosition;
 
-    // }
+      float prevTouchDeltaMag = (touch1Prev - touch2Prev).magnitude;
+      float touchDeltaMag = (touch1.position - touch2.position).magnitude;
 
-    zoom = Mathf.Clamp(zoom, maxZoom, minZoom);
-    cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, zoom, Time.deltaTime * smoothing);
+      float deltaMagnitudeDiff = prevTouchDeltaMag - touchDeltaMag;
 
+      var zoomSpeed = (cam.orthographicSize / 500);
+
+      zoom += deltaMagnitudeDiff * zoomSpeed;
+      zoom = Mathf.Clamp(zoom, maxZoom, minZoom);
+      cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, zoom, Time.deltaTime * smoothing);
+
+    }
 
     // Pan
-    if (mouseDown)
+    if (Input.touchCount == 1)
     {
-      Cursor.lockState = CursorLockMode.Locked;
-      cam.transform.Translate(-mouseX, -mouseY, 0);
-    }
-    else
-    {
-      Cursor.lockState = CursorLockMode.None;
-    }
-
-    // Quit on escape
-    if (Input.GetKey("escape"))
-    {
-      Application.Quit();
+      var touch = Input.GetTouch(0);
+      if (touch.position.y / Screen.height < 0.8f)
+      {
+        cam.transform.Translate(-touch.deltaPosition.x * panSpeed, -touch.deltaPosition.y * panSpeed, 0);
+      }
     }
   }
 }

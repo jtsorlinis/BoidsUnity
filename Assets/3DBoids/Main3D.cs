@@ -63,11 +63,12 @@ public class Main3D : MonoBehaviour
   float gridCellSize;
 
   int cpuLimit = 4096;
-  int gpuLimit = 524288;
-  int gpuTriangleLimit = 4194304;
+  int gpuLimit = 131072;
+  int gpuTriangleLimit = 524288;
 
   void Awake()
   {
+    Application.targetFrameRate = 120;
     boidSlider.maxValue = cpuLimit;
     triangleMesh = makeTriangle();
   }
