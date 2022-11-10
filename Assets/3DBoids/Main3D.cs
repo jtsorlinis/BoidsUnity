@@ -68,7 +68,7 @@ public class Main3D : MonoBehaviour
 
   int cpuLimit = 4096;
   int gpuLimit = 524288;
-  int gpuTriangleLimit = 4194304;
+  int gpuTriangleLimit = 8388608;
 
   void Awake()
   {
