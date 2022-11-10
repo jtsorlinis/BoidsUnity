@@ -10,12 +10,15 @@ RWStructuredBuffer<Boid> boidsOut;
 RWStructuredBuffer<uint2> gridBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
 StructuredBuffer<uint> gridOffsetBufferIn;
+RWStructuredBuffer<uint> gridSumsBuffer;
+StructuredBuffer<uint> gridSumsBufferIn;
 
 float gridCellSize;
 uint gridDimX;
 uint gridDimY;
 uint gridDimZ;
 uint gridTotalCells;
+uint buckets;
 uint numBoids;
 uint d;
 
@@ -48,19 +51,30 @@ void ClearGrid(uint3 id : SV_DispatchThreadID) {
   gridOffsetBuffer[id.x] = 0;
 }
 
+groupshared int temp[512];
 #pragma kernel PrefixSum // ID 2
 [numthreads(256, 1, 1)]
-void PrefixSum(uint id : SV_DispatchThreadID) {
-  if (id.x >= gridTotalCells) {
-    return;
+void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
+
+  int pout = 0, pin = 1;
+  temp[localID] = gridOffsetBufferIn[globalID];
+  GroupMemoryBarrierWithGroupSync();
+
+  [unroll]
+  for (uint offset = 1; offset < 256; offset *= 2) {
+    pout = 1 - pout; // swap double buffer indices
+    pin = 1 - pout;
+    if (localID >= offset) {
+      temp[pout * 256 + localID] = temp[pin * 256 + localID] + temp[pin * 256 + localID - offset];
+    } else {
+      temp[pout * 256 + localID] = temp[pin * 256 + localID];
+    }
+    GroupMemoryBarrierWithGroupSync();
   }
 
-  uint k = id.x;
-
-  if (k < d) {
-    gridOffsetBuffer[k] = gridOffsetBufferIn[k];
-  } else {
-    gridOffsetBuffer[k] = gridOffsetBufferIn[k] + gridOffsetBufferIn[k - d];
+  gridOffsetBuffer[globalID] = temp[pout * 256 + localID];
+  if (localID == 0) {
+    gridSumsBuffer[groupID] = temp[pout * 256 + 255];
   }
 }
 
@@ -75,4 +89,26 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
   uint cellOffset = gridBuffer[id.x].y;
   uint index = gridOffsetBuffer[gridID] - 1 - cellOffset;
   boidsOut[index] = boids[id.x];
+}
+
+#pragma kernel SumBuckets // ID 4
+[numthreads(256, 1, 1)]
+void SumBuckets(uint3 id : SV_DISPATCHTHREADID) {
+  if (id.x >= buckets) {
+    return;
+  }
+
+  uint k = id.x;
+
+  if (k < d) {
+    gridSumsBuffer[k] = gridSumsBufferIn[k];
+  } else {
+    gridSumsBuffer[k] = gridSumsBufferIn[k] + gridSumsBufferIn[k - d];
+  }
+}
+
+#pragma kernel AddSums // ID 5
+[numthreads(256, 1, 1)]
+void AddSums(uint globalID : SV_DISPATCHTHREADID, uint groupID : SV_GROUPID) {
+  gridOffsetBuffer[globalID] += gridSumsBufferIn[groupID - 1];
 }
