@@ -56,6 +56,7 @@ void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREA
   temp[localID] = gridOffsetBufferIn[globalID];
   GroupMemoryBarrierWithGroupSync();
 
+  [unroll]
   for (uint offset = 1; offset < 256; offset *= 2) {
     pout = 1 - pout; // swap double buffer indices
     pin = 1 - pout;

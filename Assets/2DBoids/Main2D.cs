@@ -253,9 +253,12 @@ public class Main2D : MonoBehaviour
       // Populate grid
       gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
 
-      // Prefix sum
+      // Generate Offsets (Prefix Sum)
+
+      // Offsets in each bucket
       gridShader.Dispatch(prefixSumKernel, buckets, 1, 1);
 
+      // Offsets for sums of buckets
       bool swap = false;
       for (int d = 1; d < buckets; d *= 2)
       {
@@ -266,15 +269,10 @@ public class Main2D : MonoBehaviour
         swap = !swap;
       }
 
+      // Apply offsets of sums to each bucket
       gridShader.SetBuffer(addSumsKernel, "gridSumsBufferIn", swap ? gridSumsBuffer : gridSumsBuffer2);
       gridShader.Dispatch(addSumsKernel, buckets, 1, 1);
 
-      // int[] tempArray = new int[gridTotalCells];
-      // gridOffsetBuffer.GetData(tempArray);
-      // if (tempArray[gridTotalCells - 1] != numBoids)
-      // {
-      //   print(tempArray[gridTotalCells - 1]);
-      // }
 
       // Rearrange boids
       gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
