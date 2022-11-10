@@ -12,6 +12,8 @@ struct Boid
 
 public class Main2D : MonoBehaviour
 {
+  const float blockSize = 256f;
+
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
   enum Modes { Cpu, Burst, Jobs, Gpu };
@@ -138,7 +140,7 @@ public class Main2D : MonoBehaviour
     {
       boidShader.SetBuffer(generateBoidsKernel, "boidsOut", boidBuffer);
       boidShader.SetInt("randSeed", Random.Range(0, int.MaxValue));
-      boidShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      boidShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
 
     // Set render params
@@ -163,7 +165,7 @@ public class Main2D : MonoBehaviour
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
-    buckets = Mathf.CeilToInt(gridTotalCells / 256f);
+    buckets = Mathf.CeilToInt(gridTotalCells / blockSize);
     gridSumsBuffer = new ComputeBuffer(buckets, 4);
     gridSumsBuffer2 = new ComputeBuffer(buckets, 4);
     gridShader.SetInt("numBoids", numBoids);
@@ -251,7 +253,7 @@ public class Main2D : MonoBehaviour
       gridShader.Dispatch(clearGridKernel, buckets, 1, 1);
 
       // Populate grid
-      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
 
       // Generate Offsets (Prefix Sum)
 
@@ -265,7 +267,7 @@ public class Main2D : MonoBehaviour
         gridShader.SetBuffer(sumBucketsKernel, "gridSumsBufferIn", swap ? gridSumsBuffer : gridSumsBuffer2);
         gridShader.SetBuffer(sumBucketsKernel, "gridSumsBuffer", swap ? gridSumsBuffer2 : gridSumsBuffer);
         gridShader.SetInt("d", d);
-        gridShader.Dispatch(sumBucketsKernel, Mathf.CeilToInt(buckets / 256f), 1, 1);
+        gridShader.Dispatch(sumBucketsKernel, Mathf.CeilToInt(buckets / blockSize), 1, 1);
         swap = !swap;
       }
 
@@ -275,10 +277,10 @@ public class Main2D : MonoBehaviour
 
 
       // Rearrange boids
-      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
 
       // Compute boid behaviours
-      boidShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      boidShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
     else // CPU
     {

@@ -1,3 +1,5 @@
+#define blockSize 256
+
 struct Boid {
   float2 pos;
   float2 vel;
@@ -26,7 +28,7 @@ uint getGridID(Boid boid) {
 }
 
 #pragma kernel UpdateGrid // ID 0
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void UpdateGrid(uint3 id : SV_DispatchThreadID, uint localID : SV_GROUPTHREADID) {
   if (id.x >= numBoids) {
     return;
@@ -38,7 +40,7 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID, uint localID : SV_GROUPTHREADID)
 }
 
 #pragma kernel ClearGrid // ID 1
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void ClearGrid(uint3 id : SV_DispatchThreadID) {
   if (id.x >= gridTotalCells) {
     return;
@@ -47,9 +49,9 @@ void ClearGrid(uint3 id : SV_DispatchThreadID) {
   gridOffsetBuffer[id.x] = 0;
 }
 
-groupshared int temp[512];
+groupshared int temp[blockSize * 2];
 #pragma kernel PrefixSum // ID 2
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
 
   int pout = 0, pin = 1;
@@ -57,25 +59,25 @@ void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREA
   GroupMemoryBarrierWithGroupSync();
 
   [unroll]
-  for (uint offset = 1; offset < 256; offset *= 2) {
+  for (uint offset = 1; offset < blockSize; offset *= 2) {
     pout = 1 - pout; // swap double buffer indices
     pin = 1 - pout;
     if (localID >= offset) {
-      temp[pout * 256 + localID] = temp[pin * 256 + localID] + temp[pin * 256 + localID - offset];
+      temp[pout * blockSize + localID] = temp[pin * blockSize + localID] + temp[pin * blockSize + localID - offset];
     } else {
-      temp[pout * 256 + localID] = temp[pin * 256 + localID];
+      temp[pout * blockSize + localID] = temp[pin * blockSize + localID];
     }
     GroupMemoryBarrierWithGroupSync();
   }
 
-  gridOffsetBuffer[globalID] = temp[pout * 256 + localID];
+  gridOffsetBuffer[globalID] = temp[pout * blockSize + localID];
   if (localID == 0) {
-    gridSumsBuffer[groupID] = temp[pout * 256 + 255];
+    gridSumsBuffer[groupID] = temp[pout * blockSize + blockSize - 1];
   }
 }
 
 #pragma kernel RearrangeBoids // ID 3
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
   if (id.x >= numBoids) {
     return;
@@ -88,7 +90,7 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
 }
 
 #pragma kernel SumBuckets // ID 4
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void SumBuckets(uint3 id : SV_DISPATCHTHREADID) {
   if (id.x >= buckets) {
     return;
@@ -104,7 +106,7 @@ void SumBuckets(uint3 id : SV_DISPATCHTHREADID) {
 }
 
 #pragma kernel AddSums // ID 5
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void AddSums(uint globalID : SV_DISPATCHTHREADID, uint groupID : SV_GROUPID) {
   gridOffsetBuffer[globalID] += gridSumsBufferIn[groupID - 1];
 }

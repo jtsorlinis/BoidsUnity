@@ -1,3 +1,5 @@
+#define blockSize 256
+
 struct Boid {
   float3 pos;
   float3 vel;
@@ -110,7 +112,7 @@ void KeepInBounds(inout Boid boid) {
 }
 
 #pragma kernel UpdateBoids // ID 0
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void UpdateBoids(uint3 id : SV_DispatchThreadID) {
   if (id.x >= numBoids) {
     return;
@@ -146,7 +148,7 @@ float randRange(float a, float b) {
 }
 
 #pragma kernel GenerateBoids // ID 1
-[numthreads(256, 1, 1)]
+[numthreads(blockSize, 1, 1)]
 void GenerateBoids(uint3 id : SV_DispatchThreadID) {
   state = randSeed + id.x;
   boidsOut[id.x].pos = float3(randRange(-xBound, xBound), randRange(-yBound, yBound), randRange(-zBound, zBound));

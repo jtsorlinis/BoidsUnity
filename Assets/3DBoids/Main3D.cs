@@ -12,6 +12,8 @@ struct Boid3D
 
 public class Main3D : MonoBehaviour
 {
+  const float blockSize = 256f;
+
   [Header("Performance")]
   bool useGPU = false;
   [SerializeField] int numBoids = 32;
@@ -136,7 +138,7 @@ public class Main3D : MonoBehaviour
     {
       boidComputeShader.SetBuffer(generateBoidsKernel, "boidsOut", boidBuffer);
       boidComputeShader.SetInt("randSeed", Random.Range(0, int.MaxValue));
-      boidComputeShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      boidComputeShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
 
     // Set shader renderParams
@@ -165,7 +167,7 @@ public class Main3D : MonoBehaviour
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
-    buckets = Mathf.CeilToInt(gridTotalCells / 256f);
+    buckets = Mathf.CeilToInt(gridTotalCells / blockSize);
     gridSumsBuffer = new ComputeBuffer(buckets, 4);
     gridSumsBuffer2 = new ComputeBuffer(buckets, 4);
     gridShader.SetInt("numBoids", numBoids);
@@ -217,7 +219,7 @@ public class Main3D : MonoBehaviour
       gridShader.Dispatch(clearGridKernel, buckets, 1, 1);
 
       // Populate grid
-      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
 
       // Generate Offsets (Prefix Sum)
 
@@ -231,7 +233,7 @@ public class Main3D : MonoBehaviour
         gridShader.SetBuffer(sumBucketsKernel, "gridSumsBufferIn", swap ? gridSumsBuffer : gridSumsBuffer2);
         gridShader.SetBuffer(sumBucketsKernel, "gridSumsBuffer", swap ? gridSumsBuffer2 : gridSumsBuffer);
         gridShader.SetInt("d", d);
-        gridShader.Dispatch(sumBucketsKernel, Mathf.CeilToInt(buckets / 256f), 1, 1);
+        gridShader.Dispatch(sumBucketsKernel, Mathf.CeilToInt(buckets / blockSize), 1, 1);
         swap = !swap;
       }
 
@@ -240,10 +242,10 @@ public class Main3D : MonoBehaviour
       gridShader.Dispatch(addSumsKernel, buckets, 1, 1);
 
       // Rearrange boids
-      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
 
       // Compute boid behaviours
-      boidComputeShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      boidComputeShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
     else
     {
