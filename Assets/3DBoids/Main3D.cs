@@ -12,6 +12,8 @@ struct Boid3D
 
 public class Main3D : MonoBehaviour
 {
+  const float blockSize = 256f;
+
   [Header("Performance")]
   bool useGPU = false;
   [SerializeField] int numBoids = 32;
@@ -48,18 +50,20 @@ public class Main3D : MonoBehaviour
   Boid3D[] boidsTemp;
 
   int updateBoidsKernel, generateBoidsKernel;
-  int updateGridKernel, clearGridKernel, prefixSumKernel, rearrangeBoidsKernel;
+  int updateGridKernel, clearGridKernel, prefixSumKernel, sumBlocksKernel, addSumsKernel, rearrangeBoidsKernel;
 
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
   ComputeBuffer gridOffsetBuffer;
   ComputeBuffer gridOffsetBufferIn;
+  ComputeBuffer gridSumsBuffer;
+  ComputeBuffer gridSumsBuffer2;
 
   // Index is particle ID, x value is position flattened to 1D array, y value is grid cell offset
   Vector2Int[] grid;
   int[] gridOffsets;
-  int gridDimY, gridDimX, gridDimZ, gridTotalCells;
+  int gridDimY, gridDimX, gridDimZ, gridTotalCells, blocks;
   float gridCellSize;
 
   int cpuLimit = 4096;
@@ -95,6 +99,8 @@ public class Main3D : MonoBehaviour
     updateGridKernel = gridShader.FindKernel("UpdateGrid");
     clearGridKernel = gridShader.FindKernel("ClearGrid");
     prefixSumKernel = gridShader.FindKernel("PrefixSum");
+    sumBlocksKernel = gridShader.FindKernel("SumBlocks");
+    addSumsKernel = gridShader.FindKernel("AddSums");
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
     // Setup compute buffer
@@ -133,7 +139,7 @@ public class Main3D : MonoBehaviour
     {
       boidComputeShader.SetBuffer(generateBoidsKernel, "boidsOut", boidBuffer);
       boidComputeShader.SetInt("randSeed", Random.Range(0, int.MaxValue));
-      boidComputeShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      boidComputeShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
 
     // Set shader renderParams
@@ -162,15 +168,22 @@ public class Main3D : MonoBehaviour
     gridBuffer = new ComputeBuffer(numBoids, 8);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
+    blocks = Mathf.CeilToInt(gridTotalCells / blockSize);
+    gridSumsBuffer = new ComputeBuffer(blocks, 4);
+    gridSumsBuffer2 = new ComputeBuffer(blocks, 4);
     gridShader.SetInt("numBoids", numBoids);
     gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
+    gridShader.SetBuffer(updateGridKernel, "gridSumsBuffer", gridSumsBuffer);
 
     gridShader.SetBuffer(clearGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
     gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", gridOffsetBuffer);
     gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", gridOffsetBufferIn);
+    gridShader.SetBuffer(prefixSumKernel, "gridSumsBuffer", gridSumsBuffer2);
+
+    gridShader.SetBuffer(addSumsKernel, "gridOffsetBuffer", gridOffsetBuffer);
 
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
@@ -182,6 +195,7 @@ public class Main3D : MonoBehaviour
     gridShader.SetInt("gridDimX", gridDimX);
     gridShader.SetInt("gridDimZ", gridDimZ);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
+    gridShader.SetInt("blocks", blocks);
 
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
     boidComputeShader.SetFloat("gridCellSize", gridCellSize);
@@ -203,31 +217,35 @@ public class Main3D : MonoBehaviour
       boidComputeShader.SetFloat("alignmentFactor", alignmentFactor);
 
       // Clear indices
-      gridShader.Dispatch(clearGridKernel, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
+      gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
 
       // Populate grid
-      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
 
-      // Generate offsets (prefix sum)
+      // Generate Offsets (Prefix Sum)
+      // Offsets in each block
+      gridShader.Dispatch(prefixSumKernel, blocks, 1, 1);
+
+      // Offsets for sums of block
       bool swap = false;
-      for (int d = 1; d < gridTotalCells; d *= 2)
+      for (int d = 1; d < blocks; d *= 2)
       {
-        gridShader.SetBuffer(prefixSumKernel, "gridOffsetBufferIn", swap ? gridOffsetBuffer : gridOffsetBufferIn);
-        gridShader.SetBuffer(prefixSumKernel, "gridOffsetBuffer", swap ? gridOffsetBufferIn : gridOffsetBuffer);
+        gridShader.SetBuffer(sumBlocksKernel, "gridSumsBufferIn", swap ? gridSumsBuffer : gridSumsBuffer2);
+        gridShader.SetBuffer(sumBlocksKernel, "gridSumsBuffer", swap ? gridSumsBuffer2 : gridSumsBuffer);
         gridShader.SetInt("d", d);
-        gridShader.Dispatch(prefixSumKernel, Mathf.CeilToInt(gridTotalCells / 256f), 1, 1);
+        gridShader.Dispatch(sumBlocksKernel, Mathf.CeilToInt(blocks / blockSize), 1, 1);
         swap = !swap;
       }
 
-      // Swap the buffers if Log2(gridTotalCells) is an odd number
-      gridShader.SetBuffer(rearrangeBoidsKernel, "gridOffsetBuffer", swap ? gridOffsetBuffer : gridOffsetBufferIn);
-      boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", swap ? gridOffsetBuffer : gridOffsetBufferIn);
+      // Apply offsets of sums to each block
+      gridShader.SetBuffer(addSumsKernel, "gridSumsBufferIn", swap ? gridSumsBuffer : gridSumsBuffer2);
+      gridShader.Dispatch(addSumsKernel, blocks, 1, 1);
 
       // Rearrange boids
-      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
 
       // Compute boid behaviours
-      boidComputeShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / 256f), 1, 1);
+      boidComputeShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
     else
     {
@@ -451,6 +469,8 @@ public class Main3D : MonoBehaviour
     gridBuffer.Release();
     gridOffsetBuffer.Release();
     gridOffsetBufferIn.Release();
+    gridSumsBuffer.Release();
+    gridSumsBuffer2.Release();
   }
 
   Mesh makeTriangle()
