@@ -12,7 +12,7 @@ struct Boid
 
 public class Main2D : MonoBehaviour
 {
-  const float blockSize = 256f;
+  const float blockSize = 512f;
 
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
@@ -72,7 +72,7 @@ public class Main2D : MonoBehaviour
   int cpuLimit = 4096;
   int burstLimit = 32768;
   int jobLimit = 262144;
-  int gpuLimit = 16777216 - 256;
+  int gpuLimit = 33554432 - 512;
 
   void Awake()
   {
