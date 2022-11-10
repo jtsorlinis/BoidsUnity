@@ -20,7 +20,7 @@ uint gridDimX;
 uint gridDimY;
 uint gridDimZ;
 uint gridTotalCells;
-uint buckets;
+uint blocks;
 uint numBoids;
 uint d;
 
@@ -93,10 +93,10 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
   boidsOut[index] = boids[id.x];
 }
 
-#pragma kernel SumBuckets // ID 4
+#pragma kernel SumBlocks // ID 4
 [numthreads(blockSize, 1, 1)]
-void SumBuckets(uint3 id : SV_DISPATCHTHREADID) {
-  if (id.x >= buckets) {
+void SumBlocks(uint3 id : SV_DISPATCHTHREADID) {
+  if (id.x >= blocks) {
     return;
   }
 
