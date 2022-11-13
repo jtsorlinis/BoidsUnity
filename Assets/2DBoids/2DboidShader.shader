@@ -40,9 +40,10 @@ Shader "Unlit/boidShader" {
       StructuredBuffer<float3> _Positions;
 
       v2f vert(uint vertexID : SV_VertexID) {
-        Boid boid = boids[vertexID / 3];
+        uint instanceID = vertexID / 3;
+        Boid boid = boids[instanceID];
         v2f o;
-        float3 pos = _Positions[vertexID % 3];
+        float3 pos = _Positions[vertexID - instanceID * 3];
         rotate2D(pos.xy, boid.vel);
         o.vertex = UnityObjectToClipPos((pos * _Scale) + float4(boid.pos.xy, 0, 0));
         return o;
