@@ -37,12 +37,14 @@ Shader "Unlit/boidShader" {
       float4 _Colour;
       float _Scale;
       StructuredBuffer<Boid> boids;
+      StructuredBuffer<float3> _Positions;
 
-      v2f vert(appdata v, uint instanceID : SV_InstanceID) {
-        Boid boid = boids[instanceID];
+      v2f vert(uint vertexID : SV_VertexID) {
+        Boid boid = boids[vertexID / 3];
         v2f o;
-        rotate2D(v.vertex.xy, boid.vel);
-        o.vertex = UnityObjectToClipPos((v.vertex * _Scale) + float4(boid.pos.xy, 0, 0));
+        float3 pos = _Positions[vertexID % 3];
+        rotate2D(pos.xy, boid.vel);
+        o.vertex = UnityObjectToClipPos((pos * _Scale) + float4(boid.pos.xy, 0, 0));
         return o;
       }
 
