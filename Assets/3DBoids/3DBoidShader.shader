@@ -2,7 +2,6 @@ Shader "Custom/3DBoidShader" {
   Properties {
     _Color ("Color", Color) = (1, 1, 1, 1)
     _Scale ("Scale", Float) = 1.0
-    _MainTex ("Albedo (RGB)", 2D) = "white" { }
     _Glossiness ("Smoothness", Range(0, 1)) = 0.5
     _Metallic ("Metallic", Range(0, 1)) = 0.0
   }
@@ -11,19 +10,19 @@ Shader "Custom/3DBoidShader" {
     LOD 200
 
     CGPROGRAM
-    // Physically based Standard lighting model, and enable shadows on all light types
-    #pragma surface surf Standard addshadow fullforwardshadows
-    #pragma multi_compile_instancing
-    #pragma instancing_options assumeuniformscaling procedural:setup
-
-    // Use shader model 3.0 target, to get nicer looking lighting
+    #pragma surface surf Standard vertex:vert addshadow fullforwardshadows
     #pragma target 3.0
 
-    sampler2D _MainTex;
-    float _Scale;
+    struct appdata {
+      float4 vertex : POSITION;
+      float3 normal : NORMAL;
+      float4 texcoord1 : TEXCOORD1;
+      float4 texcoord2 : TEXCOORD2;
+      uint vertexID : SV_VertexID;
+    };
 
     struct Input {
-      float2 uv_MainTex;
+      float4 color : COLOR;
     };
 
     struct Boid {
@@ -33,40 +32,39 @@ Shader "Custom/3DBoidShader" {
       float pad1;
     };
 
-    #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
+    float _Scale;
+    #if defined(SHADER_API_D3D11) || defined(SHADER_API_METAL)
+      StructuredBuffer<float3> trianglePositions;
+      StructuredBuffer<float3> triangleNormals;
+      StructuredBuffer<float3> conePositions;
+      StructuredBuffer<float3> coneNormals;
+      StructuredBuffer<int> coneTriangles;
       StructuredBuffer<Boid> boids;
+      int vertCount;
     #endif
 
-    float4x4 vel_to_matrix(float3 vel) {
-      float3 dir = normalize(vel);
+    void rotate3D(inout float3 v, float3 vel) {
       float3 up = float3(0, 1, 0);
-      float3 axis = cross(up, dir);
-
-      const float cosA = dot(up, dir);
-      const float k = 1.0f / (1.0f + cosA);
-
-      return float4x4(
-        (axis.x * axis.x * k) + cosA, (axis.y * axis.x * k) - axis.z, (axis.z * axis.x * k) + axis.y, 0,
-        (axis.x * axis.y * k) + axis.z, (axis.y * axis.y * k) + cosA, (axis.z * axis.y * k) - axis.x, 0,
-        (axis.x * axis.z * k) - axis.y, (axis.y * axis.z * k) + axis.x, (axis.z * axis.z * k) + cosA, 0,
-        0, 0, 0, 1
-      );
+      float3 axis = normalize(cross(up, vel));
+      float angle = acos(dot(up, normalize(vel)));
+      v = v * cos(angle) + cross(axis, v) * sin(angle) + axis * dot(axis, v) * (1. - cos(angle));
     }
 
-    void setup() {
-      #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-        Boid boid = boids[unity_InstanceID];
-
-        unity_ObjectToWorld = 0.0;
-        
-        // scale
-        unity_ObjectToWorld._m00_m11_m22 = _Scale;
-
-        // rotation
-        unity_ObjectToWorld = mul(unity_ObjectToWorld, vel_to_matrix(boid.vel));
-        
-        // position
-        unity_ObjectToWorld._m03_m13_m23_m33 += float4(boid.pos, 1.0);
+    void vert(inout appdata v) {
+      #if defined(SHADER_API_D3D11) || defined(SHADER_API_METAL)
+        uint instanceID = v.vertexID / vertCount;
+        uint instanceVertexID = v.vertexID - instanceID * vertCount;
+        Boid boid = boids[instanceID];
+        float3 pos = trianglePositions[instanceVertexID];
+        float3 normal = triangleNormals[instanceVertexID];
+        if (vertCount == 72) {
+          pos = conePositions[coneTriangles[instanceVertexID]];
+          normal = coneNormals[coneTriangles[instanceVertexID]];
+        }
+        rotate3D(pos, boid.vel);
+        v.vertex = float4((pos * _Scale) + boid.pos, 1);
+        rotate3D(normal, boid.vel);
+        v.normal = normal;
       #endif
     }
 
@@ -75,9 +73,7 @@ Shader "Custom/3DBoidShader" {
     fixed4 _Color;
 
     void surf(Input IN, inout SurfaceOutputStandard o) {
-      // Albedo comes from a texture tinted by color
       o.Albedo = _Color.rgb;
-      // Metallic and smoothness come from slider variables
       o.Metallic = _Metallic;
       o.Smoothness = _Glossiness;
       o.Alpha = _Color.a;
