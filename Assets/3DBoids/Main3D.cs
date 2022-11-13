@@ -38,7 +38,9 @@ public class Main3D : MonoBehaviour
   [SerializeField] Mesh boidMesh;
   RenderParams rp;
   Mesh triangleMesh;
-  bool drawTriangles = false;
+  GraphicsBuffer trianglePositions, triangleNormals;
+  GraphicsBuffer coneTriangles, conePositions, coneNormals;
+  int vertCount = 72;
   [SerializeField] Transform floorPlane;
 
   float spaceBounds;
@@ -149,6 +151,22 @@ public class Main3D : MonoBehaviour
     rp.shadowCastingMode = ShadowCastingMode.On;
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 100);
+    trianglePositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 6, 12);
+    trianglePositions.SetData(triangleMesh.vertices);
+    triangleNormals = new GraphicsBuffer(GraphicsBuffer.Target.Structured, triangleMesh.normals.Length, 3 * sizeof(float));
+    triangleNormals.SetData(triangleMesh.normals);
+    rp.matProps.SetBuffer("trianglePositions", trianglePositions);
+    rp.matProps.SetBuffer("triangleNormals", triangleNormals);
+    coneTriangles = new GraphicsBuffer(GraphicsBuffer.Target.Structured, boidMesh.triangles.Length, sizeof(int));
+    coneTriangles.SetData(boidMesh.triangles);
+    conePositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, boidMesh.vertices.Length, 3 * sizeof(float));
+    conePositions.SetData(boidMesh.vertices);
+    coneNormals = new GraphicsBuffer(GraphicsBuffer.Target.Structured, boidMesh.normals.Length, 3 * sizeof(float));
+    coneNormals.SetData(boidMesh.normals);
+    rp.matProps.SetBuffer("coneTriangles", coneTriangles);
+    rp.matProps.SetBuffer("conePositions", conePositions);
+    rp.matProps.SetBuffer("coneNormals", coneNormals);
+    rp.matProps.SetInteger("vertCount", vertCount);
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -266,7 +284,7 @@ public class Main3D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    Graphics.RenderMeshPrimitives(rp, drawTriangles ? triangleMesh : boidMesh, 0, numBoids);
+    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * vertCount);
   }
 
   void MergedBehaviours(ref Boid3D boid)
@@ -438,7 +456,8 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = cpuLimit;
       useGPU = false;
-      drawTriangles = false;
+      vertCount = 72;
+      rp.matProps.SetInteger("vertCount", vertCount);
       var tempArray = new Boid3D[numBoids];
       boidBuffer.GetData(tempArray);
       boids = tempArray;
@@ -449,7 +468,8 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = gpuLimit;
       useGPU = true;
-      drawTriangles = false;
+      vertCount = 72;
+      rp.matProps.SetInteger("vertCount", vertCount);
     }
 
     // GPU (Triangles)
@@ -457,7 +477,8 @@ public class Main3D : MonoBehaviour
     {
       boidSlider.maxValue = gpuTriangleLimit;
       useGPU = true;
-      drawTriangles = true;
+      vertCount = 6;
+      rp.matProps.SetInteger("vertCount", vertCount);
     }
   }
 
@@ -470,6 +491,11 @@ public class Main3D : MonoBehaviour
     gridOffsetBufferIn.Release();
     gridSumsBuffer.Release();
     gridSumsBuffer2.Release();
+    trianglePositions.Release();
+    triangleNormals.Release();
+    conePositions.Release();
+    coneTriangles.Release();
+    coneNormals.Release();
   }
 
   Mesh makeTriangle()
@@ -485,15 +511,15 @@ public class Main3D : MonoBehaviour
       new Vector3(0, height, 0),
       new Vector3(width, -height, 0),
       // Back face
-      new Vector3(-width, -height, 0),
-      new Vector3(0, height, 0),
       new Vector3(width, -height, 0),
+      new Vector3(0, height, 0),
+      new Vector3(-width, -height, 0),
     };
     mesh.vertices = vertices;
 
     int[] tris = {
       0, 1, 2, // Front facing
-      5, 4, 3}; // Back facing
+      3, 4, 5}; // Back facing
     mesh.triangles = tris;
     mesh.RecalculateNormals();
 
