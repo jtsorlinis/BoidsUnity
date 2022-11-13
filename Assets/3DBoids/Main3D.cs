@@ -69,7 +69,7 @@ public class Main3D : MonoBehaviour
   float gridCellSize;
 
   int cpuLimit = 4096;
-  int gpuLimit = 524288;
+  int gpuLimit = 1048576;
   int gpuTriangleLimit = 8388608;
 
   void Awake()
