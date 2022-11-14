@@ -36,6 +36,7 @@ public class Main2D : MonoBehaviour
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMat;
   Mesh triangle;
+  GraphicsBuffer trianglePositions;
 
   float minSpeed;
   float turnSpeed;
@@ -148,7 +149,10 @@ public class Main2D : MonoBehaviour
     rp = new RenderParams(boidMat);
     rp.matProps = new MaterialPropertyBlock();
     rp.matProps.SetBuffer("boids", boidBuffer);
-    rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 2000);
+    rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 3000);
+    trianglePositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 3, 12);
+    trianglePositions.SetData(triangle.vertices);
+    rp.matProps.SetBuffer("_Positions", trianglePositions);
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -340,7 +344,7 @@ public class Main2D : MonoBehaviour
     }
 
     // Actually draw the boids
-    Graphics.RenderMeshPrimitives(rp, triangle, 0, numBoids);
+    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * 3);
   }
 
   void MergedBehaviours(ref Boid boid)
@@ -759,6 +763,7 @@ public class Main2D : MonoBehaviour
     gridOffsetBufferIn.Release();
     gridSumsBuffer.Release();
     gridSumsBuffer2.Release();
+    trianglePositions.Release();
   }
 
   Mesh makeTriangle()
