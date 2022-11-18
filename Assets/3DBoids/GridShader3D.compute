@@ -117,5 +117,8 @@ void SumBlocks(uint3 id : SV_DISPATCHTHREADID) {
 #pragma kernel AddSums // ID 5
 [numthreads(blockSize, 1, 1)]
 void AddSums(uint globalID : SV_DISPATCHTHREADID, uint groupID : SV_GROUPID) {
+  if (groupID == 0 || globalID > gridTotalCells) {
+    return;
+  }
   gridOffsetBuffer[globalID] += gridSumsBufferIn[groupID - 1];
 }
