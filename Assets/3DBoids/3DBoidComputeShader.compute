@@ -133,24 +133,19 @@ void UpdateBoids(uint3 id : SV_DispatchThreadID) {
 
 // Basic random generation
 uint randSeed;
-uint state;
-float wangHash() {
-  state = (state ^ 61) ^(state >> 16);
-  state *= 9;
-  state = state ^(state >> 4);
-  state *= 0x27d4eb2d;
-  state = state ^(state >> 15);
-  return state / 4294967296.0;
-}
-
-float randRange(float a, float b) {
-  return wangHash() * (b - a) + a;
+uint rngState;
+float randPCG(float min, float max) {
+  uint state = rngState;
+  rngState = rngState * 747796405u + 2891336453u;
+  uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+  float f = ((word >> 22u) ^ word) / 4294967296.0;
+  return f * (max - min) + min;
 }
 
 #pragma kernel GenerateBoids // ID 1
 [numthreads(blockSize, 1, 1)]
 void GenerateBoids(uint3 id : SV_DispatchThreadID) {
-  state = randSeed + id.x;
-  boidsOut[id.x].pos = float3(randRange(-xBound, xBound), randRange(-yBound, yBound), randRange(-zBound, zBound));
-  boidsOut[id.x].vel = float3(randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed), randRange(-maxSpeed, maxSpeed));
+  rngState = randSeed + id.x;
+  boidsOut[id.x].pos = float3(randPCG(-xBound, xBound), randPCG(-yBound, yBound), randPCG(-zBound, zBound));
+  boidsOut[id.x].vel = float3(randPCG(-maxSpeed, maxSpeed), randPCG(-maxSpeed, maxSpeed), randPCG(-maxSpeed, maxSpeed));
 }
