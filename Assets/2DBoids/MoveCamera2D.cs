@@ -9,7 +9,7 @@ public class MoveCamera2D : MonoBehaviour
   float origZoom;
   float maxZoom = 2;
   float minZoom;
-  float smoothing = 5;
+  float smoothing = 10;
 
   // Start is called before the first frame update
   public void Start()
@@ -30,7 +30,7 @@ public class MoveCamera2D : MonoBehaviour
     var vscroll = Input.mouseScrollDelta.y;
 
     // Zoom
-    var zoomSpeed = (cam.orthographicSize / 10);
+    var zoomSpeed = (cam.orthographicSize / 25);
     zoom -= vscroll * zoomSpeed;
 
     // Center if fully zoomed out
