@@ -237,8 +237,8 @@ MonoBehaviour:
   edgeMargin: 0.5
   visualRange: 0.5
   minDistance: 0.15
-  cohesionFactor: 1
-  separationFactor: 30
+  cohesionFactor: 2
+  separationFactor: 1
   alignmentFactor: 5
   fpsText: {fileID: 534247695}
   boidText: {fileID: 321516222}

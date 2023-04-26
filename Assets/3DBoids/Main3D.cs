@@ -24,8 +24,8 @@ public class Main3D : MonoBehaviour
   [SerializeField] float edgeMargin = 0.5f;
   [SerializeField] float visualRange = .5f;
   [SerializeField] float minDistance = 0.15f;
-  [SerializeField] float cohesionFactor = 1;
-  [SerializeField] float separationFactor = 30;
+  [SerializeField] float cohesionFactor = 2;
+  [SerializeField] float separationFactor = 1;
   [SerializeField] float alignmentFactor = 5;
 
   [Header("Prefabs")]
@@ -313,7 +313,7 @@ public class Main3D : MonoBehaviour
           {
             if (distance < minDistance)
             {
-              close += boid.pos - other.pos;
+              close += (boid.pos - other.pos).normalized / distance;
             }
             center += other.pos;
             avgVel += other.vel;

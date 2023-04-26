@@ -61,7 +61,7 @@ void MergedBehaviours(inout Boid boid) {
         float dist = distance(boid.pos, other.pos);
         if (dist > 0 && dist < visualRange) {
           if (dist < minDistance) {
-            close += boid.pos - other.pos;
+            close += normalize(boid.pos - other.pos) / dist;
           }
           center += other.pos;
           avgVel += other.vel;
