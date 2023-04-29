@@ -70,10 +70,10 @@ public class Main2D : MonoBehaviour
   float xBound, yBound;
   RenderParams rp;
 
-  int cpuLimit = 4096;
-  int burstLimit = 32768;
-  int jobLimit = 262144;
-  int gpuLimit = 33554432 - 512;
+  int cpuLimit = 1 << 12;
+  int burstLimit = 1 << 15;
+  int jobLimit = 1 << 18;
+  int gpuLimit = 1 << 25;
 
   void Awake()
   {
@@ -691,7 +691,12 @@ public class Main2D : MonoBehaviour
 
   public void sliderChange(float val)
   {
+    var limit = (int)blockSize * 65535;
     numBoids = (int)val;
+    if (numBoids > limit)
+    {
+      numBoids = limit;
+    }
     OnDestroy();
     Start();
   }
