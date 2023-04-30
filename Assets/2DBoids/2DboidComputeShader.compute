@@ -12,11 +12,11 @@ uniform float deltaTime;
 uniform float maxSpeed;
 uniform float minSpeed;
 uniform float edgeMargin;
-uniform float visualRange;
+uniform float visualRangeSq;
 uniform float cohesionFactor;
 uniform float separationFactor;
 uniform float alignmentFactor;
-uniform float minDistance;
+uniform float minDistanceSq;
 uniform float turnSpeed;
 uniform float xBound;
 uniform float yBound;
@@ -51,10 +51,12 @@ void MergedBehaviours(inout Boid boid) {
     uint end = gridOffsetBuffer[y + 1];
     for (uint i = start; i < end; i++) {
       Boid other = boidsIn[i];
-      float dist = distance(boid.pos, other.pos);
-      if (dist > 0 && dist < visualRange) {
-        if (dist < minDistance) {
-          close += normalize(boid.pos - other.pos) / dist;
+      float2 diff = boid.pos - other.pos;
+      float distSq = dot(diff, diff);
+      
+      if (distSq > 0 && distSq < visualRangeSq) {
+        if (distSq < minDistanceSq) {
+          close += diff / distSq;
         }
         center += other.pos;
         avgVel += other.vel;
@@ -76,24 +78,16 @@ void MergedBehaviours(inout Boid boid) {
 
 void LimitSpeed(inout Boid boid) {
   float speed = length(boid.vel);
-  if (speed > maxSpeed) {
-    boid.vel = normalize(boid.vel) * maxSpeed;
-  } else if (speed < minSpeed) {
-    boid.vel = normalize(boid.vel) * minSpeed;
-  }
+  float clampedSpeed = clamp(speed, minSpeed, maxSpeed);
+  boid.vel *= clampedSpeed / speed;
 }
 
 void KeepInBounds(inout Boid boid) {
-  if (boid.pos.x < - xBound) {
-    boid.vel.x += deltaTime * turnSpeed;
-  } else if (boid.pos.x > xBound) {
-    boid.vel.x -= deltaTime * turnSpeed;
+  if (abs(boid.pos.x) > xBound) {
+    boid.vel.x -= sign(boid.pos.x) * deltaTime * turnSpeed;
   }
-
-  if (boid.pos.y > yBound) {
-    boid.vel.y -= deltaTime * turnSpeed;
-  } else if (boid.pos.y < - yBound) {
-    boid.vel.y += deltaTime * turnSpeed;
+  if (abs(boid.pos.y) > yBound) {
+    boid.vel.y -= sign(boid.pos.y) * deltaTime * turnSpeed;
   }
 }
 

@@ -23,7 +23,9 @@ public class Main2D : MonoBehaviour
   [SerializeField] float maxSpeed = 2;
   [SerializeField] float edgeMargin = .5f;
   [SerializeField] float visualRange = .5f;
+  float visualRangeSq => visualRange * visualRange;
   [SerializeField] float minDistance = 0.15f;
+  float minDistanceSq => minDistance * minDistance;
   [SerializeField] float cohesionFactor = 2;
   [SerializeField] float separationFactor = 1;
   [SerializeField] float alignmentFactor = 5;
@@ -114,11 +116,14 @@ public class Main2D : MonoBehaviour
     boidShader.SetFloat("maxSpeed", maxSpeed);
     boidShader.SetFloat("minSpeed", minSpeed);
     boidShader.SetFloat("edgeMargin", edgeMargin);
-    boidShader.SetFloat("visualRange", visualRange);
-    boidShader.SetFloat("minDistance", minDistance);
+    boidShader.SetFloat("visualRangeSq", visualRangeSq);
+    boidShader.SetFloat("minDistanceSq", minDistanceSq);
     boidShader.SetFloat("turnSpeed", turnSpeed);
     boidShader.SetFloat("xBound", xBound);
     boidShader.SetFloat("yBound", yBound);
+    boidShader.SetFloat("cohesionFactor", cohesionFactor);
+    boidShader.SetFloat("separationFactor", separationFactor);
+    boidShader.SetFloat("alignmentFactor", alignmentFactor);
 
     // Generate boids on GPU if over CPU limit
     if (numBoids <= jobLimit)
@@ -207,8 +212,8 @@ public class Main2D : MonoBehaviour
     boidJob.gridDimX = gridDimX;
     boidJob.gridDimY = gridDimY;
     boidJob.numBoids = numBoids;
-    boidJob.visualRange = visualRange;
-    boidJob.minDistance = minDistance;
+    boidJob.visualRangeSq = visualRangeSq;
+    boidJob.minDistanceSq = minDistanceSq;
     boidJob.xBound = xBound;
     boidJob.yBound = yBound;
     boidJob.cohesionFactor = cohesionFactor;
@@ -249,9 +254,6 @@ public class Main2D : MonoBehaviour
     if (mode == Modes.Gpu)
     {
       boidShader.SetFloat("deltaTime", Time.deltaTime);
-      boidShader.SetFloat("cohesionFactor", cohesionFactor);
-      boidShader.SetFloat("separationFactor", separationFactor);
-      boidShader.SetFloat("alignmentFactor", alignmentFactor);
 
       // Clear indices
       gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
@@ -363,12 +365,13 @@ public class Main2D : MonoBehaviour
       for (int i = start; i < end; i++)
       {
         Boid other = boidsTemp[i];
-        var distance = Vector2.Distance(boid.pos, other.pos);
-        if (distance > 0 && distance < visualRange)
+        var diff = boid.pos - other.pos;
+        var distanceSq = Vector2.SqrMagnitude(diff);
+        if (distanceSq > 0 && distanceSq < visualRangeSq)
         {
-          if (distance < minDistance)
+          if (distanceSq < minDistanceSq)
           {
-            close += (boid.pos - other.pos).normalized / distance;
+            close += diff / distanceSq;
           }
           center += other.pos;
           avgVel += other.vel;
@@ -392,35 +395,20 @@ public class Main2D : MonoBehaviour
   void LimitSpeed(ref Boid boid)
   {
     var speed = boid.vel.magnitude;
-    if (speed > maxSpeed)
-    {
-      boid.vel = boid.vel.normalized * maxSpeed;
-    }
-    else if (speed < minSpeed)
-    {
-      boid.vel = boid.vel.normalized * minSpeed;
-    }
+    var clampedSpeed = Mathf.Clamp(speed, minSpeed, maxSpeed);
+    boid.vel *= clampedSpeed / speed;
   }
 
   // Keep boids on screen
   void KeepInBounds(ref Boid boid)
   {
-    if (boid.pos.x < -xBound)
+    if (Mathf.Abs(boid.pos.x) > xBound)
     {
-      boid.vel.x += Time.deltaTime * turnSpeed;
+      boid.vel.x -= Mathf.Sign(boid.pos.x) * Time.deltaTime * turnSpeed;
     }
-    else if (boid.pos.x > xBound)
+    if (Mathf.Abs(boid.pos.y) > yBound)
     {
-      boid.vel.x -= Time.deltaTime * turnSpeed;
-    }
-
-    if (boid.pos.y > yBound)
-    {
-      boid.vel.y -= Time.deltaTime * turnSpeed;
-    }
-    else if (boid.pos.y < -yBound)
-    {
-      boid.vel.y += Time.deltaTime * turnSpeed;
+      boid.vel.y -= Mathf.Sign(boid.pos.y) * Time.deltaTime * turnSpeed;
     }
   }
 
@@ -578,8 +566,8 @@ public class Main2D : MonoBehaviour
     public NativeArray<Boid> outBoids;
     public float deltaTime;
     public int numBoids;
-    public float visualRange;
-    public float minDistance;
+    public float visualRangeSq;
+    public float minDistanceSq;
     public float cohesionFactor;
     public float alignmentFactor;
     public float separationFactor;
@@ -609,12 +597,13 @@ public class Main2D : MonoBehaviour
         for (int i = start; i < end; i++)
         {
           var other = inBoids[i];
-          var distance = Vector2.Distance(boid.pos, other.pos);
-          if (distance > 0 && distance < visualRange)
+          var diff = boid.pos - other.pos;
+          var distanceSq = Vector2.SqrMagnitude(diff);
+          if (distanceSq > 0 && distanceSq < visualRangeSq)
           {
-            if (distance < minDistance)
+            if (distanceSq < minDistanceSq)
             {
-              close += (boid.pos - other.pos).normalized / distance;
+              close += diff / distanceSq;
             }
             center += other.pos;
             avgVel += other.vel;
@@ -638,34 +627,19 @@ public class Main2D : MonoBehaviour
     void jobLimitSpeed(ref Boid boid)
     {
       var speed = boid.vel.magnitude;
-      if (speed > maxSpeed)
-      {
-        boid.vel = boid.vel.normalized * maxSpeed;
-      }
-      else if (speed < minSpeed)
-      {
-        boid.vel = boid.vel.normalized * minSpeed;
-      }
+      var clampedSpeed = Mathf.Clamp(speed, minSpeed, maxSpeed);
+      boid.vel *= clampedSpeed / speed;
     }
 
     void jobKeepInBounds(ref Boid boid)
     {
-      if (boid.pos.x < -xBound)
+      if (Mathf.Abs(boid.pos.x) > xBound)
       {
-        boid.vel.x += deltaTime * turnSpeed;
+        boid.vel.x -= Mathf.Sign(boid.pos.x) * deltaTime * turnSpeed;
       }
-      else if (boid.pos.x > xBound)
+      if (Mathf.Abs(boid.pos.y) > yBound)
       {
-        boid.vel.x -= deltaTime * turnSpeed;
-      }
-
-      if (boid.pos.y > yBound)
-      {
-        boid.vel.y -= deltaTime * turnSpeed;
-      }
-      else if (boid.pos.y < -yBound)
-      {
-        boid.vel.y += deltaTime * turnSpeed;
+        boid.vel.y -= Mathf.Sign(boid.pos.y) * deltaTime * turnSpeed;
       }
     }
 

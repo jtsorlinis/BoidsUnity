@@ -23,7 +23,9 @@ public class Main3D : MonoBehaviour
   [SerializeField] float maxSpeed = 1.5f;
   [SerializeField] float edgeMargin = 0.5f;
   [SerializeField] float visualRange = .5f;
+  float visualRangeSq => visualRange * visualRange;
   [SerializeField] float minDistance = 0.15f;
+  float minDistanceSq => minDistance * minDistance;
   [SerializeField] float cohesionFactor = 2;
   [SerializeField] float separationFactor = 1;
   [SerializeField] float alignmentFactor = 5;
@@ -113,12 +115,15 @@ public class Main3D : MonoBehaviour
     boidComputeShader.SetFloat("maxSpeed", maxSpeed);
     boidComputeShader.SetFloat("minSpeed", minSpeed);
     boidComputeShader.SetFloat("edgeMargin", edgeMargin);
-    boidComputeShader.SetFloat("visualRange", visualRange);
-    boidComputeShader.SetFloat("minDistance", minDistance);
+    boidComputeShader.SetFloat("visualRangeSq", visualRangeSq);
+    boidComputeShader.SetFloat("minDistanceSq", minDistanceSq);
     boidComputeShader.SetFloat("turnSpeed", turnSpeed);
     boidComputeShader.SetFloat("xBound", xBound);
     boidComputeShader.SetFloat("yBound", yBound);
     boidComputeShader.SetFloat("zBound", zBound);
+    boidComputeShader.SetFloat("cohesionFactor", cohesionFactor);
+    boidComputeShader.SetFloat("separationFactor", separationFactor);
+    boidComputeShader.SetFloat("alignmentFactor", alignmentFactor);
 
     // Generate boids on GPU if over CPU limit
     if (numBoids <= cpuLimit)
@@ -229,9 +234,6 @@ public class Main3D : MonoBehaviour
     if (useGPU)
     {
       boidComputeShader.SetFloat("deltaTime", Time.deltaTime);
-      boidComputeShader.SetFloat("cohesionFactor", cohesionFactor);
-      boidComputeShader.SetFloat("separationFactor", separationFactor);
-      boidComputeShader.SetFloat("alignmentFactor", alignmentFactor);
 
       // Clear indices
       gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
@@ -307,13 +309,13 @@ public class Main3D : MonoBehaviour
         for (int i = start; i < end; i++)
         {
           Boid3D other = boidsTemp[i];
-          float distance = Vector3.Distance(boid.pos, other.pos);
-
-          if (distance > 0 && distance < visualRange)
+          var diff = boid.pos - other.pos;
+          var distanceSq = Vector3.SqrMagnitude(diff);
+          if (distanceSq > 0 && distanceSq < visualRangeSq)
           {
-            if (distance < minDistance)
+            if (distanceSq < minDistanceSq)
             {
-              close += (boid.pos - other.pos).normalized / distance;
+              close += diff / distanceSq;
             }
             center += other.pos;
             avgVel += other.vel;
@@ -338,43 +340,23 @@ public class Main3D : MonoBehaviour
   void LimitSpeed(ref Boid3D boid)
   {
     var speed = boid.vel.magnitude;
-    if (speed > maxSpeed)
-    {
-      boid.vel = boid.vel.normalized * maxSpeed;
-    }
-    else if (speed < minSpeed)
-    {
-      boid.vel = boid.vel.normalized * minSpeed;
-    }
+    var clampedSpeed = Mathf.Clamp(speed, minSpeed, maxSpeed);
+    boid.vel *= clampedSpeed / speed;
   }
 
   void KeepInBounds(ref Boid3D boid)
   {
-    if (boid.pos.x < -xBound)
+    if (Mathf.Abs(boid.pos.x) > xBound)
     {
-      boid.vel.x += Time.deltaTime * turnSpeed;
+      boid.vel.x -= Mathf.Sign(boid.pos.x) * Time.deltaTime * turnSpeed;
     }
-    else if (boid.pos.x > xBound)
+    if (Mathf.Abs(boid.pos.y) > yBound)
     {
-      boid.vel.x -= Time.deltaTime * turnSpeed;
+      boid.vel.y -= Mathf.Sign(boid.pos.y) * Time.deltaTime * turnSpeed;
     }
-
-    if (boid.pos.y > yBound)
+    if (Mathf.Abs(boid.pos.z) > zBound)
     {
-      boid.vel.y -= Time.deltaTime * turnSpeed;
-    }
-    else if (boid.pos.y < -yBound)
-    {
-      boid.vel.y += Time.deltaTime * turnSpeed;
-    }
-    if (boid.pos.z > zBound)
-    {
-      boid.vel.z -= Time.deltaTime * turnSpeed;
-    }
-    else if (boid.pos.z < -zBound)
-    {
-      boid.vel.z += Time.deltaTime * turnSpeed;
-
+      boid.vel.z -= Mathf.Sign(boid.pos.z) * Time.deltaTime * turnSpeed;
     }
   }
 
