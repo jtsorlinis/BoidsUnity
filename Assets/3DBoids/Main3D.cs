@@ -1,11 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
+using Unity.Mathematics;
 
 struct Boid3D
 {
-  public Vector3 pos;
-  public Vector3 vel;
+  public float3 pos;
+  public float3 vel;
   float pad0;
   float pad1;
 }
@@ -65,7 +66,7 @@ public class Main3D : MonoBehaviour
   ComputeBuffer gridSumsBuffer2;
 
   // Index is particle ID, x value is position flattened to 1D array, y value is grid cell offset
-  Vector2Int[] grid;
+  int2[] grid;
   int[] gridOffsets;
   int gridDimY, gridDimX, gridDimZ, gridTotalCells, blocks;
   float gridCellSize;
@@ -134,8 +135,8 @@ public class Main3D : MonoBehaviour
       for (int i = 0; i < numBoids; i++)
       {
         var boid = new Boid3D();
-        boid.pos = new Vector3(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound), UnityEngine.Random.Range(-zBound, zBound));
-        boid.vel = new Vector3(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed));
+        boid.pos = new float3(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound), UnityEngine.Random.Range(-zBound, zBound));
+        boid.vel = new float3(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed));
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);
@@ -144,7 +145,7 @@ public class Main3D : MonoBehaviour
     else
     {
       boidComputeShader.SetBuffer(generateBoidsKernel, "boidsOut", boidBuffer);
-      boidComputeShader.SetInt("randSeed", Random.Range(0, int.MaxValue));
+      boidComputeShader.SetInt("randSeed", UnityEngine.Random.Range(0, int.MaxValue));
       boidComputeShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
 
@@ -183,7 +184,7 @@ public class Main3D : MonoBehaviour
     // Don't generate grid on CPU if over CPU limit
     if (numBoids <= cpuLimit)
     {
-      grid = new Vector2Int[numBoids];
+      grid = new int2[numBoids];
       gridOffsets = new int[gridTotalCells];
     }
 
@@ -291,9 +292,9 @@ public class Main3D : MonoBehaviour
 
   void MergedBehaviours(ref Boid3D boid)
   {
-    Vector3 center = Vector3.zero;
-    Vector3 close = Vector3.zero;
-    Vector3 avgVel = Vector3.zero;
+    float3 center = float3.zero;
+    float3 close = float3.zero;
+    float3 avgVel = float3.zero;
     int neighbours = 0;
 
     var gridXYZ = getGridLocation(boid);
@@ -310,7 +311,7 @@ public class Main3D : MonoBehaviour
         {
           Boid3D other = boidsTemp[i];
           var diff = boid.pos - other.pos;
-          var distanceSq = Vector3.SqrMagnitude(diff);
+          var distanceSq = math.dot(diff, diff);
           if (distanceSq > 0 && distanceSq < visualRangeSq)
           {
             if (distanceSq < minDistanceSq)
@@ -339,7 +340,7 @@ public class Main3D : MonoBehaviour
 
   void LimitSpeed(ref Boid3D boid)
   {
-    var speed = boid.vel.magnitude;
+    var speed = math.length(boid.vel);
     var clampedSpeed = Mathf.Clamp(speed, minSpeed, maxSpeed);
     boid.vel *= clampedSpeed / speed;
   }
@@ -368,17 +369,17 @@ public class Main3D : MonoBehaviour
     return (gridDimY * gridDimX * boidz) + (gridDimX * boidy) + boidx;
   }
 
-  int getGridIDbyLoc(Vector3Int pos)
+  int getGridIDbyLoc(int3 pos)
   {
     return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
   }
 
-  Vector3Int getGridLocation(Boid3D boid)
+  int3 getGridLocation(Boid3D boid)
   {
     int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
     int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
     int boidz = Mathf.FloorToInt(boid.pos.z / gridCellSize + gridDimZ / 2);
-    return new Vector3Int(boidx, boidy, boidz);
+    return new int3(boidx, boidy, boidz);
   }
 
   void ClearGrid()

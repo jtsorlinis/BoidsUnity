@@ -3,11 +3,12 @@ using UnityEngine.UI;
 using Unity.Jobs;
 using Unity.Collections;
 using Unity.Burst;
+using Unity.Mathematics;
 
 struct Boid
 {
-  public Vector2 pos;
-  public Vector2 vel;
+  public float2 pos;
+  public float2 vel;
 }
 
 public class Main2D : MonoBehaviour
@@ -64,7 +65,7 @@ public class Main2D : MonoBehaviour
   ComputeBuffer gridSumsBuffer2;
 
   // Index is particle ID, x value is position flattened to 1D array, y value is grid cell offset
-  NativeArray<Vector2Int> grid;
+  NativeArray<int2> grid;
   NativeArray<int> gridOffsets;
   int gridDimY, gridDimX, gridTotalCells;
   float gridCellSize;
@@ -133,8 +134,8 @@ public class Main2D : MonoBehaviour
       boidsTemp = new NativeArray<Boid>(numBoids, Allocator.Persistent);
       for (int i = 0; i < numBoids; i++)
       {
-        var pos = new Vector2(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound));
-        var vel = new Vector2(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed)).normalized * maxSpeed;
+        var pos = new float2(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound));
+        var vel = new float2(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed));
         var boid = new Boid();
         boid.pos = pos;
         boid.vel = vel;
@@ -145,7 +146,7 @@ public class Main2D : MonoBehaviour
     else
     {
       boidShader.SetBuffer(generateBoidsKernel, "boidsOut", boidBuffer);
-      boidShader.SetInt("randSeed", Random.Range(0, int.MaxValue));
+      boidShader.SetInt("randSeed", UnityEngine.Random.Range(0, int.MaxValue));
       boidShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
 
@@ -167,7 +168,7 @@ public class Main2D : MonoBehaviour
     // Don't generate grid on CPU if over CPU limit
     if (numBoids <= jobLimit)
     {
-      grid = new NativeArray<Vector2Int>(numBoids, Allocator.Persistent);
+      grid = new NativeArray<int2>(numBoids, Allocator.Persistent);
       gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     }
 
@@ -350,9 +351,9 @@ public class Main2D : MonoBehaviour
 
   void MergedBehaviours(ref Boid boid)
   {
-    Vector2 center = Vector2.zero;
-    Vector2 close = Vector2.zero;
-    Vector2 avgVel = Vector2.zero;
+    float2 center = float2.zero;
+    float2 close = float2.zero;
+    float2 avgVel = float2.zero;
     int neighbours = 0;
 
     var gridXY = getGridLocation(boid);
@@ -366,7 +367,7 @@ public class Main2D : MonoBehaviour
       {
         Boid other = boidsTemp[i];
         var diff = boid.pos - other.pos;
-        var distanceSq = Vector2.SqrMagnitude(diff);
+        var distanceSq = math.dot(diff, diff);
         if (distanceSq > 0 && distanceSq < visualRangeSq)
         {
           if (distanceSq < minDistanceSq)
@@ -394,7 +395,7 @@ public class Main2D : MonoBehaviour
 
   void LimitSpeed(ref Boid boid)
   {
-    var speed = boid.vel.magnitude;
+    var speed = math.length(boid.vel);
     var clampedSpeed = Mathf.Clamp(speed, minSpeed, maxSpeed);
     boid.vel *= clampedSpeed / speed;
   }
@@ -419,16 +420,16 @@ public class Main2D : MonoBehaviour
     return (gridDimX * gridY) + gridX;
   }
 
-  int getGridIDbyLoc(Vector2Int cell)
+  int getGridIDbyLoc(int2 cell)
   {
     return (gridDimX * cell.y) + cell.x;
   }
 
-  Vector2Int getGridLocation(Boid boid)
+  int2 getGridLocation(Boid boid)
   {
     int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
     int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
-    return new Vector2Int(gridX, gridY);
+    return new int2(gridX, gridY);
   }
 
   void ClearGrid()
@@ -486,7 +487,7 @@ public class Main2D : MonoBehaviour
   [BurstCompile]
   struct UpdateGridJob : IJob
   {
-    public NativeArray<Vector2Int> grid;
+    public NativeArray<int2> grid;
     public NativeArray<int> gridOffsets;
     [ReadOnly]
     public NativeArray<Boid> boids;
@@ -536,7 +537,7 @@ public class Main2D : MonoBehaviour
   struct RearrangeBoidsJob : IJob
   {
     [ReadOnly]
-    public NativeArray<Vector2Int> grid;
+    public NativeArray<int2> grid;
     [ReadOnly]
     public NativeArray<int> gridOffsets;
     [ReadOnly]
@@ -582,9 +583,9 @@ public class Main2D : MonoBehaviour
 
     void jobMergedBehaviours(ref Boid boid)
     {
-      Vector2 center = Vector2.zero;
-      Vector2 close = Vector2.zero;
-      Vector2 avgVel = Vector2.zero;
+      float2 center = float2.zero;
+      float2 close = float2.zero;
+      float2 avgVel = float2.zero;
       int neighbours = 0;
 
       var gridXY = jobGetGridLocation(boid);
@@ -598,7 +599,7 @@ public class Main2D : MonoBehaviour
         {
           var other = inBoids[i];
           var diff = boid.pos - other.pos;
-          var distanceSq = Vector2.SqrMagnitude(diff);
+          var distanceSq = math.dot(diff, diff);
           if (distanceSq > 0 && distanceSq < visualRangeSq)
           {
             if (distanceSq < minDistanceSq)
@@ -626,7 +627,7 @@ public class Main2D : MonoBehaviour
 
     void jobLimitSpeed(ref Boid boid)
     {
-      var speed = boid.vel.magnitude;
+      var speed = math.length(boid.vel);
       var clampedSpeed = Mathf.Clamp(speed, minSpeed, maxSpeed);
       boid.vel *= clampedSpeed / speed;
     }
@@ -643,11 +644,11 @@ public class Main2D : MonoBehaviour
       }
     }
 
-    Vector2Int jobGetGridLocation(Boid boid)
+    int2 jobGetGridLocation(Boid boid)
     {
       int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
       int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
-      return new Vector2Int(gridX, gridY);
+      return new int2(gridX, gridY);
     }
 
     public void Execute(int index)
