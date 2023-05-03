@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
 using Unity.Mathematics;
+using UnityEngine.Rendering.Universal;
 
 struct Boid3D
 {
@@ -45,6 +46,8 @@ public class Main3D : MonoBehaviour
   GraphicsBuffer coneTriangles, conePositions, coneNormals;
   int vertCount = 72;
   [SerializeField] Transform floorPlane;
+  [SerializeField] UniversalRenderPipelineAsset renderPipelineAsset;
+
 
   float spaceBounds;
   float xBound, yBound, zBound;
@@ -86,6 +89,7 @@ public class Main3D : MonoBehaviour
   {
     boidText.text = "Boids: " + numBoids;
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
+    renderPipelineAsset.shadowDistance = spaceBounds * 7;
     Camera.main.transform.position = new Vector3(0, 0, -spaceBounds * 3.8f);
     Camera.main.transform.rotation = Quaternion.identity;
     GetComponent<MoveCamera3D>().Start();

@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.44671863, g: 0.496575, b: 0.5750147, a: 1}
+  m_IndirectSpecularColor: {r: 0.44657844, g: 0.49641222, b: 0.57481676, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -98,7 +98,7 @@ LightmapSettings:
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
   m_LightingDataAsset: {fileID: 112000000, guid: af93edba7bec845da9835c6bc4ea4f22, type: 2}
-  m_LightingSettings: {fileID: 4890085278179872738, guid: e9dbe9f4e13d04c388b31582f263d127, type: 2}
+  m_LightingSettings: {fileID: 4890085278179872738, guid: 86d4ce31be05c4935877b88497c3da2f, type: 2}
 --- !u!196 &4
 NavMeshSettings:
   serializedVersion: 2
@@ -136,6 +136,7 @@ GameObject:
   - component: {fileID: 218961743}
   - component: {fileID: 218961746}
   - component: {fileID: 218961747}
+  - component: {fileID: 218961748}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -238,6 +239,7 @@ MonoBehaviour:
   boidMaterial: {fileID: 2100000, guid: 09536f1ea42ec4b4f9d697f975d5b32d, type: 2}
   boidMesh: {fileID: 4300000, guid: 8f90fac4ab24148cd85780a66a23ee60, type: 2}
   floorPlane: {fileID: 2028868350}
+  renderPipelineAsset: {fileID: 11400000, guid: fe05a1bcdba5d43f484e39b878640ce3, type: 2}
 --- !u!114 &218961747
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -251,6 +253,39 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 10
+--- !u!114 &218961748
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 218961742}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_Version: 2
 --- !u!1001 &570514462
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -269,6 +304,10 @@ PrefabInstance:
     - target: {fileID: 301399899, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_AnchorMin.x
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 828200726, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 119.8999
       objectReference: {fileID: 0}
     - target: {fileID: 828200727, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
@@ -470,12 +509,13 @@ GameObject:
   m_Component:
   - component: {fileID: 919872369}
   - component: {fileID: 919872368}
+  - component: {fileID: 919872370}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!108 &919872368
 Light:
@@ -554,6 +594,26 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!114 &919872370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 919872367}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Version: 1
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_LightLayerMask: 1
+  m_CustomShadowLayers: 0
+  m_ShadowLayerMask: 1
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
 --- !u!114 &1037755651 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
@@ -629,7 +689,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: b0b2bab0244464726b0e1d645b154cd3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
