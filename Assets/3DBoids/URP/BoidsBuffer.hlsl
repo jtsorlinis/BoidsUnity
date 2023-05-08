@@ -19,10 +19,10 @@ StructuredBuffer<Boid> boids;
 int vertCount;
 
 void rotate3D(inout float3 v, float3 vel) {
-    float3 up = float3(0, 1, 0);
-    float3 axis = normalize(cross(up, vel));
-    float angle = acos(dot(up, normalize(vel)));
-    v = v * cos(angle) + cross(axis, v) * sin(angle) + axis * dot(axis, v) * (1. - cos(angle));
+    float pitch = atan2(vel.y, length(vel.xz)) - HALF_PI;
+    v.yx = float2(v.y * cos(pitch) + v.x * sin(pitch), -v.y * sin(pitch) + v.x * cos(pitch));
+    float yaw = atan2(vel.x, vel.z) - HALF_PI;
+    v.xz = float2(v.x * cos(yaw) + v.z * sin(yaw), v.z * cos(yaw) - v.x * sin(yaw));
 }
 
 void BoidVert_float(uint vertexID, out float3 v, out float3 n) {
