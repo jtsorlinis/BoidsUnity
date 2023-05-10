@@ -38,7 +38,7 @@ public class Main2D : MonoBehaviour
   [SerializeField] ComputeShader boidShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMat;
-  Mesh triangle;
+  Vector2[] triangleVerts;
   GraphicsBuffer trianglePositions;
 
   float minSpeed;
@@ -81,7 +81,7 @@ public class Main2D : MonoBehaviour
   void Awake()
   {
     numSlider.maxValue = cpuLimit;
-    triangle = makeTriangle();
+    triangleVerts = getTriangleVerts();
   }
 
   // Start is called before the first frame update
@@ -155,8 +155,8 @@ public class Main2D : MonoBehaviour
     rp.matProps = new MaterialPropertyBlock();
     rp.matProps.SetBuffer("boids", boidBuffer);
     rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 3000);
-    trianglePositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 3, 12);
-    trianglePositions.SetData(triangle.vertices);
+    trianglePositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 3, 8);
+    trianglePositions.SetData(triangleVerts);
     rp.matProps.SetBuffer("_Positions", trianglePositions);
 
     // Spatial grid setup
@@ -745,20 +745,14 @@ public class Main2D : MonoBehaviour
     trianglePositions.Release();
   }
 
-  Mesh makeTriangle()
+  Vector2[] getTriangleVerts()
   {
-    Mesh mesh = new Mesh();
-
-    Vector3[] vertices = {
-      new Vector3(-.4f, -.5f, 0),
-      new Vector3(0, .5f, 0),
-      new Vector3(.4f, -.5f, 0),
+    return new Vector2[] {
+      new Vector2(-.4f, -.5f),
+      new Vector2(0, .5f),
+      new Vector2(.4f, -.5f),
     };
-    mesh.vertices = vertices;
-
-    int[] tris = { 0, 1, 2 };
-    mesh.triangles = tris;
-
-    return mesh;
   }
 }
+
+
