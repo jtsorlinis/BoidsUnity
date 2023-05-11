@@ -10,11 +10,8 @@ struct Boid {
 
 float _Scale;
 
-StructuredBuffer<float3> trianglePositions;
-StructuredBuffer<float3> triangleNormals;
-StructuredBuffer<float3> conePositions;
-StructuredBuffer<float3> coneNormals;
-StructuredBuffer<int> coneTriangles;
+StructuredBuffer<float3> meshPositions;
+StructuredBuffer<float3> meshNormals;
 StructuredBuffer<Boid> boids;
 int vertCount;
 
@@ -29,12 +26,8 @@ void BoidVert_float(uint vertexID, out float3 v, out float3 n) {
     uint instanceID = vertexID / vertCount;
     uint instanceVertexID = vertexID - instanceID * vertCount;
     Boid boid = boids[instanceID];
-    float3 pos = trianglePositions[instanceVertexID];
-    float3 normal = triangleNormals[instanceVertexID];
-    if (vertCount == 72) {
-        pos = conePositions[coneTriangles[instanceVertexID]];
-        normal = coneNormals[coneTriangles[instanceVertexID]];
-    }
+    float3 pos = meshPositions[instanceVertexID];
+    float3 normal = meshNormals[instanceVertexID];
     rotate3D(pos, boid.vel);
     v = (pos * _Scale) + boid.pos;
     rotate3D(normal, boid.vel);
