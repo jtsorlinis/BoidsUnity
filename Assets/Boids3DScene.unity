@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.44657844, g: 0.49641222, b: 0.57481676, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028326, g: 0.22571333, b: 0.30692202, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -224,7 +224,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   numBoids: 32
   boidScale: 0.08
-  maxSpeed: 1.5
+  maxSpeed: 2
   edgeMargin: 0.5
   visualRange: 0.5
   minDistance: 0.15
@@ -237,9 +237,7 @@ MonoBehaviour:
   boidComputeShader: {fileID: 7200000, guid: e477a5ad8c1864180a4f8a502cff2e79, type: 3}
   gridShader: {fileID: 7200000, guid: 1fe7a4bc7669a42278700e648c7d2c5c, type: 3}
   boidMaterial: {fileID: 2100000, guid: 09536f1ea42ec4b4f9d697f975d5b32d, type: 2}
-  boidMesh: {fileID: 4300000, guid: 8f90fac4ab24148cd85780a66a23ee60, type: 2}
   floorPlane: {fileID: 2028868350}
-  renderPipelineAsset: {fileID: 11400000, guid: fe05a1bcdba5d43f484e39b878640ce3, type: 2}
 --- !u!114 &218961747
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -13,15 +13,14 @@ struct Boid3D
 
 public class Main3D : MonoBehaviour
 {
-  const float blockSize = 256f;
+  const float blockSize = 512f;
 
   [Header("Performance")]
   bool useGPU = false;
   [SerializeField] int numBoids = 32;
-  [SerializeField] float boidScale = 0.08f;
 
   [Header("Settings")]
-  [SerializeField] float maxSpeed = 1.5f;
+  [SerializeField] float maxSpeed = 2f;
   [SerializeField] float edgeMargin = 0.5f;
   [SerializeField] float visualRange = .5f;
   float visualRangeSq => visualRange * visualRange;
@@ -153,7 +152,6 @@ public class Main3D : MonoBehaviour
     // Set shader renderParams
     rp = new RenderParams(boidMaterial);
     rp.matProps = new MaterialPropertyBlock();
-    rp.matProps.SetFloat("_Scale", boidScale);
     rp.matProps.SetBuffer("boids", boidBuffer);
     rp.shadowCastingMode = ShadowCastingMode.On;
     rp.receiveShadows = true;

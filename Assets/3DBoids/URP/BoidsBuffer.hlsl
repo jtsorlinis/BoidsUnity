@@ -8,8 +8,6 @@ struct Boid {
     float pad1;
 };
 
-float _Scale;
-
 StructuredBuffer<float3> meshPositions;
 StructuredBuffer<float3> meshNormals;
 StructuredBuffer<Boid> boids;
@@ -22,14 +20,14 @@ void rotate3D(inout float3 v, float3 vel) {
     v.xz = float2(v.x * cos(yaw) + v.z * sin(yaw), v.z * cos(yaw) - v.x * sin(yaw));
 }
 
-void BoidVert_float(uint vertexID, out float3 v, out float3 n) {
+void BoidVert_float(uint vertexID, float _scale, out float3 v, out float3 n) {
     uint instanceID = vertexID / vertCount;
     uint instanceVertexID = vertexID - instanceID * vertCount;
     Boid boid = boids[instanceID];
     float3 pos = meshPositions[instanceVertexID];
     float3 normal = meshNormals[instanceVertexID];
     rotate3D(pos, boid.vel);
-    v = (pos * _Scale) + boid.pos;
+    v = (pos * _scale) + boid.pos;
     rotate3D(normal, boid.vel);
     n = normal;
 }

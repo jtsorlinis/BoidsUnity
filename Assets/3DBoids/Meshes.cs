@@ -5,8 +5,8 @@ public class Meshes
   public static Mesh MakePyramid()
   {
     Mesh mesh = new Mesh();
-    float width = 0.5f;
-    float height = 0.8f;
+    float width = 0.4f;
+    float height = 0.5f;
 
     Vector3[] vertices = {
       // Front face
@@ -52,8 +52,8 @@ public class Meshes
   public static Mesh MakeTriangle()
   {
     Mesh mesh = new Mesh();
-    float width = 0.5f;
-    float height = 0.8f;
+    float width = 0.4f;
+    float height = 0.5f;
 
     // Duplicate vertices to get back face lighting
     Vector3[] vertices = {
