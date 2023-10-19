@@ -1,5 +1,9 @@
 # 2D/3D Boids Flocking Simulation (CPU/Burst/Jobs/GPU)
 
+### Update: I've since made a WebGPU version that can run directly in the browser: [BoidsWebGPU](https://github.com/jtsorlinis/BoidsWebGPU)
+
+***
+
 I wanted to learn about GPGPU and Compute shaders so ended up making a boid flocking simulation in unity. 
 
 I first made it in 2D on the CPU, then using Burst/Jobs, and eventually moved everything to the GPU, which brought an insane performance increase.
