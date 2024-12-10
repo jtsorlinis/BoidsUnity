@@ -16,7 +16,7 @@ public class Main3D : MonoBehaviour
   const float blockSize = 512f;
 
   [Header("Performance")]
-  bool useGPU = false;
+  bool useGPU = true;
   [SerializeField] int numBoids = 32;
 
   [Header("Settings")]
@@ -75,10 +75,10 @@ public class Main3D : MonoBehaviour
 
   void Awake()
   {
-    boidSlider.maxValue = cpuLimit;
+    boidSlider.maxValue = 25;
     boidMesh = Meshes.MakePyramid();
     triangleMesh = Meshes.MakeTriangle();
-    currentMesh = boidMesh;
+    currentMesh = triangleMesh;
   }
 
   // Start is called before the first frame update
@@ -413,7 +413,12 @@ public class Main3D : MonoBehaviour
 
   public void sliderChange(float val)
   {
-    numBoids = (int)val;
+    numBoids = (int)Mathf.Pow(2, val);
+    var limit = (int)blockSize * 65535;
+    if (numBoids > limit)
+    {
+      numBoids = limit;
+    }
     OnDestroy();
     Start();
   }
@@ -421,38 +426,6 @@ public class Main3D : MonoBehaviour
   public void switchTo2D()
   {
     UnityEngine.SceneManagement.SceneManager.LoadScene("Boids2DScene");
-  }
-
-  public void modeChange(int val)
-  {
-    // CPU
-    if (val == 0)
-    {
-      boidSlider.maxValue = cpuLimit;
-      useGPU = false;
-      setupMesh(boidMesh);
-
-      // Copy boids back from GPU
-      var tempArray = new Boid3D[numBoids];
-      boidBuffer.GetData(tempArray);
-      boids = tempArray;
-    }
-
-    // GPU
-    if (val == 1)
-    {
-      boidSlider.maxValue = gpuLimit;
-      useGPU = true;
-      setupMesh(boidMesh);
-    }
-
-    // GPU (Triangles)
-    if (val == 2)
-    {
-      boidSlider.maxValue = gpuTriangleLimit;
-      useGPU = true;
-      setupMesh(triangleMesh);
-    }
   }
 
   void OnDestroy()

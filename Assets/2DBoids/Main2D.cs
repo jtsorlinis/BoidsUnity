@@ -18,7 +18,7 @@ public class Main2D : MonoBehaviour
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
   enum Modes { Cpu, Burst, Jobs, Gpu };
-  Modes mode = Modes.Cpu;
+  Modes mode = Modes.Gpu;
 
   [Header("Settings")]
   [SerializeField] float maxSpeed = 2;
@@ -80,7 +80,7 @@ public class Main2D : MonoBehaviour
 
   void Awake()
   {
-    numSlider.maxValue = cpuLimit;
+    numSlider.maxValue = 26;
     triangleVerts = getTriangleVerts();
   }
 
@@ -667,7 +667,7 @@ public class Main2D : MonoBehaviour
   public void sliderChange(float val)
   {
     var limit = (int)blockSize * 65535;
-    numBoids = (int)val;
+    numBoids = (int)Mathf.Pow(2, val);
     if (numBoids > limit)
     {
       numBoids = limit;
@@ -681,45 +681,7 @@ public class Main2D : MonoBehaviour
     UnityEngine.SceneManagement.SceneManager.LoadScene("Boids3DScene");
   }
 
-  public void modeChange(int val)
-  {
-    // CPU
-    if (val == 0)
-    {
-      numSlider.maxValue = cpuLimit;
-      mode = Modes.Cpu;
-      var tempArray = new Boid[numBoids];
-      boidBuffer.GetData(tempArray);
-      boids.CopyFrom(tempArray);
-    }
 
-    // CPU Burst
-    if (val == 1)
-    {
-      numSlider.maxValue = burstLimit;
-      mode = Modes.Burst;
-      var tempArray = new Boid[numBoids];
-      boidBuffer.GetData(tempArray);
-      boids.CopyFrom(tempArray);
-    }
-
-    // CPU Burst Jobs
-    if (val == 2)
-    {
-      numSlider.maxValue = jobLimit;
-      mode = Modes.Jobs;
-      var tempArray = new Boid[numBoids];
-      boidBuffer.GetData(tempArray);
-      boids.CopyFrom(tempArray);
-    }
-
-    // GPU
-    if (val == 3)
-    {
-      numSlider.maxValue = gpuLimit;
-      mode = Modes.Gpu;
-    }
-  }
 
   void OnDestroy()
   {
