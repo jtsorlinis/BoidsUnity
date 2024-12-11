@@ -1,4 +1,4 @@
-#define blockSize 512
+#define blockSize 1024
 
 struct Boid {
   float3 pos;

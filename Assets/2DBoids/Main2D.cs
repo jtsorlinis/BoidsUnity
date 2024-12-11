@@ -13,7 +13,7 @@ struct Boid
 
 public class Main2D : MonoBehaviour
 {
-  const float blockSize = 512f;
+  const float blockSize = 1024f;
 
   [Header("Performance")]
   [SerializeField] int numBoids = 500;

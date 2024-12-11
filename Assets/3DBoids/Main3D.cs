@@ -13,7 +13,7 @@ struct Boid3D
 
 public class Main3D : MonoBehaviour
 {
-  const float blockSize = 512f;
+  const float blockSize = 1024f;
 
   [Header("Performance")]
   bool useGPU = true;
