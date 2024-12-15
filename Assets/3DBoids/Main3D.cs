@@ -38,9 +38,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
   RenderParams rp;
-  Mesh boidMesh;
   Mesh triangleMesh;
-  Mesh currentMesh;
   GraphicsBuffer meshPositions, meshNormals;
   [SerializeField] Transform floorPlane;
 
@@ -69,16 +67,13 @@ public class Main3D : MonoBehaviour
   int gridDimY, gridDimX, gridDimZ, gridTotalCells, blocks;
   float gridCellSize;
 
-  int cpuLimit = 1 << 12;
-  int gpuLimit = 1 << 21;
-  int gpuTriangleLimit = 1 << 23;
+  int cpuLimit = 1 << 14;
+  int gpuLimit = (int)blockSize * 65535;
 
   void Awake()
   {
-    boidSlider.maxValue = 25;
-    boidMesh = Meshes.MakePyramid();
+    boidSlider.maxValue = Mathf.Log(useGPU ? gpuLimit : cpuLimit, 2);
     triangleMesh = Meshes.MakeTriangle();
-    currentMesh = triangleMesh;
   }
 
   // Start is called before the first frame update
@@ -157,13 +152,13 @@ public class Main3D : MonoBehaviour
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 100);
 
-    meshPositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, currentMesh.vertices.Length, 3 * sizeof(float));
-    meshPositions.SetData(currentMesh.vertices);
-    meshNormals = new GraphicsBuffer(GraphicsBuffer.Target.Structured, currentMesh.normals.Length, 3 * sizeof(float));
-    meshNormals.SetData(currentMesh.normals);
+    meshPositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, triangleMesh.vertices.Length, 3 * sizeof(float));
+    meshPositions.SetData(triangleMesh.vertices);
+    meshNormals = new GraphicsBuffer(GraphicsBuffer.Target.Structured, triangleMesh.normals.Length, 3 * sizeof(float));
+    meshNormals.SetData(triangleMesh.normals);
     rp.matProps.SetBuffer("meshPositions", meshPositions);
     rp.matProps.SetBuffer("meshNormals", meshNormals);
-    rp.matProps.SetInteger("vertCount", currentMesh.vertices.Length);
+    rp.matProps.SetInteger("vertCount", triangleMesh.vertices.Length);
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -278,7 +273,7 @@ public class Main3D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * currentMesh.vertices.Length);
+    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertices.Length);
   }
 
   void MergedBehaviours(ref Boid3D boid)
@@ -414,7 +409,7 @@ public class Main3D : MonoBehaviour
   public void sliderChange(float val)
   {
     numBoids = (int)Mathf.Pow(2, val);
-    var limit = (int)blockSize * 65535;
+    var limit = useGPU ? gpuLimit : cpuLimit;
     if (numBoids > limit)
     {
       numBoids = limit;
@@ -439,19 +434,5 @@ public class Main3D : MonoBehaviour
     gridSumsBuffer2.Release();
     meshPositions.Release();
     meshNormals.Release();
-  }
-
-  void setupMesh(Mesh mesh)
-  {
-    currentMesh = mesh;
-    meshPositions.Release();
-    meshPositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, currentMesh.vertices.Length, 3 * sizeof(float));
-    meshPositions.SetData(currentMesh.vertices);
-    meshNormals.Release();
-    meshNormals = new GraphicsBuffer(GraphicsBuffer.Target.Structured, currentMesh.normals.Length, 3 * sizeof(float));
-    meshNormals.SetData(currentMesh.normals);
-    rp.matProps.SetBuffer("meshPositions", meshPositions);
-    rp.matProps.SetBuffer("meshNormals", meshNormals);
-    rp.matProps.SetInteger("vertCount", currentMesh.vertices.Length);
   }
 }
