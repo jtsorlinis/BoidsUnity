@@ -24,8 +24,16 @@ public class MoveCamera3D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject()) isDragging = true;
-    if (Input.GetMouseButtonUp(0)) isDragging = false;
+    if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject())
+    {
+      Cursor.lockState = CursorLockMode.Locked;
+      isDragging = true;
+    }
+    if (Input.GetMouseButtonUp(0))
+    {
+      Cursor.lockState = CursorLockMode.None;
+      isDragging = false;
+    }
 
     var vx = Input.GetAxis("Horizontal");
     var vz = Input.GetAxis("Vertical");
@@ -35,7 +43,6 @@ public class MoveCamera3D : MonoBehaviour
 
     if (isDragging)
     {
-      Cursor.lockState = CursorLockMode.Locked;
       rotation.x += mouseX * sensitivity;
       rotation.y += mouseY * sensitivity;
       rotation.y = Mathf.Clamp(rotation.y, -yRotationLimit, yRotationLimit);
@@ -47,10 +54,6 @@ public class MoveCamera3D : MonoBehaviour
       movement += cam.transform.right * vx * Time.deltaTime * moveSpeed;
       movement += cam.transform.up * vy * Time.deltaTime * moveSpeed;
       cam.transform.position += movement;
-    }
-    else
-    {
-      Cursor.lockState = CursorLockMode.None;
     }
 
     // Quit on escape

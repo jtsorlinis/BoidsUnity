@@ -25,16 +25,24 @@ public class MoveCamera2D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject()) isDragging = true;
-    if (Input.GetMouseButtonUp(0)) isDragging = false;
+    if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject())
+    {
+      Cursor.lockState = CursorLockMode.Locked;
+      isDragging = true;
+    }
+    if (Input.GetMouseButtonUp(0))
+    {
+      Cursor.lockState = CursorLockMode.None;
+      isDragging = false;
+    }
 
-    float panSpeed = (cam.orthographicSize / 20);
+    float panSpeed = cam.orthographicSize / 5.75f;
     var mouseX = Input.GetAxis("Mouse X") * panSpeed;
     var mouseY = Input.GetAxis("Mouse Y") * panSpeed;
     var vscroll = Input.mouseScrollDelta.y;
 
     // Zoom
-    var zoomSpeed = (cam.orthographicSize / 25);
+    var zoomSpeed = cam.orthographicSize / 25;
     zoom -= vscroll * zoomSpeed;
 
     // Center if fully zoomed out
@@ -51,12 +59,7 @@ public class MoveCamera2D : MonoBehaviour
     // Pan
     if (isDragging)
     {
-      Cursor.lockState = CursorLockMode.Locked;
       cam.transform.Translate(-mouseX, -mouseY, 0);
-    }
-    else
-    {
-      Cursor.lockState = CursorLockMode.None;
     }
 
     // Quit on escape
