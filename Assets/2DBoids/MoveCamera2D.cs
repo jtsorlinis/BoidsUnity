@@ -36,7 +36,7 @@ public class MoveCamera2D : MonoBehaviour
       isDragging = false;
     }
 
-    float panSpeed = cam.orthographicSize / 5.75f;
+    float panSpeed = cam.orthographicSize / 60f;
     var mouseX = Input.GetAxis("Mouse X") * panSpeed;
     var mouseY = Input.GetAxis("Mouse Y") * panSpeed;
     var vscroll = Input.mouseScrollDelta.y;

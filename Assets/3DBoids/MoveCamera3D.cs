@@ -12,7 +12,7 @@ public class MoveCamera3D : MonoBehaviour
   bool isDragging = false;
 
   float yRotationLimit = 88f;
-  float sensitivity = 3f;
+  float sensitivity = 1.5f;
 
   // Start is called before the first frame update
   public void Start()
