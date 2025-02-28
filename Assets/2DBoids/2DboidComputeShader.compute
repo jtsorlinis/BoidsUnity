@@ -44,11 +44,12 @@ void MergedBehaviours(inout Boid boid) {
 
   uint2 gridXY = getGridLocation(boid);
   uint cell = getGridID(gridXY);
-
+  
   // Loop Around Own Cell
   for (uint y = cell - gridDimX; y <= cell + gridDimX; y += gridDimX) {
     uint start = gridOffsetBuffer[y - 2];
     uint end = gridOffsetBuffer[y + 1];
+    
     for (uint i = start; i < end; i++) {
       Boid other = boidsIn[i];
       float2 diff = boid.pos - other.pos;
@@ -65,15 +66,15 @@ void MergedBehaviours(inout Boid boid) {
       }
     }
   }
-
+  
   if (neighbours > 0) {
     center /= neighbours;
     avgVel /= neighbours;
-
+    
     boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime);
     boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime);
   }
-
+  
   boid.vel += close * (separationFactor * deltaTime);
 }
 
