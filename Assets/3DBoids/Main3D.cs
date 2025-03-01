@@ -2,12 +2,13 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
 using Unity.Mathematics;
+using Unity.Collections;
 
 struct Boid3D
 {
   public float3 pos;
+  float pad0; // Padding to align to 16 bytes
   public float3 vel;
-  float pad0;
   float pad1;
 }
 
@@ -16,7 +17,7 @@ public class Main3D : MonoBehaviour
   const float blockSize = 1024f;
 
   [Header("Performance")]
-  bool useGPU = true;
+  bool useGpu = false;
   [SerializeField] int numBoids = 32;
 
   [Header("Settings")]
@@ -34,6 +35,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] Text fpsText;
   [SerializeField] Text boidText;
   [SerializeField] Slider boidSlider;
+  [SerializeField] Button modeButton;
   [SerializeField] ComputeShader boidComputeShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
@@ -47,8 +49,8 @@ public class Main3D : MonoBehaviour
   float minSpeed;
 
   float turnSpeed;
-  Boid3D[] boids;
-  Boid3D[] boidsTemp;
+  NativeArray<Boid3D> boids;
+  NativeArray<Boid3D> boidsTemp;
 
   int updateBoidsKernel, generateBoidsKernel;
   int updateGridKernel, clearGridKernel, prefixSumKernel, sumBlocksKernel, addSumsKernel, rearrangeBoidsKernel;
@@ -67,12 +69,12 @@ public class Main3D : MonoBehaviour
   int gridDimY, gridDimX, gridDimZ, gridTotalCells, blocks;
   float gridCellSize;
 
-  int cpuLimit = 1 << 14;
-  int gpuLimit = (int)blockSize * 65535;
+  readonly int cpuLimit = 1 << 16;
+  readonly int gpuLimit = (int)blockSize * 65535;
 
   void Awake()
   {
-    boidSlider.maxValue = Mathf.Log(useGPU ? gpuLimit : cpuLimit, 2);
+    boidSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
     triangleMesh = Meshes.MakeTriangle();
   }
 
@@ -81,8 +83,7 @@ public class Main3D : MonoBehaviour
   {
     boidText.text = "Boids: " + numBoids;
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
-    Camera.main.transform.position = new Vector3(0, 0, -spaceBounds * 3.8f);
-    Camera.main.transform.rotation = Quaternion.identity;
+    Camera.main.transform.SetPositionAndRotation(new Vector3(0, 0, -spaceBounds * 3.8f), Quaternion.identity);
     GetComponent<MoveCamera3D>().Start();
     floorPlane.localScale = new Vector3(spaceBounds / 2.5f, 1, spaceBounds / 2.5f);
     floorPlane.position = new Vector3(0, -spaceBounds - 1f, 0);
@@ -125,8 +126,8 @@ public class Main3D : MonoBehaviour
     if (numBoids <= cpuLimit)
     {
       // Populate on CPU and send to GPU
-      boids = new Boid3D[numBoids];
-      boidsTemp = new Boid3D[numBoids];
+      boids = new NativeArray<Boid3D>(numBoids, Allocator.Persistent);
+      boidsTemp = new NativeArray<Boid3D>(numBoids, Allocator.Persistent);
       for (int i = 0; i < numBoids; i++)
       {
         var boid = new Boid3D();
@@ -218,7 +219,7 @@ public class Main3D : MonoBehaviour
   {
     fpsText.text = "FPS: " + (int)(1 / Time.smoothDeltaTime);
 
-    if (useGPU)
+    if (useGpu)
     {
       boidComputeShader.SetFloat("deltaTime", Time.deltaTime);
 
@@ -283,8 +284,8 @@ public class Main3D : MonoBehaviour
     float3 avgVel = float3.zero;
     int neighbours = 0;
 
-    var gridXYZ = getGridLocation(boid);
-    int gridCell = getGridIDbyLoc(gridXYZ);
+    var gridXYZ = GetGridLocation(boid);
+    int gridCell = GetGridIDbyLoc(gridXYZ);
     int zStep = gridDimX * gridDimY;
 
     for (int z = gridCell - zStep; z <= gridCell + zStep; z += zStep)
@@ -347,7 +348,7 @@ public class Main3D : MonoBehaviour
     }
   }
 
-  int getGridID(Boid3D boid)
+  int GetGridID(Boid3D boid)
   {
     int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
     int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
@@ -355,12 +356,12 @@ public class Main3D : MonoBehaviour
     return (gridDimY * gridDimX * boidz) + (gridDimX * boidy) + boidx;
   }
 
-  int getGridIDbyLoc(int3 pos)
+  int GetGridIDbyLoc(int3 pos)
   {
     return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
   }
 
-  int3 getGridLocation(Boid3D boid)
+  int3 GetGridLocation(Boid3D boid)
   {
     int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
     int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
@@ -380,7 +381,7 @@ public class Main3D : MonoBehaviour
   {
     for (int i = 0; i < numBoids; i++)
     {
-      int id = getGridID(boids[i]);
+      int id = GetGridID(boids[i]);
       grid[i].x = id;
       grid[i].y = gridOffsets[id];
       gridOffsets[id]++;
@@ -406,10 +407,10 @@ public class Main3D : MonoBehaviour
     }
   }
 
-  public void sliderChange(float val)
+  public void SliderChange(float val)
   {
     numBoids = (int)Mathf.Pow(2, val);
-    var limit = useGPU ? gpuLimit : cpuLimit;
+    var limit = useGpu ? gpuLimit : cpuLimit;
     if (numBoids > limit)
     {
       numBoids = limit;
@@ -418,7 +419,18 @@ public class Main3D : MonoBehaviour
     Start();
   }
 
-  public void switchTo2D()
+  public void ModeChange()
+  {
+    useGpu = !useGpu;
+    modeButton.image.color = useGpu ? Color.green : Color.red;
+    modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
+    boidSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
+    var tempArray = new Boid3D[numBoids];
+    boidBuffer.GetData(tempArray);
+    boids.CopyFrom(tempArray);
+  }
+
+  public void SwitchTo2D()
   {
     UnityEngine.SceneManagement.SceneManager.LoadScene("Boids2DScene");
   }

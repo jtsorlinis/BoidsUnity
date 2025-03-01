@@ -15,8 +15,7 @@ public class Main2D : MonoBehaviour
 
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
-  enum Modes { Cpu, Gpu };
-  Modes mode = Modes.Gpu;
+  bool useGpu = false;
 
   [Header("Settings")]
   [SerializeField] float maxSpeed = 2;
@@ -33,6 +32,7 @@ public class Main2D : MonoBehaviour
   [SerializeField] Text fpsText;
   [SerializeField] Text boidText;
   [SerializeField] Slider numSlider;
+  [SerializeField] Button modeButton;
   [SerializeField] ComputeShader boidShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMat;
@@ -66,13 +66,13 @@ public class Main2D : MonoBehaviour
   float xBound, yBound;
   RenderParams rp;
 
-  int cpuLimit = 1 << 14;
-  int gpuLimit = (int)blockSize * 65535;
+  readonly int cpuLimit = 1 << 16;
+  readonly int gpuLimit = (int)blockSize * 65535;
 
   void Awake()
   {
-    numSlider.maxValue = Mathf.Log(mode == Modes.Cpu ? cpuLimit : gpuLimit, 2);
-    triangleVerts = getTriangleVerts();
+    numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
+    triangleVerts = GetTriangleVerts();
   }
 
   // Start is called before the first frame update
@@ -205,7 +205,7 @@ public class Main2D : MonoBehaviour
   {
     fpsText.text = "FPS: " + (int)(1 / Time.smoothDeltaTime);
 
-    if (mode == Modes.Gpu)
+    if (useGpu)
     {
       boidShader.SetFloat("deltaTime", Time.deltaTime);
 
@@ -276,8 +276,8 @@ public class Main2D : MonoBehaviour
     float2 avgVel = float2.zero;
     int neighbours = 0;
 
-    var gridXY = getGridLocation(boid);
-    int gridCell = getGridIDbyLoc(gridXY);
+    var gridXY = GetGridLocation(boid);
+    int gridCell = GetGridIDbyLoc(gridXY);
 
     for (int y = gridCell - gridDimX; y <= gridCell + gridDimX; y += gridDimX)
     {
@@ -333,19 +333,19 @@ public class Main2D : MonoBehaviour
     }
   }
 
-  int getGridID(Boid boid)
+  int GetGridID(Boid boid)
   {
     int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
     int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
     return (gridDimX * gridY) + gridX;
   }
 
-  int getGridIDbyLoc(int2 cell)
+  int GetGridIDbyLoc(int2 cell)
   {
     return (gridDimX * cell.y) + cell.x;
   }
 
-  int2 getGridLocation(Boid boid)
+  int2 GetGridLocation(Boid boid)
   {
     int gridX = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
     int gridY = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
@@ -364,7 +364,7 @@ public class Main2D : MonoBehaviour
   {
     for (int i = 0; i < numBoids; i++)
     {
-      int id = getGridID(boids[i]);
+      int id = GetGridID(boids[i]);
       var boidGrid = grid[i];
       boidGrid.x = id;
       boidGrid.y = gridOffsets[id];
@@ -392,10 +392,10 @@ public class Main2D : MonoBehaviour
     }
   }
 
-  public void sliderChange(float val)
+  public void SliderChange(float val)
   {
-    var limit = mode == Modes.Cpu ? cpuLimit : gpuLimit;
     numBoids = (int)Mathf.Pow(2, val);
+    var limit = useGpu ? gpuLimit : cpuLimit;
     if (numBoids > limit)
     {
       numBoids = limit;
@@ -404,16 +404,18 @@ public class Main2D : MonoBehaviour
     Start();
   }
 
-  public void modeChange(bool val)
+  public void ModeChange()
   {
-    numSlider.maxValue = Mathf.Log(val ? gpuLimit : cpuLimit, 2);
-    mode = val ? Modes.Gpu : Modes.Cpu;
+    useGpu = !useGpu;
+    modeButton.image.color = useGpu ? Color.green : Color.red;
+    modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
+    numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
     var tempArray = new Boid[numBoids];
     boidBuffer.GetData(tempArray);
     boids.CopyFrom(tempArray);
   }
 
-  public void switchTo3D()
+  public void SwitchTo3D()
   {
     UnityEngine.SceneManagement.SceneManager.LoadScene("Boids3DScene");
   }
@@ -442,12 +444,12 @@ public class Main2D : MonoBehaviour
     trianglePositions.Release();
   }
 
-  Vector2[] getTriangleVerts()
+  Vector2[] GetTriangleVerts()
   {
     return new Vector2[] {
-      new Vector2(-.4f, -.5f),
-      new Vector2(0, .5f),
-      new Vector2(.4f, -.5f),
+      new(-.4f, -.5f),
+      new(0, .5f),
+      new(.4f, -.5f),
     };
   }
 }

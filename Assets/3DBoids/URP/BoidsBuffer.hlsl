@@ -3,8 +3,8 @@
 
 struct Boid {
     float3 pos;
-    float3 vel;
     float pad0;
+    float3 vel;
     float pad1;
 };
 

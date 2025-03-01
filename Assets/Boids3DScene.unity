@@ -237,6 +237,7 @@ MonoBehaviour:
   fpsText: {fileID: 2073725464}
   boidText: {fileID: 1716913426}
   boidSlider: {fileID: 1037755651}
+  modeButton: {fileID: 1854578963}
   boidComputeShader: {fileID: 7200000, guid: e477a5ad8c1864180a4f8a502cff2e79, type: 3}
   gridShader: {fileID: 7200000, guid: 1fe7a4bc7669a42278700e648c7d2c5c, type: 3}
   boidMaterial: {fileID: 2100000, guid: 09536f1ea42ec4b4f9d697f975d5b32d, type: 2}
@@ -318,14 +319,6 @@ PrefabInstance:
       propertyPath: m_AnchorMin.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 828200726, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
-      propertyPath: m_SizeDelta.x
-      value: 153.9
-      objectReference: {fileID: 0}
-    - target: {fileID: 828200726, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
-      propertyPath: m_AnchoredPosition.x
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 828200727, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
       value: 1
@@ -344,7 +337,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 828200727, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: switchTo2D
+      value: SwitchTo2D
       objectReference: {fileID: 0}
     - target: {fileID: 828200727, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
@@ -364,7 +357,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1791975002, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Text
-      value: 2D / 3D
+      value: 3D
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Value
@@ -388,7 +381,7 @@ PrefabInstance:
       objectReference: {fileID: 218961746}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: sliderChange
+      value: SliderChange
       objectReference: {fileID: 0}
     - target: {fileID: 2037369837, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_OnValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
@@ -397,6 +390,18 @@ PrefabInstance:
     - target: {fileID: 1304125128319669946, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_FontData.m_FontSize
       value: 13
+      objectReference: {fileID: 0}
+    - target: {fileID: 1922712972799474242, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 218961746}
+    - target: {fileID: 1922712972799474242, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: ModeChange
+      objectReference: {fileID: 0}
+    - target: {fileID: 1922712972799474242, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: Main3D, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 3762122104978652387, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
       propertyPath: m_Options.m_Options.Array.size
@@ -665,6 +670,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1854578963 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1922712972799474242, guid: f375b6865fad84768a6b836e4948bfd5, type: 3}
+  m_PrefabInstance: {fileID: 570514462}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &2028868346
