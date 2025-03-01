@@ -425,9 +425,9 @@ public class Main3D : MonoBehaviour
     modeButton.image.color = useGpu ? Color.green : Color.red;
     modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
     boidSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
-    var tempArray = new Boid3D[numBoids];
-    boidBuffer.GetData(tempArray);
-    boids.CopyFrom(tempArray);
+    var readback = AsyncGPUReadback.Request(boidBuffer);
+    readback.WaitForCompletion();
+    readback.GetData<Boid3D>().CopyTo(boids);
   }
 
   public void SwitchTo2D()

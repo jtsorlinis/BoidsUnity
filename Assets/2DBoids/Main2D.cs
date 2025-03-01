@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Unity.Collections;
 using Unity.Mathematics;
+using UnityEngine.Rendering;
 
 struct Boid
 {
@@ -410,9 +411,9 @@ public class Main2D : MonoBehaviour
     modeButton.image.color = useGpu ? Color.green : Color.red;
     modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
     numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
-    var tempArray = new Boid[numBoids];
-    boidBuffer.GetData(tempArray);
-    boids.CopyFrom(tempArray);
+    var readback = AsyncGPUReadback.Request(boidBuffer);
+    readback.WaitForCompletion();
+    readback.GetData<Boid>().CopyTo(boids);
   }
 
   public void SwitchTo3D()
