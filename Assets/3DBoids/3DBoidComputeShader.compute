@@ -1,9 +1,9 @@
-#define blockSize 512
+#define blockSize 1024
 
 struct Boid {
   float3 pos;
-  float3 vel;
   float pad0;
+  float3 vel;
   float pad1;
 };
 
@@ -63,7 +63,8 @@ void MergedBehaviours(inout Boid boid) {
         
         if (distSq > 0 && distSq < visualRangeSq) {
           if (distSq < minDistanceSq) {
-            close += diff / distSq;
+            float invDistSq = 1.0 / distSq;
+            close += diff * invDistSq;
           }
           center += other.pos;
           avgVel += other.vel;

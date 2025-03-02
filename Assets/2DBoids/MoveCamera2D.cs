@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class MoveCamera2D : MonoBehaviour
 {
@@ -10,6 +11,7 @@ public class MoveCamera2D : MonoBehaviour
   float maxZoom = 2;
   float minZoom;
   float smoothing = 10;
+  bool isDragging = false;
 
   // Start is called before the first frame update
   public void Start()
@@ -23,14 +25,24 @@ public class MoveCamera2D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    float panSpeed = (cam.orthographicSize / 20);
+    if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject())
+    {
+      Cursor.lockState = CursorLockMode.Locked;
+      isDragging = true;
+    }
+    if (Input.GetMouseButtonUp(0))
+    {
+      Cursor.lockState = CursorLockMode.None;
+      isDragging = false;
+    }
+
+    float panSpeed = cam.orthographicSize / 60f;
     var mouseX = Input.GetAxis("Mouse X") * panSpeed;
     var mouseY = Input.GetAxis("Mouse Y") * panSpeed;
-    var mouseDown = Input.GetMouseButton(1);
     var vscroll = Input.mouseScrollDelta.y;
 
     // Zoom
-    var zoomSpeed = (cam.orthographicSize / 25);
+    var zoomSpeed = cam.orthographicSize / 25;
     zoom -= vscroll * zoomSpeed;
 
     // Center if fully zoomed out
@@ -45,14 +57,9 @@ public class MoveCamera2D : MonoBehaviour
 
 
     // Pan
-    if (mouseDown)
+    if (isDragging)
     {
-      Cursor.lockState = CursorLockMode.Locked;
       cam.transform.Translate(-mouseX, -mouseY, 0);
-    }
-    else
-    {
-      Cursor.lockState = CursorLockMode.None;
     }
 
     // Quit on escape
