@@ -411,6 +411,7 @@ public class Main2D : MonoBehaviour
     modeButton.image.color = useGpu ? Color.green : Color.red;
     modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
     numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
+    if (useGpu) return;
     var readback = AsyncGPUReadback.Request(boidBuffer);
     readback.WaitForCompletion();
     readback.GetData<Boid>().CopyTo(boids);
