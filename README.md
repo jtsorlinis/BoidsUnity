@@ -1,4 +1,4 @@
-# 2D/3D Boids Flocking Simulation (CPU/Burst/Jobs/GPU)
+# 2D/3D Boids Flocking Simulation (CPU/GPU)
 
 ### Update 2: Unity now has (experimental) WebGPU support so this version works in browser too: [Boids](https://jtsorlinis.github.io/BoidsUnity/)
 
