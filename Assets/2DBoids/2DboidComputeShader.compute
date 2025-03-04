@@ -55,7 +55,7 @@ void MergedBehaviours(inout Boid boid) {
       float2 diff = boid.pos - other.pos;
       float distSq = dot(diff, diff);
       
-      if (distSq > 0 && distSq < visualRangeSq) {
+      if (distSq < visualRangeSq && distSq > 0) {
         if (distSq < minDistanceSq) {
           float invDistSq = 1.0 / distSq;
           close += diff * invDistSq;
