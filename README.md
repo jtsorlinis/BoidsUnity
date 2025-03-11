@@ -1,16 +1,14 @@
 # 2D/3D Boids Flocking Simulation (CPU/GPU)
 
-### Update 2: Unity now has (experimental) WebGPU support so this version works in browser too: [Boids](https://jtsorlinis.github.io/BoidsUnity/)
+### See it in action here: [Boids](https://jtsorlinis.github.io/BoidsUnity/)
 
-### Update: I've since made a WebGPU version that can run directly in the browser: [BoidsWebGPU](https://github.com/jtsorlinis/BoidsWebGPU)
+---
 
-***
-
-I wanted to learn about GPGPU and Compute shaders so ended up making a boid flocking simulation in unity. 
+I wanted to learn about GPGPU and Compute shaders so ended up making a boid flocking simulation in unity.
 
 I first made it in 2D on the CPU, then using Burst/Jobs, and eventually moved everything to the GPU, which brought an insane performance increase.
 
-The simulation uses a uniform spatial grid as an acceleration structure to determine nearest neighbours, as brute force method would cap out at around 50k entities even on GPU. 
+The simulation uses a uniform spatial grid as an acceleration structure to determine nearest neighbours, as brute force method would cap out at around 50k entities even on GPU.
 
 Method used is inspired by this presentation: https://on-demand.gputechconf.com/gtc/2014/presentations/S4117-fast-fixed-radius-nearest-neighbor-gpu.pdf
 
