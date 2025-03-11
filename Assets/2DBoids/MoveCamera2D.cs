@@ -36,21 +36,14 @@ public class MoveCamera2D : MonoBehaviour
       isDragging = false;
     }
 
-    float panSpeed = cam.orthographicSize / 60f;
+    float panSpeed = cam.orthographicSize / 57.5f;
     var mouseX = Input.GetAxis("Mouse X") * panSpeed;
     var mouseY = Input.GetAxis("Mouse Y") * panSpeed;
-    var vscroll = Input.mouseScrollDelta.y;
+    var vscroll = Input.GetAxis("Mouse ScrollWheel");
 
     // Zoom
-    var zoomSpeed = cam.orthographicSize / 25;
+    var zoomSpeed = cam.orthographicSize / 2;
     zoom -= vscroll * zoomSpeed;
-
-    // Center if fully zoomed out
-    // if (zoom > origZoom)
-    // {
-    //   cam.transform.position = Vector3.Lerp(cam.transform.position, new Vector3(0, 0, -10), 0.1f);
-
-    // }
 
     zoom = Mathf.Clamp(zoom, maxZoom, minZoom);
     cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, zoom, Time.deltaTime * smoothing);
