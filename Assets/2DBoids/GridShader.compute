@@ -34,9 +34,9 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID, uint localID : SV_GROUPTHREADID)
     return;
   }
 
-  int gridID = getGridID(boids[id.x]);
-  gridBuffer[id.x].x = gridID;
-  InterlockedAdd(gridOffsetBuffer[gridID], 1, gridBuffer[id.x].y);
+  int cell = getGridID(boids[id.x]);
+  gridBuffer[id.x].x = cell;
+  InterlockedAdd(gridOffsetBuffer[cell], 1, gridBuffer[id.x].y);
 }
 
 #pragma kernel ClearGrid // ID 1
@@ -75,7 +75,12 @@ void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREA
     return;
   }
 
-  gridOffsetBuffer[globalID] = temp[pout * blockSize + localID];
+  uint writeIdx = pout * blockSize + localID;
+  int  inclusiveVal = temp[writeIdx];
+  int  exclusiveVal = (localID == 0) ? 0 : temp[writeIdx - 1];
+
+  gridOffsetBuffer[globalID] = exclusiveVal;
+
   if (localID == 0) {
     gridSumsBuffer[groupID] = temp[pout * blockSize + blockSize - 1];
   }
@@ -90,7 +95,7 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
   
   uint gridID = gridBuffer[id.x].x;
   uint cellOffset = gridBuffer[id.x].y;
-  uint index = gridOffsetBuffer[gridID] - 1 - cellOffset;
+  uint index = gridOffsetBuffer[gridID] + cellOffset;
   boidsOut[index] = boids[id.x];
 }
 
