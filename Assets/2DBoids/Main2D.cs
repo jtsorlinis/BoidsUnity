@@ -282,8 +282,8 @@ public class Main2D : MonoBehaviour
 
     for (int y = gridCell - gridDimX; y <= gridCell + gridDimX; y += gridDimX)
     {
-      int start = gridOffsets[y - 2];
-      int end = gridOffsets[y + 1];
+      int start = gridOffsets[y - 1];
+      int end = gridOffsets[y + 2];
       for (int i = start; i < end; i++)
       {
         Boid other = boidsTemp[i];
@@ -365,20 +365,23 @@ public class Main2D : MonoBehaviour
   {
     for (int i = 0; i < numBoids; i++)
     {
-      int id = GetGridID(boids[i]);
-      var boidGrid = grid[i];
-      boidGrid.x = id;
-      boidGrid.y = gridOffsets[id];
-      grid[i] = boidGrid;
-      gridOffsets[id]++;
+      int cell = GetGridID(boids[i]);
+      var gridBoid = grid[i];
+      gridBoid.x = cell;
+      gridBoid.y = gridOffsets[cell];
+      grid[i] = gridBoid;
+      gridOffsets[cell]++;
     }
   }
 
   void GenerateGridOffsets()
   {
+    var running = 0;
     for (int i = 1; i < gridTotalCells; i++)
     {
-      gridOffsets[i] += gridOffsets[i - 1];
+      var count = gridOffsets[i];
+      gridOffsets[i] = running;
+      running += count;
     }
   }
 
@@ -388,7 +391,7 @@ public class Main2D : MonoBehaviour
     {
       int gridID = grid[i].x;
       int cellOffset = grid[i].y;
-      int index = gridOffsets[gridID] - 1 - cellOffset;
+      int index = gridOffsets[gridID] + cellOffset;
       boidsTemp[index] = boids[i];
     }
   }

@@ -292,8 +292,8 @@ public class Main3D : MonoBehaviour
     {
       for (int y = z - gridDimX; y <= z + gridDimX; y += gridDimX)
       {
-        int start = gridOffsets[y - 2];
-        int end = gridOffsets[y + 1];
+        int start = gridOffsets[y - 1];
+        int end = gridOffsets[y + 2];
         for (int i = start; i < end; i++)
         {
           Boid3D other = boidsTemp[i];
@@ -381,18 +381,21 @@ public class Main3D : MonoBehaviour
   {
     for (int i = 0; i < numBoids; i++)
     {
-      int id = GetGridID(boids[i]);
-      grid[i].x = id;
-      grid[i].y = gridOffsets[id];
-      gridOffsets[id]++;
+      int cell = GetGridID(boids[i]);
+      grid[i].x = cell;
+      grid[i].y = gridOffsets[cell];
+      gridOffsets[cell]++;
     }
   }
 
   void GenerateGridOffsets()
   {
+    var running = 0;
     for (int i = 1; i < gridTotalCells; i++)
     {
-      gridOffsets[i] += gridOffsets[i - 1];
+      var count = gridOffsets[i];
+      gridOffsets[i] = running;
+      running += count;
     }
   }
 
@@ -402,7 +405,7 @@ public class Main3D : MonoBehaviour
     {
       int gridID = grid[i].x;
       int cellOffset = grid[i].y;
-      int index = gridOffsets[gridID] - 1 - cellOffset;
+      int index = gridOffsets[gridID] + cellOffset;
       boidsTemp[index] = boids[i];
     }
   }

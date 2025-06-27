@@ -53,8 +53,8 @@ void MergedBehaviours(inout Boid boid) {
 
   for (uint z = cell - zStep; z <= cell + zStep; z += zStep) {
     for (uint y = z - gridDimX; y <= z + gridDimX; y += gridDimX) {
-      uint start = gridOffsetBuffer[y - 2];
-      uint end = gridOffsetBuffer[y + 1];
+      uint start = gridOffsetBuffer[y - 1];
+      uint end = gridOffsetBuffer[y + 2];
 
       for (uint i = start; i < end; i++) {
         Boid other = boidsIn[i];
