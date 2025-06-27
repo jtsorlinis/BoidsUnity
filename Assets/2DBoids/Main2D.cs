@@ -8,6 +8,7 @@ struct Boid
 {
   public float2 pos;
   public float2 vel;
+  public int colour; // Used for debugging and visualization
 }
 
 public class Main2D : MonoBehaviour
@@ -101,8 +102,8 @@ public class Main2D : MonoBehaviour
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
     // Setup compute buffer
-    boidBuffer = new ComputeBuffer(numBoids, 16);
-    boidBufferOut = new ComputeBuffer(numBoids, 16);
+    boidBuffer = new ComputeBuffer(numBoids, 20);
+    boidBufferOut = new ComputeBuffer(numBoids, 20);
     boidShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBufferOut);
     boidShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBuffer);
     boidShader.SetInt("numBoids", numBoids);
@@ -131,6 +132,10 @@ public class Main2D : MonoBehaviour
         var boid = new Boid();
         boid.pos = pos;
         boid.vel = vel;
+        if (i == 0)
+        {
+          boid.colour = 1;
+        }
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);
@@ -280,6 +285,8 @@ public class Main2D : MonoBehaviour
     var gridXY = GetGridLocation(boid);
     int gridCell = GetGridIDbyLoc(gridXY);
 
+    if (boid.colour != 1) { boid.colour = 0; }
+
     for (int y = gridCell - gridDimX; y <= gridCell + gridDimX; y += gridDimX)
     {
       int start = gridOffsets[y - 1];
@@ -289,10 +296,19 @@ public class Main2D : MonoBehaviour
         Boid other = boidsTemp[i];
         var diff = boid.pos - other.pos;
         var distanceSq = math.dot(diff, diff);
+        if (boid.colour != 1 && other.colour == 1)
+        {
+          boid.colour = 2;
+        }
         if (distanceSq > 0 && distanceSq < visualRangeSq)
         {
+          if (boid.colour != 1 && other.colour == 1)
+          {
+            boid.colour = 3;
+          }
           if (distanceSq < minDistanceSq)
           {
+
             close += diff / distanceSq;
           }
           center += other.pos;

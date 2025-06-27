@@ -3,6 +3,7 @@
 struct Boid {
   float2 pos;
   float2 vel;
+  int colour;
 };
 
 StructuredBuffer<Boid> boids;

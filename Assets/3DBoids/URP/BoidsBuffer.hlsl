@@ -3,7 +3,7 @@
 
 struct Boid {
     float3 pos;
-    float pad0;
+    float colour;
     float3 vel;
     float pad1;
 };
@@ -20,7 +20,7 @@ void rotate3D(inout float3 v, float3 vel) {
     v.xz = float2(v.x * cos(yaw) + v.z * sin(yaw), v.z * cos(yaw) - v.x * sin(yaw));
 }
 
-void BoidVert_float(uint vertexID, float _scale, out float3 v, out float3 n) {
+void BoidVert_float(uint vertexID, float _scale, out float3 v, out float3 n, out float3 c) {
     uint instanceID = vertexID / vertCount;
     uint instanceVertexID = vertexID - instanceID * vertCount;
     Boid boid = boids[instanceID];
@@ -30,5 +30,14 @@ void BoidVert_float(uint vertexID, float _scale, out float3 v, out float3 n) {
     v = (pos * _scale) + boid.pos;
     rotate3D(normal, boid.vel);
     n = normal;
+   if(boid.colour == 0) {
+      c = float3(1,1,1); // White for default boids
+   } else if (boid.colour == 1) {
+      c = float3(1,0,0); // Red for the first boid
+   } else if(boid.colour == 2) {
+      c = float3(0,0,0); // Black if a red boid is nearby
+   } else if(boid.colour == 3) {
+      c = float3(0,1,0); // Green if closer to the main boid
+   } 
 }
 #endif

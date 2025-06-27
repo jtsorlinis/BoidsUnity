@@ -7,7 +7,7 @@ using Unity.Collections;
 struct Boid3D
 {
   public float3 pos;
-  float pad0; // Padding to align to 16 bytes
+  public float colour; // Padding to align to 16 bytes
   public float3 vel;
   float pad1;
 }
@@ -133,6 +133,10 @@ public class Main3D : MonoBehaviour
         var boid = new Boid3D();
         boid.pos = new float3(UnityEngine.Random.Range(-xBound, xBound), UnityEngine.Random.Range(-yBound, yBound), UnityEngine.Random.Range(-zBound, zBound));
         boid.vel = new float3(UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed), UnityEngine.Random.Range(-maxSpeed, maxSpeed));
+        if (i == 0)
+        {
+          boid.colour = 1;
+        }
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);
@@ -288,6 +292,8 @@ public class Main3D : MonoBehaviour
     int gridCell = GetGridIDbyLoc(gridXYZ);
     int zStep = gridDimX * gridDimY;
 
+    if (boid.colour != 1) { boid.colour = 0; } // Reset color if not the first boid
+
     for (int z = gridCell - zStep; z <= gridCell + zStep; z += zStep)
     {
       for (int y = z - gridDimX; y <= z + gridDimX; y += gridDimX)
@@ -299,8 +305,17 @@ public class Main3D : MonoBehaviour
           Boid3D other = boidsTemp[i];
           var diff = boid.pos - other.pos;
           var distanceSq = math.dot(diff, diff);
+          if (boid.colour != 1 && other.colour == 1)
+          {
+            boid.colour = 2;
+          }
+
           if (distanceSq > 0 && distanceSq < visualRangeSq)
           {
+            if (boid.colour != 1 && other.colour == 1)
+            {
+              boid.colour = 3;
+            }
             if (distanceSq < minDistanceSq)
             {
               close += diff / distanceSq;

@@ -2,7 +2,7 @@
 
 struct Boid {
   float3 pos;
-  float pad0;
+  float colour;
   float3 vel;
   float pad1;
 };
@@ -51,6 +51,10 @@ void MergedBehaviours(inout Boid boid) {
   uint cell = getGridID(gridXYZ);
   uint zStep = gridDimX * gridDimY;
 
+  if(boid.colour != 1) {
+    boid.colour = 0; // Reset color if not the main boid
+  }
+
   for (uint z = cell - zStep; z <= cell + zStep; z += zStep) {
     for (uint y = z - gridDimX; y <= z + gridDimX; y += gridDimX) {
       uint start = gridOffsetBuffer[y - 1];
@@ -61,7 +65,13 @@ void MergedBehaviours(inout Boid boid) {
         float3 diff = boid.pos - other.pos;
         float distSq = dot(diff, diff);
         
+        if(boid.colour != 1 && other.colour == 1) {
+          boid.colour = 2; // Change color to black if in check range of main boid
+        }
         if (distSq < visualRangeSq && distSq > 0) {
+          if(boid.colour != 1 && other.colour == 1) {
+            boid.colour = 3; // Change color to green if interacting with main boid
+          }
           if (distSq < minDistanceSq) {
             float invDistSq = 1.0 / distSq;
             close += diff * invDistSq;
@@ -140,4 +150,9 @@ void GenerateBoids(uint3 id : SV_DispatchThreadID) {
   rngState = randSeed + id.x;
   boidsOut[id.x].pos = float3(randPCG(-xBound, xBound), randPCG(-yBound, yBound), randPCG(-zBound, zBound));
   boidsOut[id.x].vel = float3(randPCG(-maxSpeed, maxSpeed), randPCG(-maxSpeed, maxSpeed), randPCG(-maxSpeed, maxSpeed));
+  if(id.x == 0) {
+    boidsOut[id.x].colour = 1; // Set the first boid as the main boid
+  } else {
+    boidsOut[id.x].colour = 0; // Other boids are default
+  }
 }

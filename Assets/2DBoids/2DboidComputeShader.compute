@@ -3,6 +3,7 @@
 struct Boid {
   float2 pos;
   float2 vel;
+  int colour;
 };
 
 StructuredBuffer<Boid> boidsIn;
@@ -44,6 +45,10 @@ void MergedBehaviours(inout Boid boid) {
 
   uint2 gridXY = getGridLocation(boid);
   uint cell = getGridID(gridXY);
+
+  if(boid.colour != 1 ) {
+    boid.colour = 0;
+  }
   
   // Loop Around Own Cell
   for (uint y = cell - gridDimX; y <= cell + gridDimX; y += gridDimX) {
@@ -54,8 +59,15 @@ void MergedBehaviours(inout Boid boid) {
       Boid other = boidsIn[i];
       float2 diff = boid.pos - other.pos;
       float distSq = dot(diff, diff);
+
+      if(boid.colour != 1 && other.colour == 1) {
+        boid.colour = 2; // Change colour to black if a red boid is nearby
+      }
       
       if (distSq < visualRangeSq && distSq > 0) {
+        if(boid.colour != 1 && other.colour == 1) {
+          boid.colour = 3; // Change colour to green if closer to the main boid
+        }
         if (distSq < minDistanceSq) {
           float invDistSq = 1.0 / distSq;
           close += diff * invDistSq;
@@ -130,4 +142,5 @@ void GenerateBoids(uint3 id : SV_DispatchThreadID) {
   rngState = randSeed + id.x;
   boidsOut[id.x].pos = float2(randPCG(-xBound, xBound), randPCG(-yBound, yBound));
   boidsOut[id.x].vel = float2(randPCG(-maxSpeed, maxSpeed), randPCG(-maxSpeed, maxSpeed));
+  boidsOut[id.x].colour = id.x == 0 ? 1 : 0; // Red colour for the first boid, others are white
 }
