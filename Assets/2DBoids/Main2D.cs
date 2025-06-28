@@ -108,7 +108,6 @@ public class Main2D : MonoBehaviour
     boidShader.SetInt("numBoids", numBoids);
     boidShader.SetFloat("maxSpeed", maxSpeed);
     boidShader.SetFloat("minSpeed", minSpeed);
-    boidShader.SetFloat("edgeMargin", edgeMargin);
     boidShader.SetFloat("visualRangeSq", visualRangeSq);
     boidShader.SetFloat("minDistanceSq", minDistanceSq);
     boidShader.SetFloat("turnSpeed", turnSpeed);

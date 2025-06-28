@@ -13,7 +13,6 @@ uniform uint numBoids;
 uniform float deltaTime;
 uniform float maxSpeed;
 uniform float minSpeed;
-uniform float edgeMargin;
 uniform float visualRangeSq;
 uniform float cohesionFactor;
 uniform float separationFactor;
