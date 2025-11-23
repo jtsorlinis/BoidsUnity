@@ -61,19 +61,9 @@ MonoBehaviour:
       - rid: 7284380056405934083
       - rid: 7284380056405934084
       - rid: 7284380056405934085
+      - rid: 11753200526295040
     m_RuntimeSettings:
-      m_List:
-      - rid: 7863973480636874753
-      - rid: 7863973480636874755
-      - rid: 7863973480636874757
-      - rid: 7863973480636874758
-      - rid: 7863973480636874760
-      - rid: 7863973480636874761
-      - rid: 7863973480636874762
-      - rid: 7863973480636874764
-      - rid: 7863973480636874769
-      - rid: 7863973480636874772
-      - rid: 7284380056405934085
+      m_List: []
   m_AssetVersion: 8
   m_ObsoleteDefaultVolumeProfile: {fileID: 0}
   m_RenderingLayerNames:
@@ -104,6 +94,10 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 11753200526295040
+      type: {class: RenderingDebuggerRuntimeResources, ns: UnityEngine.Rendering, asm: Unity.RenderPipelines.Core.Runtime}
+      data:
+        m_version: 0
     - rid: 7284380056405934080
       type: {class: PostProcessData/ShaderResources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.Runtime}
       data:
@@ -229,9 +223,6 @@ MonoBehaviour:
         m_AutodeskInteractive: {fileID: 4800000, guid: 0e9d5a909a1f7e84882a534d0d11e49f, type: 3}
         m_AutodeskInteractiveTransparent: {fileID: 4800000, guid: 5c81372d981403744adbdda4433c9c11, type: 3}
         m_AutodeskInteractiveMasked: {fileID: 4800000, guid: 80aa867ac363ac043847b06ad71604cd, type: 3}
-        m_TerrainDetailLit: {fileID: 4800000, guid: f6783ab646d374f94b199774402a5144, type: 3}
-        m_TerrainDetailGrassBillboard: {fileID: 4800000, guid: 29868e73b638e48ca99a19ea58c48d90, type: 3}
-        m_TerrainDetailGrass: {fileID: 4800000, guid: e507fdfead5ca47e8b9a768b51c291a1, type: 3}
         m_DefaultSpeedTree7Shader: {fileID: 4800000, guid: 0f4122b9a743b744abe2fb6a0a88868b, type: 3}
         m_DefaultSpeedTree8Shader: {fileID: -6465566751694194690, guid: 9920c1f1781549a46ba081a2a15a16ec, type: 3}
         m_DefaultSpeedTree9Shader: {fileID: -6465566751694194690, guid: cbd3e1cc4ae141c42a30e33b4d666a61, type: 3}
