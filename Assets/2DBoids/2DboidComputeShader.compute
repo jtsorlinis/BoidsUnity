@@ -42,26 +42,35 @@ void MergedBehaviours(inout Boid boid) {
   uint neighbours = 0;
 
   uint2 gridXY = getGridLocation(boid);
-  uint cell = getGridID(gridXY);
   
-  // Loop Around Own Cell
-  for (uint y = cell - gridDimX; y <= cell + gridDimX; y += gridDimX) {
-    uint start = gridOffsetBuffer[y - 1];
-    uint end = gridOffsetBuffer[y + 2];
-    
-    for (uint i = start; i < end; i++) {
-      Boid other = boidsIn[i];
-      float2 diff = boid.pos - other.pos;
-      float distSq = dot(diff, diff);
+  [unroll]
+  for (int y = -1; y <= 1; y++) {
+    [unroll]
+    for (int x = -1; x <= 1; x++) {
+      int2 neighbourGrid = int2(gridXY) + int2(x, y);
       
-      if (distSq < visualRangeSq && distSq > 0) {
-        if (distSq < minDistanceSq) {
-          float invDistSq = 1.0 / distSq;
-          close += diff * invDistSq;
+      if (neighbourGrid.x >= 0 && neighbourGrid.x < (int)gridDimX &&
+          neighbourGrid.y >= 0 && neighbourGrid.y < (int)gridDimY) {
+        
+        uint neighbourCell = getGridID(neighbourGrid);
+        uint start = gridOffsetBuffer[neighbourCell];
+        uint end = gridOffsetBuffer[neighbourCell + 1];
+        
+        for (uint i = start; i < end; i++) {
+          Boid other = boidsIn[i];
+          float2 diff = boid.pos - other.pos;
+          float distSq = dot(diff, diff);
+          
+          if (distSq < visualRangeSq && distSq > 0) {
+            if (distSq < minDistanceSq) {
+              float invDistSq = 1.0 / distSq;
+              close += diff * invDistSq;
+            }
+            center += other.pos;
+            avgVel += other.vel;
+            neighbours++;
+          }
         }
-        center += other.pos;
-        avgVel += other.vel;
-        neighbours++;
       }
     }
   }
@@ -78,9 +87,12 @@ void MergedBehaviours(inout Boid boid) {
 }
 
 void LimitSpeed(inout Boid boid) {
-  float speed = length(boid.vel);
-  float clampedSpeed = clamp(speed, minSpeed, maxSpeed);
-  boid.vel *= clampedSpeed / speed;
+  float speedSq = dot(boid.vel, boid.vel);
+  if (speedSq > maxSpeed * maxSpeed) {
+    boid.vel *= maxSpeed * rsqrt(speedSq);
+  } else if (speedSq < minSpeed * minSpeed) {
+    boid.vel *= minSpeed * rsqrt(speedSq);
+  }
 }
 
 void KeepInBounds(inout Boid boid) {
