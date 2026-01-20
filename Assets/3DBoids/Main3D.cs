@@ -199,7 +199,7 @@ public class Main3D : MonoBehaviour
     gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
     gridShader.SetBuffer(rearrangeBoidsKernel, "boidsOut", boidBufferOut);
 
-    gridShader.SetFloat("gridCellSize", gridCellSize);
+    gridShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     gridShader.SetInt("gridDimY", gridDimY);
     gridShader.SetInt("gridDimX", gridDimX);
     gridShader.SetInt("gridDimZ", gridDimZ);
@@ -207,7 +207,7 @@ public class Main3D : MonoBehaviour
     gridShader.SetInt("blocks", blocks);
 
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
-    boidComputeShader.SetFloat("gridCellSize", gridCellSize);
+    boidComputeShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     boidComputeShader.SetInt("gridDimY", gridDimY);
     boidComputeShader.SetInt("gridDimX", gridDimX);
     boidComputeShader.SetInt("gridDimZ", gridDimZ);

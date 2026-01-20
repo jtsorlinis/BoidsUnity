@@ -188,14 +188,14 @@ public class Main2D : MonoBehaviour
     gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
     gridShader.SetBuffer(rearrangeBoidsKernel, "boidsOut", boidBufferOut);
 
-    gridShader.SetFloat("gridCellSize", gridCellSize);
+    gridShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     gridShader.SetInt("gridDimY", gridDimY);
     gridShader.SetInt("gridDimX", gridDimX);
     gridShader.SetInt("gridTotalCells", gridTotalCells);
     gridShader.SetInt("blocks", blocks);
 
     boidShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
-    boidShader.SetFloat("gridCellSize", gridCellSize);
+    boidShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     boidShader.SetInt("gridDimY", gridDimY);
     boidShader.SetInt("gridDimX", gridDimX);
   }

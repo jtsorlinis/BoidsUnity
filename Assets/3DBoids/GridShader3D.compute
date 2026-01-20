@@ -15,7 +15,7 @@ StructuredBuffer<uint> gridOffsetBufferIn;
 RWStructuredBuffer<uint> gridSumsBuffer;
 StructuredBuffer<uint> gridSumsBufferIn;
 
-float gridCellSize;
+float gridInverseCellSize;
 uint gridDimX;
 uint gridDimY;
 uint gridDimZ;
@@ -25,9 +25,9 @@ uint numBoids;
 uint d;
 
 uint getGridID(Boid boid) {
-  int boidX = floor(boid.pos.x / gridCellSize + gridDimX / 2);
-  int boidY = floor(boid.pos.y / gridCellSize + gridDimY / 2);
-  int boidZ = floor(boid.pos.z / gridCellSize + gridDimZ / 2);
+  int boidX = floor(boid.pos.x * gridInverseCellSize + gridDimX / 2);
+  int boidY = floor(boid.pos.y * gridInverseCellSize + gridDimY / 2);
+  int boidZ = floor(boid.pos.z * gridInverseCellSize + gridDimZ / 2);
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
 }
 

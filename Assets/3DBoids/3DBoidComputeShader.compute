@@ -24,15 +24,15 @@ uniform float yBound;
 uniform float zBound;
 
 StructuredBuffer<uint> gridOffsetBuffer;
-float gridCellSize;
+float gridInverseCellSize;
 uint gridDimX;
 uint gridDimY;
 uint gridDimZ;
 
 uint3 getGridLocation(Boid boid) {
-  int boidX = floor(boid.pos.x / gridCellSize + gridDimX / 2);
-  int boidY = floor(boid.pos.y / gridCellSize + gridDimY / 2);
-  int boidZ = floor(boid.pos.z / gridCellSize + gridDimZ / 2);
+  int boidX = floor(boid.pos.x * gridInverseCellSize + gridDimX / 2);
+  int boidY = floor(boid.pos.y * gridInverseCellSize + gridDimY / 2);
+  int boidZ = floor(boid.pos.z * gridInverseCellSize + gridDimZ / 2);
   return uint3(boidX, boidY, boidZ);
 }
 
@@ -50,10 +50,14 @@ void MergedBehaviours(inout Boid boid) {
   uint cell = getGridID(gridXYZ);
   uint zStep = gridDimX * gridDimY;
 
-  for (uint z = cell - zStep; z <= cell + zStep; z += zStep) {
-    for (uint y = z - gridDimX; y <= z + gridDimX; y += gridDimX) {
-      uint start = gridOffsetBuffer[y - 1];
-      uint end = gridOffsetBuffer[y + 2];
+  // Loop around own cell (3x3x3 neighborhood)
+  [unroll]
+  for (int z = -1; z <= 1; z++) {
+    [unroll]
+    for (int y = -1; y <= 1; y++) {
+      uint gridIdx = cell + z * zStep + y * gridDimX;
+      uint start = gridOffsetBuffer[gridIdx - 1];
+      uint end = gridOffsetBuffer[gridIdx + 2];
 
       for (uint i = start; i < end; i++) {
         Boid other = boidsIn[i];
@@ -74,8 +78,9 @@ void MergedBehaviours(inout Boid boid) {
   }
 
   if (neighbours > 0) {
-    center /= neighbours;
-    avgVel /= neighbours;
+    float invNeighbours = 1.0 / neighbours;
+    center *= invNeighbours;
+    avgVel *= invNeighbours;
 
     boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime);
     boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime);
