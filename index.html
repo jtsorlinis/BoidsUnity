@@ -7,7 +7,7 @@
   </head>
   <body style="text-align: center; padding: 0; border: 0; margin: 0; overflow: hidden;">
     <canvas id="unity-canvas" width=960 height=600 tabindex="-1" style="width: 100vw; height: 100vh; background: #231F20"></canvas>
-    <script src="Build/Boids.loader.js"></script>
+    <script src="Build/Build.loader.js"></script>
     <script>
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         // Mobile device style: fill the whole browser client area with the game canvas:
@@ -26,9 +26,9 @@
 
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
-        dataUrl: "Build/Boids.data.unityweb",
-        frameworkUrl: "Build/Boids.framework.js.unityweb",
-        codeUrl: "Build/Boids.wasm.unityweb",
+        dataUrl: "Build/Build.data.unityweb",
+        frameworkUrl: "Build/Build.framework.js.unityweb",
+        codeUrl: "Build/Build.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Jason Tsorlinis",
         productName: "Boids",
