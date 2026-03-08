@@ -20,7 +20,6 @@ float cameraAspect;
 float4 backgroundColor;
 
 float2 RotateLocalVertex(float2 vertex, float2 velocity) {
-  float speedSq = dot(velocity, velocity);
   float2 dir = normalize(velocity);
   return float2(vertex.x * dir.y + vertex.y * dir.x, vertex.y * dir.y - vertex.x * dir.x);
 }

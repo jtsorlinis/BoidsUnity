@@ -457,7 +457,7 @@ public class Main2D : MonoBehaviour
     {
       numBoids = limit;
     }
-    Cleanup();
+    OnDestroy();
     Start();
   }
 
@@ -484,41 +484,25 @@ public class Main2D : MonoBehaviour
 
   void OnDestroy()
   {
-    Cleanup();
-  }
-
-  void Cleanup()
-  {
     if (boids.IsCreated)
     {
       boids.Dispose();
       boidsTemp.Dispose();
-      boids = default;
-      boidsTemp = default;
     }
 
     if (grid.IsCreated)
     {
       grid.Dispose();
       gridOffsets.Dispose();
-      grid = default;
-      gridOffsets = default;
     }
 
-    boidBuffer?.Release();
-    boidBufferOut?.Release();
-    gridBuffer?.Release();
-    gridOffsetBuffer?.Release();
-    gridOffsetBufferIn?.Release();
-    gridSumsBuffer?.Release();
-    gridSumsBuffer2?.Release();
-    boidBuffer = null;
-    boidBufferOut = null;
-    gridBuffer = null;
-    gridOffsetBuffer = null;
-    gridOffsetBufferIn = null;
-    gridSumsBuffer = null;
-    gridSumsBuffer2 = null;
+    boidBuffer.Release();
+    boidBufferOut.Release();
+    gridBuffer.Release();
+    gridOffsetBuffer.Release();
+    gridOffsetBufferIn.Release();
+    gridSumsBuffer.Release();
+    gridSumsBuffer2.Release();
 
     if (rasterImage != null)
     {
@@ -526,6 +510,5 @@ public class Main2D : MonoBehaviour
     }
     rasterTarget.Release();
     Destroy(rasterTarget);
-    rasterTarget = null;
   }
 }
