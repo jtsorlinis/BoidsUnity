@@ -21,20 +21,8 @@ float4 backgroundColor;
 
 float2 RotateLocalVertex(float2 vertex, float2 velocity) {
   float speedSq = dot(velocity, velocity);
-  if (speedSq <= 1e-6) {
-    return vertex;
-  }
-
   float2 dir = normalize(velocity);
   return float2(vertex.x * dir.y + vertex.y * dir.x, vertex.y * dir.y - vertex.x * dir.x);
-}
-
-float2 WorldToPixel(float2 worldPos) {
-  float halfHeight = orthographicSize;
-  float halfWidth = orthographicSize * cameraAspect;
-  float2 local = worldPos - cameraCenter.xy;
-  float2 uv = local / float2(halfWidth * 2.0, halfHeight * 2.0) + 0.5;
-  return uv * float2(rasterWidth, rasterHeight);
 }
 
 float EdgeFunction(float2 a, float2 b, float2 c) {
@@ -44,11 +32,12 @@ float EdgeFunction(float2 a, float2 b, float2 c) {
 #pragma kernel ClearRaster
 [numthreads(8, 8, 1)]
 void ClearRaster(uint3 id : SV_DispatchThreadID) {
-  if (id.x >= rasterWidth || id.y >= rasterHeight) {
+  int2 pixel = int2(id.xy);
+  if (pixel.x >= rasterWidth || pixel.y >= rasterHeight) {
     return;
   }
 
-  rasterTarget[int2(id.xy)] = backgroundColor;
+  rasterTarget[pixel] = backgroundColor;
 }
 
 #pragma kernel RasterizeBoids
@@ -60,12 +49,24 @@ void RasterizeBoids(uint3 id : SV_DispatchThreadID) {
 
   Boid boid = boids[id.x];
 
-  float2 v0 = WorldToPixel(RotateLocalVertex(float2(-0.4, -0.5) * boidScale, boid.vel) + boid.pos);
-  float2 v1 = WorldToPixel(RotateLocalVertex(float2(0.0, 0.5) * boidScale, boid.vel) + boid.pos);
-  float2 v2 = WorldToPixel(RotateLocalVertex(float2(0.4, -0.5) * boidScale, boid.vel) + boid.pos);
+  float2 halfExtents = float2(orthographicSize * cameraAspect, orthographicSize);
+  float2 rasterSize = float2(rasterWidth, rasterHeight);
+  float2 screenScale = rasterSize / (halfExtents * 2.0);
+  float2 screenOffset = rasterSize * 0.5 - cameraCenter.xy * screenScale;
+
+  float2 world0 = RotateLocalVertex(float2(-0.4, -0.5) * boidScale, boid.vel) + boid.pos;
+  float2 world1 = RotateLocalVertex(float2(0.0, 0.5) * boidScale, boid.vel) + boid.pos;
+  float2 world2 = RotateLocalVertex(float2(0.4, -0.5) * boidScale, boid.vel) + boid.pos;
+
+  float2 v0 = world0 * screenScale + screenOffset;
+  float2 v1 = world1 * screenScale + screenOffset;
+  float2 v2 = world2 * screenScale + screenOffset;
 
   float2 minBounds = floor(min(v0, min(v1, v2)));
   float2 maxBounds = ceil(max(v0, max(v1, v2)));
+  if (maxBounds.x < 0.0 || maxBounds.y < 0.0 || minBounds.x >= rasterWidth || minBounds.y >= rasterHeight) {
+    return;
+  }
 
   int minX = max(0, (int)minBounds.x);
   int minY = max(0, (int)minBounds.y);

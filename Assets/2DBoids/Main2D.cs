@@ -512,11 +512,6 @@ public class Main2D : MonoBehaviour
     gridOffsetBufferIn?.Release();
     gridSumsBuffer?.Release();
     gridSumsBuffer2?.Release();
-    rasterImage.texture = null;
-    rasterTarget.Release();
-    Destroy(rasterTarget);
-    rasterTarget = null;
-
     boidBuffer = null;
     boidBufferOut = null;
     gridBuffer = null;
@@ -524,5 +519,13 @@ public class Main2D : MonoBehaviour
     gridOffsetBufferIn = null;
     gridSumsBuffer = null;
     gridSumsBuffer2 = null;
+
+    if (rasterImage != null)
+    {
+      rasterImage.texture = null;
+    }
+    rasterTarget.Release();
+    Destroy(rasterTarget);
+    rasterTarget = null;
   }
 }
