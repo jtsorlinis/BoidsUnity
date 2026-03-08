@@ -1,0 +1,115 @@
+#define blockSize 1024
+
+static const float boidScale = 0.1;
+static const float4 boidColor = float4(1.0, 1.0, 1.0, 1.0);
+
+struct Boid {
+  float2 pos;
+  float2 vel;
+};
+
+StructuredBuffer<Boid> boids;
+RWTexture2D<float4> rasterTarget;
+
+uint numBoids;
+int rasterWidth;
+int rasterHeight;
+float4 cameraCenter;
+float orthographicSize;
+float cameraAspect;
+float4 backgroundColor;
+
+float2 RotateLocalVertex(float2 vertex, float2 velocity) {
+  float speedSq = dot(velocity, velocity);
+  if (speedSq <= 1e-6) {
+    return vertex;
+  }
+
+  float2 dir = normalize(velocity);
+  return float2(vertex.x * dir.y + vertex.y * dir.x, vertex.y * dir.y - vertex.x * dir.x);
+}
+
+float2 WorldToPixel(float2 worldPos) {
+  float halfHeight = orthographicSize;
+  float halfWidth = orthographicSize * cameraAspect;
+  float2 local = worldPos - cameraCenter.xy;
+  float2 uv = local / float2(halfWidth * 2.0, halfHeight * 2.0) + 0.5;
+  return uv * float2(rasterWidth, rasterHeight);
+}
+
+float EdgeFunction(float2 a, float2 b, float2 c) {
+  return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
+}
+
+#pragma kernel ClearRaster
+[numthreads(8, 8, 1)]
+void ClearRaster(uint3 id : SV_DispatchThreadID) {
+  if (id.x >= rasterWidth || id.y >= rasterHeight) {
+    return;
+  }
+
+  rasterTarget[int2(id.xy)] = backgroundColor;
+}
+
+#pragma kernel RasterizeBoids
+[numthreads(blockSize, 1, 1)]
+void RasterizeBoids(uint3 id : SV_DispatchThreadID) {
+  if (id.x >= numBoids) {
+    return;
+  }
+
+  Boid boid = boids[id.x];
+
+  float2 v0 = WorldToPixel(RotateLocalVertex(float2(-0.4, -0.5) * boidScale, boid.vel) + boid.pos);
+  float2 v1 = WorldToPixel(RotateLocalVertex(float2(0.0, 0.5) * boidScale, boid.vel) + boid.pos);
+  float2 v2 = WorldToPixel(RotateLocalVertex(float2(0.4, -0.5) * boidScale, boid.vel) + boid.pos);
+
+  float2 minBounds = floor(min(v0, min(v1, v2)));
+  float2 maxBounds = ceil(max(v0, max(v1, v2)));
+
+  int minX = max(0, (int)minBounds.x);
+  int minY = max(0, (int)minBounds.y);
+  int maxX = min(rasterWidth - 1, (int)maxBounds.x);
+  int maxY = min(rasterHeight - 1, (int)maxBounds.y);
+
+  if (minX > maxX || minY > maxY) {
+    return;
+  }
+
+  float area = EdgeFunction(v0, v1, v2);
+  if (area <= 1e-5) {
+    return;
+  }
+
+  float2 pixelStart = float2(minX + 0.5, minY + 0.5);
+  float w0Row = EdgeFunction(v1, v2, pixelStart);
+  float w1Row = EdgeFunction(v2, v0, pixelStart);
+  float w2Row = EdgeFunction(v0, v1, pixelStart);
+
+  float w0StepX = v2.y - v1.y;
+  float w1StepX = v0.y - v2.y;
+  float w2StepX = v1.y - v0.y;
+  float w0StepY = v1.x - v2.x;
+  float w1StepY = v2.x - v0.x;
+  float w2StepY = v0.x - v1.x;
+
+  for (int y = minY; y <= maxY; y++) {
+    float w0 = w0Row;
+    float w1 = w1Row;
+    float w2 = w2Row;
+
+    for (int x = minX; x <= maxX; x++) {
+      if (w0 >= 0.0 && w1 >= 0.0 && w2 >= 0.0) {
+        rasterTarget[int2(x, y)] = boidColor;
+      }
+
+      w0 += w0StepX;
+      w1 += w1StepX;
+      w2 += w2StepX;
+    }
+
+    w0Row += w0StepY;
+    w1Row += w1StepY;
+    w2Row += w2StepY;
+  }
+}

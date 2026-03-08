@@ -13,6 +13,7 @@ struct Boid
 public class Main2D : MonoBehaviour
 {
   const float blockSize = 1024f;
+  const int clearBlockSize = 8;
 
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
@@ -35,10 +36,8 @@ public class Main2D : MonoBehaviour
   [SerializeField] Slider numSlider;
   [SerializeField] Button modeButton;
   [SerializeField] ComputeShader boidShader;
+  [SerializeField] ComputeShader rasterShader;
   [SerializeField] ComputeShader gridShader;
-  [SerializeField] Material boidMat;
-  Vector2[] triangleVerts;
-  GraphicsBuffer trianglePositions;
 
   float minSpeed;
   float turnSpeed;
@@ -48,6 +47,7 @@ public class Main2D : MonoBehaviour
 
   int updateBoidsKernel, generateBoidsKernel;
   int updateGridKernel, clearGridKernel, prefixSumKernel, sumBlocksKernel, addSumsKernel, rearrangeBoidsKernel;
+  int clearRasterKernel, rasterizeBoidsKernel;
   int blocks;
 
   ComputeBuffer boidBuffer;
@@ -65,7 +65,8 @@ public class Main2D : MonoBehaviour
   float gridCellSize;
 
   float xBound, yBound;
-  RenderParams rp;
+  RenderTexture rasterTarget;
+  RawImage rasterImage;
 
   readonly int cpuLimit = 1 << 16;
   readonly int gpuLimit = (int)blockSize * 65535;
@@ -73,7 +74,6 @@ public class Main2D : MonoBehaviour
   void Awake()
   {
     numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
-    triangleVerts = GetTriangleVerts();
   }
 
   // Start is called before the first frame update
@@ -93,6 +93,8 @@ public class Main2D : MonoBehaviour
     // Get kernel IDs
     updateBoidsKernel = boidShader.FindKernel("UpdateBoids");
     generateBoidsKernel = boidShader.FindKernel("GenerateBoids");
+    clearRasterKernel = rasterShader.FindKernel("ClearRaster");
+    rasterizeBoidsKernel = rasterShader.FindKernel("RasterizeBoids");
     updateGridKernel = gridShader.FindKernel("UpdateGrid");
     clearGridKernel = gridShader.FindKernel("ClearGrid");
     prefixSumKernel = gridShader.FindKernel("PrefixSum");
@@ -116,6 +118,8 @@ public class Main2D : MonoBehaviour
     boidShader.SetFloat("cohesionFactor", cohesionFactor);
     boidShader.SetFloat("separationFactor", separationFactor);
     boidShader.SetFloat("alignmentFactor", alignmentFactor);
+    rasterShader.SetBuffer(rasterizeBoidsKernel, "boids", boidBuffer);
+    rasterShader.SetInt("numBoids", numBoids);
 
     // Generate boids on GPU if over CPU limit
     if (numBoids <= cpuLimit)
@@ -141,14 +145,29 @@ public class Main2D : MonoBehaviour
       boidShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
     }
 
-    // Set render params
-    rp = new RenderParams(boidMat);
-    rp.matProps = new MaterialPropertyBlock();
-    rp.matProps.SetBuffer("boids", boidBuffer);
-    rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 3000);
-    trianglePositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 3, 8);
-    trianglePositions.SetData(triangleVerts);
-    rp.matProps.SetBuffer("_Positions", trianglePositions);
+    if (rasterImage == null)
+    {
+      rasterImage = new GameObject("BoidRasterOutput", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage)).GetComponent<RawImage>();
+      rasterImage.transform.SetParent(fpsText.canvas.transform, false);
+      rasterImage.transform.SetAsFirstSibling();
+      rasterImage.raycastTarget = false;
+      var rect = rasterImage.rectTransform;
+      rect.anchorMin = Vector2.zero;
+      rect.anchorMax = Vector2.one;
+      rect.offsetMin = Vector2.zero;
+      rect.offsetMax = Vector2.zero;
+    }
+
+    rasterTarget = new RenderTexture(Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height), 0, RenderTextureFormat.ARGB32)
+    {
+      enableRandomWrite = true,
+      filterMode = FilterMode.Bilinear,
+      wrapMode = TextureWrapMode.Clamp
+    };
+    rasterTarget.Create();
+    rasterShader.SetTexture(clearRasterKernel, "rasterTarget", rasterTarget);
+    rasterShader.SetTexture(rasterizeBoidsKernel, "rasterTarget", rasterTarget);
+    rasterImage.texture = rasterTarget;
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -265,8 +284,43 @@ public class Main2D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    // Actually draw the boids
-    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * 3);
+    RenderBoids();
+  }
+
+  void RenderBoids()
+  {
+    var cam = Camera.main;
+    int width = Mathf.Max(1, Screen.width);
+    int height = Mathf.Max(1, Screen.height);
+    if (rasterTarget.width != width || rasterTarget.height != height)
+    {
+      rasterImage.texture = null;
+      rasterTarget.Release();
+      Destroy(rasterTarget);
+      rasterTarget = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32)
+      {
+        enableRandomWrite = true,
+        filterMode = FilterMode.Bilinear,
+        wrapMode = TextureWrapMode.Clamp
+      };
+      rasterTarget.Create();
+      rasterShader.SetTexture(clearRasterKernel, "rasterTarget", rasterTarget);
+      rasterShader.SetTexture(rasterizeBoidsKernel, "rasterTarget", rasterTarget);
+      rasterImage.texture = rasterTarget;
+    }
+
+    rasterShader.SetInt("rasterWidth", rasterTarget.width);
+    rasterShader.SetInt("rasterHeight", rasterTarget.height);
+    rasterShader.SetVector("cameraCenter", new Vector4(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z, 0));
+    rasterShader.SetFloat("orthographicSize", cam.orthographicSize);
+    rasterShader.SetFloat("cameraAspect", cam.aspect);
+    rasterShader.SetVector("backgroundColor", cam.backgroundColor);
+
+    rasterShader.Dispatch(clearRasterKernel,
+      Mathf.CeilToInt(rasterTarget.width / (float)clearBlockSize),
+      Mathf.CeilToInt(rasterTarget.height / (float)clearBlockSize),
+      1);
+    rasterShader.Dispatch(rasterizeBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
   }
 
   void MergedBehaviours(ref Boid boid)
@@ -403,7 +457,7 @@ public class Main2D : MonoBehaviour
     {
       numBoids = limit;
     }
-    OnDestroy();
+    Cleanup();
     Start();
   }
 
@@ -430,36 +484,45 @@ public class Main2D : MonoBehaviour
 
   void OnDestroy()
   {
+    Cleanup();
+  }
+
+  void Cleanup()
+  {
     if (boids.IsCreated)
     {
       boids.Dispose();
       boidsTemp.Dispose();
+      boids = default;
+      boidsTemp = default;
     }
 
     if (grid.IsCreated)
     {
       grid.Dispose();
       gridOffsets.Dispose();
+      grid = default;
+      gridOffsets = default;
     }
 
-    boidBuffer.Release();
-    boidBufferOut.Release();
-    gridBuffer.Release();
-    gridOffsetBuffer.Release();
-    gridOffsetBufferIn.Release();
-    gridSumsBuffer.Release();
-    gridSumsBuffer2.Release();
-    trianglePositions.Release();
-  }
+    boidBuffer?.Release();
+    boidBufferOut?.Release();
+    gridBuffer?.Release();
+    gridOffsetBuffer?.Release();
+    gridOffsetBufferIn?.Release();
+    gridSumsBuffer?.Release();
+    gridSumsBuffer2?.Release();
+    rasterImage.texture = null;
+    rasterTarget.Release();
+    Destroy(rasterTarget);
+    rasterTarget = null;
 
-  Vector2[] GetTriangleVerts()
-  {
-    return new Vector2[] {
-      new(-.4f, -.5f),
-      new(0, .5f),
-      new(.4f, -.5f),
-    };
+    boidBuffer = null;
+    boidBufferOut = null;
+    gridBuffer = null;
+    gridOffsetBuffer = null;
+    gridOffsetBufferIn = null;
+    gridSumsBuffer = null;
+    gridSumsBuffer2 = null;
   }
 }
-
-

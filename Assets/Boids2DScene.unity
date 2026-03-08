@@ -261,8 +261,8 @@ MonoBehaviour:
   numSlider: {fileID: 671117610}
   modeButton: {fileID: 334074117}
   boidShader: {fileID: 7200000, guid: a1454690a72b340d4b8203edc92c1611, type: 3}
+  rasterShader: {fileID: 7200000, guid: 7c4af2d9489d4517b97cfcc7f44771cb, type: 3}
   gridShader: {fileID: 7200000, guid: 53f2660ac43d4400ea62a6e0fdda1c46, type: 3}
-  boidMat: {fileID: 2100000, guid: b306058b2105d479ebd81169967e3d99, type: 2}
 --- !u!114 &519420034
 MonoBehaviour:
   m_ObjectHideFlags: 0
