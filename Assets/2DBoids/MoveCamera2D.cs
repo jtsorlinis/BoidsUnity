@@ -19,6 +19,7 @@ public class MoveCamera2D : MonoBehaviour
     cam = Camera.main;
     zoom = cam.orthographicSize;
     origZoom = zoom;
+    maxZoom = Mathf.Max(0.5f, origZoom * 0.65f);
     minZoom = zoom + (Mathf.Sqrt(zoom) / 2);
   }
 

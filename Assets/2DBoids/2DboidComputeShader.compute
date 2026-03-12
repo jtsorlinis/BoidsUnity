@@ -7,130 +7,250 @@ struct Boid {
 
 StructuredBuffer<Boid> boidsIn;
 RWStructuredBuffer<Boid> boidsOut;
+RWStructuredBuffer<float2> densityBuffer;
+StructuredBuffer<uint> gridOffsetBuffer;
+
 uniform uint numBoids;
+uniform uint gridDimX;
+uniform uint gridDimY;
+uniform uint gridTotalCells;
 uniform float deltaTime;
 uniform float maxSpeed;
-uniform float minSpeed;
-uniform float visualRangeSq;
-uniform float cohesionFactor;
-uniform float separationFactor;
-uniform float alignmentFactor;
-uniform float minDistanceSq;
-uniform float turnSpeed;
+uniform float smoothingRadius;
+uniform float smoothingRadiusSq;
+uniform float inverseSmoothingRadius;
+uniform float restDensity;
+uniform float pressureStiffness;
+uniform float nearPressureStiffness;
+uniform float viscosityStrength;
+uniform float velocityDamping;
+uniform float gravity;
 uniform float xBound;
 uniform float yBound;
+uniform float wallBounce;
+uniform float wallFriction;
+uniform float gridInverseCellSize;
+uniform float spawnInset;
+uniform float2 mousePosition;
+uniform float2 mouseVelocity;
+uniform float mouseRadius;
+uniform float mouseRadiusSq;
+uniform float mouseFlowStrength;
+uniform uint mouseInteractionEnabled;
+uniform uint randSeed;
 
-StructuredBuffer<uint> gridOffsetBuffer;
-float gridInverseCellSize;
-uint gridDimY;
-uint gridDimX;
-
-uint2 getGridLocation(Boid boid) {
-  int x = floor(boid.pos.x * gridInverseCellSize + gridDimX / 2);
-  int y = floor(boid.pos.y * gridInverseCellSize + gridDimY / 2);
-  return uint2(x, y);
+int2 getGridLocation(float2 pos) {
+  int x = floor((pos.x + xBound) * gridInverseCellSize);
+  int y = floor((pos.y + yBound) * gridInverseCellSize);
+  x = clamp(x, 0, (int)gridDimX - 1);
+  y = clamp(y, 0, (int)gridDimY - 1);
+  return int2(x, y);
 }
 
-uint getGridID(uint2 pos) {
+uint getGridID(int2 pos) {
   return (gridDimX * pos.y) + pos.x;
 }
 
-void MergedBehaviours(inout Boid boid) {
-  float2 center = 0;
-  float2 close = 0;
-  float2 avgVel = 0;
-  uint neighbours = 0;
+uint getCellEnd(uint cell) {
+  return (cell + 1u < gridTotalCells) ? gridOffsetBuffer[cell + 1u] : numBoids;
+}
 
-  uint2 gridXY = getGridLocation(boid);
-  uint cell = getGridID(gridXY);
-  
-  // Loop Around Own Cell
-  // Unrolling the loop for the 3 rows: cell-gridDimX, cell, cell+gridDimX
+float2 computeDensity(Boid boid) {
+  float density = 0.0;
+  float nearDensity = 0.0;
+  int2 gridXY = getGridLocation(boid.pos);
+
   [unroll]
-  for (int i = -1; i <= 1; i++) {
-    uint y = cell + i * gridDimX;
-    uint start = gridOffsetBuffer[y - 1];
-    uint end = gridOffsetBuffer[y + 2];
-    
-    for (uint j = start; j < end; j++) {
-      Boid other = boidsIn[j];
-      float2 diff = boid.pos - other.pos;
-      float distSq = dot(diff, diff);
-      
-      if (distSq < visualRangeSq && distSq > 0) {
-        if (distSq < minDistanceSq) {
-          float invDistSq = 1.0 / distSq;
-          close += diff * invDistSq;
+  for (int oy = -1; oy <= 1; oy++) {
+    int ny = gridXY.y + oy;
+    if (ny < 0 || ny >= (int)gridDimY) {
+      continue;
+    }
+
+    [unroll]
+    for (int ox = -1; ox <= 1; ox++) {
+      int nx = gridXY.x + ox;
+      if (nx < 0 || nx >= (int)gridDimX) {
+        continue;
+      }
+
+      uint cell = getGridID(int2(nx, ny));
+      uint start = gridOffsetBuffer[cell];
+      uint end = getCellEnd(cell);
+
+      for (uint j = start; j < end; j++) {
+        float2 offset = boidsIn[j].pos - boid.pos;
+        float distSq = dot(offset, offset);
+        if (distSq > smoothingRadiusSq) {
+          continue;
         }
-        center += other.pos;
-        avgVel += other.vel;
-        neighbours++;
+
+        float dist = sqrt(distSq);
+        float weight = saturate(1.0 - dist * inverseSmoothingRadius);
+        float weightSq = weight * weight;
+        density += weightSq;
+        nearDensity += weightSq * weight;
       }
     }
   }
-  
-  if (neighbours > 0) {
-    float invNeighbours = 1.0 / neighbours;
-    center *= invNeighbours;
-    avgVel *= invNeighbours;
-    
-    boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime);
-    boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime);
-  }
-  
-  boid.vel += close * (separationFactor * deltaTime);
+
+  return float2(density, nearDensity);
 }
 
-void LimitSpeed(inout Boid boid) {
-  float speed = length(boid.vel);
-  float clampedSpeed = clamp(speed, minSpeed, maxSpeed);
-  boid.vel *= clampedSpeed / speed;
+void resolveBounds(inout Boid boid) {
+  if (boid.pos.x < -xBound) {
+    boid.pos.x = -xBound;
+    if (boid.vel.x < 0.0) {
+      boid.vel.x *= -wallBounce;
+      boid.vel.y *= (1.0 - wallFriction);
+    }
+  }
+
+  if (boid.pos.x > xBound) {
+    boid.pos.x = xBound;
+    if (boid.vel.x > 0.0) {
+      boid.vel.x *= -wallBounce;
+      boid.vel.y *= (1.0 - wallFriction);
+    }
+  }
+
+  if (boid.pos.y < -yBound) {
+    boid.pos.y = -yBound;
+    if (boid.vel.y < 0.0) {
+      boid.vel.y *= -wallBounce;
+      boid.vel.x *= (1.0 - wallFriction);
+    }
+  }
+
+  if (boid.pos.y > yBound) {
+    boid.pos.y = yBound;
+    if (boid.vel.y > 0.0) {
+      boid.vel.y *= -wallBounce;
+      boid.vel.x *= (1.0 - wallFriction);
+    }
+  }
 }
 
-void KeepInBounds(inout Boid boid) {
-  if (abs(boid.pos.x) > xBound) {
-    boid.vel.x -= sign(boid.pos.x) * deltaTime * turnSpeed;
-  }
-  if (abs(boid.pos.y) > yBound) {
-    boid.vel.y -= sign(boid.pos.y) * deltaTime * turnSpeed;
-  }
-}
-
-#pragma kernel UpdateBoids // ID 0
+#pragma kernel ComputeDensity
 [numthreads(blockSize, 1, 1)]
-void UpdateBoids(uint3 id : SV_DispatchThreadID) {
+void ComputeDensity(uint3 id : SV_DispatchThreadID) {
   if (id.x >= numBoids) {
     return;
   }
-  
-  Boid boid = boidsIn[id.x];
-  
-  MergedBehaviours(boid);
-  LimitSpeed(boid);
-  KeepInBounds(boid);
 
-  // Update positions
+  densityBuffer[id.x] = computeDensity(boidsIn[id.x]);
+}
+
+#pragma kernel UpdateParticles
+[numthreads(blockSize, 1, 1)]
+void UpdateParticles(uint3 id : SV_DispatchThreadID) {
+  if (id.x >= numBoids) {
+    return;
+  }
+
+  Boid boid = boidsIn[id.x];
+  float2 densityData = densityBuffer[id.x];
+  float pressure = max(densityData.x - restDensity, 0.0) * pressureStiffness;
+  float nearPressure = densityData.y * nearPressureStiffness;
+  float2 acceleration = float2(0.0, -gravity);
+
+  int2 gridXY = getGridLocation(boid.pos);
+
+  [unroll]
+  for (int oy = -1; oy <= 1; oy++) {
+    int ny = gridXY.y + oy;
+    if (ny < 0 || ny >= (int)gridDimY) {
+      continue;
+    }
+
+    [unroll]
+    for (int ox = -1; ox <= 1; ox++) {
+      int nx = gridXY.x + ox;
+      if (nx < 0 || nx >= (int)gridDimX) {
+        continue;
+      }
+
+      uint cell = getGridID(int2(nx, ny));
+      uint start = gridOffsetBuffer[cell];
+      uint end = getCellEnd(cell);
+
+      for (uint j = start; j < end; j++) {
+        if (j == id.x) {
+          continue;
+        }
+
+        Boid other = boidsIn[j];
+        float2 diff = boid.pos - other.pos;
+        float distSq = dot(diff, diff);
+        if (distSq <= 0.000001 || distSq > smoothingRadiusSq) {
+          continue;
+        }
+
+        float dist = sqrt(distSq);
+        float weight = saturate(1.0 - dist * inverseSmoothingRadius);
+        float weightSq = weight * weight;
+        float2 direction = diff / dist;
+
+        float2 otherDensityData = densityBuffer[j];
+        float otherPressure = max(otherDensityData.x - restDensity, 0.0) * pressureStiffness;
+        float otherNearPressure = otherDensityData.y * nearPressureStiffness;
+
+        float pressureForce = ((pressure + otherPressure) * 0.5) * weight;
+        float nearForce = ((nearPressure + otherNearPressure) * 0.5) * weightSq;
+        acceleration += direction * (pressureForce + nearForce);
+        acceleration += (other.vel - boid.vel) * (viscosityStrength * weight);
+      }
+    }
+  }
+
+  acceleration /= max(densityData.x, 1.0);
+  if (mouseInteractionEnabled != 0u) {
+    float2 mouseOffset = boid.pos - mousePosition;
+    float mouseDistSq = dot(mouseOffset, mouseOffset);
+    if (mouseDistSq < mouseRadiusSq) {
+      float mouseDist = sqrt(max(mouseDistSq, 0.000001));
+      float weight = saturate(1.0 - mouseDist / max(mouseRadius, 0.0001));
+      float flowWeight = sqrt(weight);
+      acceleration += mouseVelocity * (mouseFlowStrength * flowWeight);
+    }
+  }
+
+  boid.vel += acceleration * deltaTime;
+  // Mild implicit drag helps dissipate pressure oscillations without being too frame-rate sensitive.
+  boid.vel /= 1.0 + velocityDamping * deltaTime;
+
+  float speed = length(boid.vel);
+  if (speed > maxSpeed) {
+    boid.vel *= maxSpeed / speed;
+  }
+
   boid.pos += boid.vel * deltaTime;
+  resolveBounds(boid);
   boidsOut[id.x] = boid;
 }
 
-
-// Basic random generation
-uint randSeed;
 uint rngState;
-float randPCG(float min, float max) {
+float randPCG(float minValue, float maxValue) {
   rngState = rngState * 747796405u + 2891336453u;
   uint state = rngState;
   uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-  float f = ((word >> 22u) ^ word) / 4294967296.0;
-  return f * (max - min) + min;
+  float value = ((word >> 22u) ^ word) / 4294967296.0;
+  return value * (maxValue - minValue) + minValue;
 }
 
-
-#pragma kernel GenerateBoids // ID 1
+#pragma kernel GenerateBoids
 [numthreads(blockSize, 1, 1)]
 void GenerateBoids(uint3 id : SV_DispatchThreadID) {
+  if (id.x >= numBoids) {
+    return;
+  }
+
   rngState = randSeed + id.x;
-  boidsOut[id.x].pos = float2(randPCG(-xBound, xBound), randPCG(-yBound, yBound));
-  boidsOut[id.x].vel = float2(randPCG(-maxSpeed, maxSpeed), randPCG(-maxSpeed, maxSpeed));
+  float2 pos = float2(
+    randPCG(-xBound + spawnInset, xBound - spawnInset),
+    randPCG(-yBound + spawnInset, yBound - spawnInset)
+  );
+
+  boidsOut[id.x].pos = pos;
+  boidsOut[id.x].vel = 0.0;
 }

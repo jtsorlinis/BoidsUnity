@@ -14,6 +14,8 @@ RWStructuredBuffer<uint> gridSumsBuffer;
 StructuredBuffer<uint> gridSumsBufferIn;
 
 float gridInverseCellSize;
+float xBound;
+float yBound;
 uint gridDimY;
 uint gridDimX;
 uint gridTotalCells;
@@ -22,8 +24,10 @@ uint numBoids;
 uint d;
 
 uint getGridID(Boid boid) {
-  int x = floor(boid.pos.x * gridInverseCellSize + gridDimX / 2);
-  int y = floor(boid.pos.y * gridInverseCellSize + gridDimY / 2);
+  int x = floor((boid.pos.x + xBound) * gridInverseCellSize);
+  int y = floor((boid.pos.y + yBound) * gridInverseCellSize);
+  x = clamp(x, 0, (int)gridDimX - 1);
+  y = clamp(y, 0, (int)gridDimY - 1);
   return (gridDimX * y) + x;
 }
 
@@ -55,7 +59,7 @@ groupshared int temp[blockSize * 2];
 void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
 
   int pout = 0, pin = 1;
-  temp[localID] = gridOffsetBufferIn[globalID];
+  temp[localID] = (globalID < gridTotalCells) ? gridOffsetBufferIn[globalID] : 0;
   GroupMemoryBarrierWithGroupSync();
 
   [unroll]
@@ -82,7 +86,9 @@ void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREA
   gridOffsetBuffer[globalID] = exclusiveVal;
 
   if (localID == 0) {
-    gridSumsBuffer[groupID] = temp[pout * blockSize + blockSize - 1];
+    uint blockStart = groupID * blockSize;
+    uint elementsInBlock = min(blockSize, gridTotalCells - blockStart);
+    gridSumsBuffer[groupID] = temp[pout * blockSize + elementsInBlock - 1];
   }
 }
 
@@ -118,7 +124,7 @@ void SumBlocks(uint3 id : SV_DISPATCHTHREADID) {
 #pragma kernel AddSums // ID 5
 [numthreads(blockSize, 1, 1)]
 void AddSums(uint globalID : SV_DISPATCHTHREADID, uint groupID : SV_GROUPID) {
-  if (groupID == 0 || globalID > gridTotalCells) {
+  if (groupID == 0 || globalID >= gridTotalCells) {
     return;
   }
   gridOffsetBuffer[globalID] += gridSumsBufferIn[groupID - 1];
