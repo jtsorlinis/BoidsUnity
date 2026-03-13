@@ -13,7 +13,7 @@ struct Boid
 public class Main2D : MonoBehaviour
 {
   const int DefaultParticleCount = 10000;
-  const int MaxParticleCount = 250000;
+  const int MaxParticleCount = 200000;
   const int ParticleCountStep = 10000;
   const int BlockSize = 1024;
   const int VerticesPerParticle = 6;
@@ -33,7 +33,7 @@ public class Main2D : MonoBehaviour
   [SerializeField] float smoothingRadius = 0.11f;
   [SerializeField] float renderRadius = 0.06f;
   [SerializeField] int solverSubsteps = 2;
-  [SerializeField] float fixedSimulationDeltaTime = 0.01f;
+  [SerializeField] float fixedSimulationDeltaTime = 0.008333334f;
   [SerializeField] int maxSimulationStepsPerFrame = 6;
   [SerializeField] int densitySolveIterations = 6;
   [SerializeField] int divergenceSolveIterations = 2;
@@ -515,9 +515,9 @@ public class Main2D : MonoBehaviour
 
     if (xsphStrength > 0f)
     {
-      BuildGrid(activeBoidBuffer, scratchBoidBuffer);
-      DispatchDensityFactor(scratchBoidBuffer);
-      DispatchApplyXsph(scratchBoidBuffer, activeBoidBuffer);
+      // Divergence and XSPH only change velocity, so the post-integrate grid and density data are still valid here.
+      DispatchApplyXsph(activeBoidBuffer, scratchBoidBuffer);
+      SwapBuffers(ref activeBoidBuffer, ref scratchBoidBuffer);
     }
   }
 
