@@ -259,21 +259,29 @@ MonoBehaviour:
   particleSpacing: 0.05
   smoothingRadius: 0.11
   renderRadius: 0.06
-  solverSubsteps: 3
-  containerAreaMultiplier: 0.25
-  highCountAreaScale: 0.5
+  solverSubsteps: 2
+  fixedSimulationDeltaTime: 0.01
+  maxSimulationStepsPerFrame: 6
+  densitySolveIterations: 6
+  divergenceSolveIterations: 2
+  containerAreaMultiplier: 0.3
+  highCountAreaScale: 1
   gravityForce: 18
   targetDensity: 3.2
-  pressureStrength: 17
-  nearPressureStrength: 28
-  viscosityStrength: 5.8
-  velocityDamping: 0.08
-  particleMaxSpeed: 14
-  wallBounceDamping: 0.17
-  wallFriction: 0.025
+  surfaceTensionStrength: 3.1
+  viscosityStrength: 1.9
+  xsphStrength: 0.015
+  pressureVelocityLimitScale: 0.45
+  velocityDamping: 0.025
+  particleMaxSpeed: 18
+  wallRepulsionStrength: 0
+  wallBounceDamping: 0
+  wallFriction: 0.4
+  deepParticleColor: {r: 0.03, g: 0.18, b: 0.48, a: 0.82}
+  surfaceParticleColor: {r: 0.15, g: 0.68, b: 0.98, a: 0.9}
+  foamParticleColor: {r: 0.86, g: 0.97, b: 1, a: 1}
   mouseInteractionRadius: 0.45
   mouseFlowStrength: 16
-  particleColor: {r: 0.12, g: 0.58, b: 0.98, a: 0.85}
 --- !u!114 &519420034
 MonoBehaviour:
   m_ObjectHideFlags: 0

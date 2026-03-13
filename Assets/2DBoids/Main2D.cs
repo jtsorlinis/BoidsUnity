@@ -13,7 +13,7 @@ struct Boid
 public class Main2D : MonoBehaviour
 {
   const int DefaultParticleCount = 10000;
-  const int MaxParticleCount = 500000;
+  const int MaxParticleCount = 250000;
   const int ParticleCountStep = 10000;
   const int BlockSize = 1024;
   const int VerticesPerParticle = 6;
@@ -32,18 +32,24 @@ public class Main2D : MonoBehaviour
   [SerializeField] float particleSpacing = 0.05f;
   [SerializeField] float smoothingRadius = 0.11f;
   [SerializeField] float renderRadius = 0.06f;
-  [SerializeField] int solverSubsteps = 3;
-  [SerializeField] float containerAreaMultiplier = 0.25f;
-  [SerializeField] float highCountAreaScale = 0.5f;
+  [SerializeField] int solverSubsteps = 2;
+  [SerializeField] float fixedSimulationDeltaTime = 0.01f;
+  [SerializeField] int maxSimulationStepsPerFrame = 6;
+  [SerializeField] int densitySolveIterations = 6;
+  [SerializeField] int divergenceSolveIterations = 2;
+  [SerializeField] float containerAreaMultiplier = 1f;
+  [SerializeField] float highCountAreaScale = 1f;
   [SerializeField] float gravityForce = 18f;
   [SerializeField] float targetDensity = 3.2f;
-  [SerializeField] float pressureStrength = 17f;
-  [SerializeField] float nearPressureStrength = 28f;
-  [SerializeField] float viscosityStrength = 5.8f;
-  [SerializeField] float velocityDamping = 0.08f;
-  [SerializeField] float particleMaxSpeed = 14f;
-  [SerializeField] float wallBounceDamping = 0.17f;
-  [SerializeField] float wallFriction = 0.025f;
+  [SerializeField] float surfaceTensionStrength = 3.1f;
+  [SerializeField] float viscosityStrength = 1.9f;
+  [SerializeField] float xsphStrength = 0.015f;
+  [SerializeField] float pressureVelocityLimitScale = 0.45f;
+  [SerializeField] float velocityDamping = 0.025f;
+  [SerializeField] float particleMaxSpeed = 18f;
+  [SerializeField] float wallRepulsionStrength = 0f;
+  [SerializeField] float wallBounceDamping = 0f;
+  [SerializeField] float wallFriction = 0.4f;
   [SerializeField] Color deepParticleColor = new(0.03f, 0.18f, 0.48f, 0.82f);
   [SerializeField] Color surfaceParticleColor = new(0.15f, 0.68f, 0.98f, 0.9f);
   [SerializeField] Color foamParticleColor = new(0.86f, 0.97f, 1f, 1f);
@@ -55,8 +61,13 @@ public class Main2D : MonoBehaviour
   int particleCount = DefaultParticleCount;
 
   int particleDispatchCount;
-  int updateParticlesKernel;
-  int computeDensityKernel;
+  int computeDensityFactorKernel;
+  int predictAdvectionKernel;
+  int computeDensityPressureKernel;
+  int computeDivergencePressureKernel;
+  int applyPressureKernel;
+  int applyXsphKernel;
+  int integrateParticlesKernel;
   int generateParticlesKernel;
   int updateGridKernel;
   int clearGridKernel;
@@ -73,6 +84,7 @@ public class Main2D : MonoBehaviour
   float xBound;
   float yBound;
   float gridCellSize;
+  float simulationAccumulator;
   Camera simulationCamera;
   Vector2 lastMouseWorldPosition;
   bool hasMouseWorldPosition;
@@ -80,11 +92,14 @@ public class Main2D : MonoBehaviour
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferSorted;
   ComputeBuffer densityBuffer;
+  ComputeBuffer pressureBuffer;
   ComputeBuffer gridBuffer;
   ComputeBuffer gridOffsetBuffer;
   ComputeBuffer gridOffsetBufferIn;
   ComputeBuffer gridSumsBuffer;
   ComputeBuffer gridSumsBuffer2;
+  ComputeBuffer activeBoidBuffer;
+  ComputeBuffer scratchBoidBuffer;
   GraphicsBuffer particleVertexBuffer;
 
   RenderParams renderParams;
@@ -124,20 +139,38 @@ public class Main2D : MonoBehaviour
       fpsText.text = "FPS: " + (int)(1f / Mathf.Max(Time.smoothDeltaTime, 0.0001f));
     }
 
-    float frameDeltaTime = Mathf.Min(Time.deltaTime, 1f / 30f);
+    float safeFixedSimulationDeltaTime = Mathf.Max(0.001f, fixedSimulationDeltaTime);
+    int cappedSimulationSteps = Mathf.Max(1, maxSimulationStepsPerFrame);
+    float frameDeltaTime = Mathf.Min(Time.deltaTime, safeFixedSimulationDeltaTime * cappedSimulationSteps);
     UpdateMouseInteraction(frameDeltaTime);
-    float stepDeltaTime = frameDeltaTime / Mathf.Max(1, solverSubsteps);
-    boidShader.SetFloat("deltaTime", stepDeltaTime);
+    simulationAccumulator += frameDeltaTime;
 
-    // Rebuild the neighbour grid for each solver step so pressure reacts to fresh positions.
-    for (int step = 0; step < Mathf.Max(1, solverSubsteps); step++)
+    int executedSimulationSteps = 0;
+    while (simulationAccumulator >= safeFixedSimulationDeltaTime && executedSimulationSteps < cappedSimulationSteps)
     {
-      BuildGrid();
-      boidShader.Dispatch(computeDensityKernel, particleDispatchCount, 1, 1);
-      boidShader.Dispatch(updateParticlesKernel, particleDispatchCount, 1, 1);
+      SimulateFixedStep(safeFixedSimulationDeltaTime);
+      simulationAccumulator -= safeFixedSimulationDeltaTime;
+      executedSimulationSteps++;
     }
 
+    if (simulationAccumulator > safeFixedSimulationDeltaTime)
+    {
+      simulationAccumulator = safeFixedSimulationDeltaTime;
+    }
+
+    renderParams.matProps.SetBuffer("boids", activeBoidBuffer);
     Graphics.RenderPrimitives(renderParams, MeshTopology.Triangles, particleCount * VerticesPerParticle);
+  }
+
+  void SimulateFixedStep(float simulationDeltaTime)
+  {
+    float stepDeltaTime = simulationDeltaTime / Mathf.Max(1, solverSubsteps);
+    boidShader.SetFloat("deltaTime", stepDeltaTime);
+
+    for (int step = 0; step < Mathf.Max(1, solverSubsteps); step++)
+    {
+      SimulateDfsphSubstep();
+    }
   }
 
   void ConfigureUi()
@@ -191,17 +224,22 @@ public class Main2D : MonoBehaviour
 
   float GetTargetContainerArea()
   {
+    return GetTargetContainerArea(particleCount);
+  }
+
+  float GetTargetContainerArea(int count)
+  {
     float kernelArea = Mathf.PI * smoothingRadius * smoothingRadius;
     float spacingArea = particleSpacing * particleSpacing;
     float areaPerParticle = Mathf.Max(kernelArea / Mathf.Max(targetDensity, 0.01f), spacingArea) * containerAreaMultiplier;
     float countT = Mathf.InverseLerp(
       Mathf.Log(DefaultParticleCount),
       Mathf.Log(MaxParticleCount),
-      Mathf.Log(Mathf.Max(particleCount, DefaultParticleCount))
+      Mathf.Log(Mathf.Max(count, DefaultParticleCount))
     );
     float countScale = Mathf.Lerp(1f, highCountAreaScale, countT);
     float minimumSide = smoothingRadius * 6f;
-    return Mathf.Max(particleCount * areaPerParticle * countScale, minimumSide * minimumSide);
+    return Mathf.Max(count * areaPerParticle * countScale, minimumSide * minimumSide);
   }
 
   float GetCameraSizeForArea(float targetArea, float aspect)
@@ -214,10 +252,28 @@ public class Main2D : MonoBehaviour
     return Mathf.Max(padding + smoothingRadius, (-b + Mathf.Sqrt(discriminant)) / (2f * a));
   }
 
+  float GetMouseInteractionRadiusWorld()
+  {
+    float baseRadius = Mathf.Max(mouseInteractionRadius, renderRadius * 4f);
+    if (simulationCamera == null)
+    {
+      return baseRadius;
+    }
+
+    float referenceCameraSize = GetCameraSizeForArea(GetTargetContainerArea(DefaultParticleCount), simulationCamera.aspect);
+    float cameraScale = simulationCamera.orthographicSize / Mathf.Max(referenceCameraSize, 0.0001f);
+    return baseRadius * cameraScale;
+  }
+
   void InitializeKernels()
   {
-    updateParticlesKernel = boidShader.FindKernel("UpdateParticles");
-    computeDensityKernel = boidShader.FindKernel("ComputeDensity");
+    computeDensityFactorKernel = boidShader.FindKernel("ComputeDensityFactor");
+    predictAdvectionKernel = boidShader.FindKernel("PredictAdvection");
+    computeDensityPressureKernel = boidShader.FindKernel("ComputeDensityPressure");
+    computeDivergencePressureKernel = boidShader.FindKernel("ComputeDivergencePressure");
+    applyPressureKernel = boidShader.FindKernel("ApplyPressure");
+    applyXsphKernel = boidShader.FindKernel("ApplyXsph");
+    integrateParticlesKernel = boidShader.FindKernel("IntegrateParticles");
     generateParticlesKernel = boidShader.FindKernel("GenerateBoids");
 
     updateGridKernel = gridShader.FindKernel("UpdateGrid");
@@ -240,6 +296,7 @@ public class Main2D : MonoBehaviour
     boidBuffer = new ComputeBuffer(particleCount, 16);
     boidBufferSorted = new ComputeBuffer(particleCount, 16);
     densityBuffer = new ComputeBuffer(particleCount, 8);
+    pressureBuffer = new ComputeBuffer(particleCount, 4);
     gridBuffer = new ComputeBuffer(particleCount, 8);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
@@ -247,13 +304,22 @@ public class Main2D : MonoBehaviour
     gridSumsBuffer2 = new ComputeBuffer(blocks, 4);
 
     boidShader.SetBuffer(generateParticlesKernel, "boidsOut", boidBuffer);
-    boidShader.SetBuffer(computeDensityKernel, "boidsIn", boidBufferSorted);
-    boidShader.SetBuffer(computeDensityKernel, "densityBuffer", densityBuffer);
-    boidShader.SetBuffer(updateParticlesKernel, "boidsIn", boidBufferSorted);
-    boidShader.SetBuffer(updateParticlesKernel, "boidsOut", boidBuffer);
-    boidShader.SetBuffer(updateParticlesKernel, "densityBuffer", densityBuffer);
+    boidShader.SetBuffer(computeDensityFactorKernel, "densityBuffer", densityBuffer);
+    boidShader.SetBuffer(computeDensityFactorKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidShader.SetBuffer(predictAdvectionKernel, "densityBuffer", densityBuffer);
+    boidShader.SetBuffer(predictAdvectionKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidShader.SetBuffer(computeDensityPressureKernel, "densityBuffer", densityBuffer);
+    boidShader.SetBuffer(computeDensityPressureKernel, "pressureBuffer", pressureBuffer);
+    boidShader.SetBuffer(computeDensityPressureKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidShader.SetBuffer(computeDivergencePressureKernel, "densityBuffer", densityBuffer);
+    boidShader.SetBuffer(computeDivergencePressureKernel, "pressureBuffer", pressureBuffer);
+    boidShader.SetBuffer(computeDivergencePressureKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidShader.SetBuffer(applyPressureKernel, "densityBuffer", densityBuffer);
+    boidShader.SetBuffer(applyPressureKernel, "pressureBuffer", pressureBuffer);
+    boidShader.SetBuffer(applyPressureKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidShader.SetBuffer(applyXsphKernel, "densityBuffer", densityBuffer);
+    boidShader.SetBuffer(applyXsphKernel, "gridOffsetBuffer", gridOffsetBuffer);
 
-    gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
@@ -267,31 +333,32 @@ public class Main2D : MonoBehaviour
 
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boidsOut", boidBufferSorted);
 
-    boidShader.SetBuffer(computeDensityKernel, "gridOffsetBuffer", gridOffsetBuffer);
-    boidShader.SetBuffer(updateParticlesKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    activeBoidBuffer = boidBuffer;
+    scratchBoidBuffer = boidBufferSorted;
   }
 
   void ConfigureSimulation()
   {
     float spawnInset = Mathf.Max(wallPadding + renderRadius, smoothingRadius);
-    float interactionRadius = Mathf.Max(mouseInteractionRadius, renderRadius * 4f);
+    float interactionRadius = GetMouseInteractionRadiusWorld();
 
     boidShader.SetInt("numBoids", particleCount);
     boidShader.SetFloat("maxSpeed", particleMaxSpeed);
+    boidShader.SetFloat("particleSpacing", particleSpacing);
     boidShader.SetFloat("smoothingRadius", smoothingRadius);
     boidShader.SetFloat("smoothingRadiusSq", smoothingRadius * smoothingRadius);
     boidShader.SetFloat("inverseSmoothingRadius", 1f / smoothingRadius);
     boidShader.SetFloat("restDensity", targetDensity);
-    boidShader.SetFloat("pressureStiffness", pressureStrength);
-    boidShader.SetFloat("nearPressureStiffness", nearPressureStrength);
+    boidShader.SetFloat("surfaceTensionStrength", surfaceTensionStrength);
     boidShader.SetFloat("viscosityStrength", viscosityStrength);
+    boidShader.SetFloat("xsphStrength", xsphStrength);
+    boidShader.SetFloat("pressureVelocityLimitScale", pressureVelocityLimitScale);
     boidShader.SetFloat("velocityDamping", velocityDamping);
     boidShader.SetFloat("gravity", gravityForce);
     boidShader.SetFloat("xBound", xBound);
     boidShader.SetFloat("yBound", yBound);
+    boidShader.SetFloat("wallRepulsionStrength", wallRepulsionStrength);
     boidShader.SetFloat("wallBounce", wallBounceDamping);
     boidShader.SetFloat("wallFriction", wallFriction);
     boidShader.SetFloat("gridInverseCellSize", 1f / gridCellSize);
@@ -320,13 +387,15 @@ public class Main2D : MonoBehaviour
   void GenerateParticles()
   {
     boidShader.Dispatch(generateParticlesKernel, particleDispatchCount, 1, 1);
+    activeBoidBuffer = boidBuffer;
+    scratchBoidBuffer = boidBufferSorted;
   }
 
   void ConfigureRendering()
   {
     renderParams = new RenderParams(boidMat);
     renderParams.matProps = new MaterialPropertyBlock();
-    renderParams.matProps.SetBuffer("boids", boidBuffer);
+    renderParams.matProps.SetBuffer("boids", activeBoidBuffer);
     renderParams.matProps.SetFloat("_Scale", renderRadius);
     renderParams.matProps.SetColor("_DeepColour", deepParticleColor);
     renderParams.matProps.SetColor("_SurfaceColour", surfaceParticleColor);
@@ -342,7 +411,7 @@ public class Main2D : MonoBehaviour
 
   void UpdateMouseInteraction(float frameDeltaTime)
   {
-    float interactionRadius = Mathf.Max(mouseInteractionRadius, renderRadius * 4f);
+    float interactionRadius = GetMouseInteractionRadiusWorld();
     bool mouseActive = TryGetMouseWorldPosition(out Vector2 mouseWorldPosition);
     Vector2 mouseVelocity = Vector2.zero;
 
@@ -401,8 +470,63 @@ public class Main2D : MonoBehaviour
     return Mathf.Abs(mouseWorldPosition.x) <= xBound && Mathf.Abs(mouseWorldPosition.y) <= yBound;
   }
 
-  void BuildGrid()
+  void SimulateDfsphSubstep()
   {
+    BuildGrid(activeBoidBuffer, scratchBoidBuffer);
+    DispatchDensityFactor(scratchBoidBuffer);
+
+    DispatchPredictAdvection(scratchBoidBuffer, activeBoidBuffer);
+    ComputeBuffer readBuffer = activeBoidBuffer;
+    ComputeBuffer writeBuffer = scratchBoidBuffer;
+
+    for (int iteration = 0; iteration < Mathf.Max(1, densitySolveIterations); iteration++)
+    {
+      DispatchPressureSolve(computeDensityPressureKernel, readBuffer);
+      DispatchApplyPressure(readBuffer, writeBuffer);
+      SwapBuffers(ref readBuffer, ref writeBuffer);
+    }
+
+    DispatchIntegrateParticles(readBuffer, writeBuffer);
+    SwapBuffers(ref readBuffer, ref writeBuffer);
+
+    BuildGrid(readBuffer, writeBuffer);
+    DispatchDensityFactor(writeBuffer);
+
+    if (divergenceSolveIterations > 0)
+    {
+      ComputeBuffer divergenceRead = writeBuffer;
+      ComputeBuffer divergenceWrite = readBuffer;
+
+      for (int iteration = 0; iteration < divergenceSolveIterations; iteration++)
+      {
+        DispatchPressureSolve(computeDivergencePressureKernel, divergenceRead);
+        DispatchApplyPressure(divergenceRead, divergenceWrite);
+        SwapBuffers(ref divergenceRead, ref divergenceWrite);
+      }
+
+      activeBoidBuffer = divergenceRead;
+      scratchBoidBuffer = divergenceWrite;
+    }
+    else
+    {
+      activeBoidBuffer = writeBuffer;
+      scratchBoidBuffer = readBuffer;
+    }
+
+    if (xsphStrength > 0f)
+    {
+      BuildGrid(activeBoidBuffer, scratchBoidBuffer);
+      DispatchDensityFactor(scratchBoidBuffer);
+      DispatchApplyXsph(scratchBoidBuffer, activeBoidBuffer);
+    }
+  }
+
+  void BuildGrid(ComputeBuffer sourceBuffer, ComputeBuffer sortedBuffer)
+  {
+    gridShader.SetBuffer(updateGridKernel, "boids", sourceBuffer);
+    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", sourceBuffer);
+    gridShader.SetBuffer(rearrangeBoidsKernel, "boidsOut", sortedBuffer);
+
     gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
     gridShader.Dispatch(updateGridKernel, particleDispatchCount, 1, 1);
     gridShader.Dispatch(prefixSumKernel, blocks, 1, 1);
@@ -420,6 +544,46 @@ public class Main2D : MonoBehaviour
     gridShader.SetBuffer(addSumsKernel, "gridSumsBufferIn", swap ? gridSumsBuffer : gridSumsBuffer2);
     gridShader.Dispatch(addSumsKernel, blocks, 1, 1);
     gridShader.Dispatch(rearrangeBoidsKernel, particleDispatchCount, 1, 1);
+  }
+
+  void DispatchDensityFactor(ComputeBuffer sortedBuffer)
+  {
+    boidShader.SetBuffer(computeDensityFactorKernel, "boidsIn", sortedBuffer);
+    boidShader.Dispatch(computeDensityFactorKernel, particleDispatchCount, 1, 1);
+  }
+
+  void DispatchPredictAdvection(ComputeBuffer readBuffer, ComputeBuffer writeBuffer)
+  {
+    boidShader.SetBuffer(predictAdvectionKernel, "boidsIn", readBuffer);
+    boidShader.SetBuffer(predictAdvectionKernel, "boidsOut", writeBuffer);
+    boidShader.Dispatch(predictAdvectionKernel, particleDispatchCount, 1, 1);
+  }
+
+  void DispatchPressureSolve(int kernel, ComputeBuffer readBuffer)
+  {
+    boidShader.SetBuffer(kernel, "boidsIn", readBuffer);
+    boidShader.Dispatch(kernel, particleDispatchCount, 1, 1);
+  }
+
+  void DispatchApplyPressure(ComputeBuffer readBuffer, ComputeBuffer writeBuffer)
+  {
+    boidShader.SetBuffer(applyPressureKernel, "boidsIn", readBuffer);
+    boidShader.SetBuffer(applyPressureKernel, "boidsOut", writeBuffer);
+    boidShader.Dispatch(applyPressureKernel, particleDispatchCount, 1, 1);
+  }
+
+  void DispatchApplyXsph(ComputeBuffer readBuffer, ComputeBuffer writeBuffer)
+  {
+    boidShader.SetBuffer(applyXsphKernel, "boidsIn", readBuffer);
+    boidShader.SetBuffer(applyXsphKernel, "boidsOut", writeBuffer);
+    boidShader.Dispatch(applyXsphKernel, particleDispatchCount, 1, 1);
+  }
+
+  void DispatchIntegrateParticles(ComputeBuffer readBuffer, ComputeBuffer writeBuffer)
+  {
+    boidShader.SetBuffer(integrateParticlesKernel, "boidsIn", readBuffer);
+    boidShader.SetBuffer(integrateParticlesKernel, "boidsOut", writeBuffer);
+    boidShader.Dispatch(integrateParticlesKernel, particleDispatchCount, 1, 1);
   }
 
   public void SliderChange(float _)
@@ -465,12 +629,23 @@ public class Main2D : MonoBehaviour
     ReleaseBuffer(ref boidBuffer);
     ReleaseBuffer(ref boidBufferSorted);
     ReleaseBuffer(ref densityBuffer);
+    ReleaseBuffer(ref pressureBuffer);
     ReleaseBuffer(ref gridBuffer);
     ReleaseBuffer(ref gridOffsetBuffer);
     ReleaseBuffer(ref gridOffsetBufferIn);
     ReleaseBuffer(ref gridSumsBuffer);
     ReleaseBuffer(ref gridSumsBuffer2);
     ReleaseBuffer(ref particleVertexBuffer);
+    activeBoidBuffer = null;
+    scratchBoidBuffer = null;
+    simulationAccumulator = 0f;
+  }
+
+  static void SwapBuffers(ref ComputeBuffer a, ref ComputeBuffer b)
+  {
+    ComputeBuffer temp = a;
+    a = b;
+    b = temp;
   }
 
   static void ReleaseBuffer(ref ComputeBuffer buffer)
