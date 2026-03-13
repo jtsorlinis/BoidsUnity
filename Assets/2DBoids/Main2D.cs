@@ -88,6 +88,9 @@ public class Main2D : MonoBehaviour
   Camera simulationCamera;
   Vector2 lastMouseWorldPosition;
   bool hasMouseWorldPosition;
+  Vector2 lastSimulatedMouseWorldPosition;
+  bool hasSimulatedMouseWorldPosition;
+  float accumulatedMouseSampleTime;
 
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferSorted;
@@ -164,6 +167,7 @@ public class Main2D : MonoBehaviour
 
   void SimulateFixedStep(float simulationDeltaTime)
   {
+    ApplyMouseInteractionForSimulationStep();
     float stepDeltaTime = simulationDeltaTime / Mathf.Max(1, solverSubsteps);
     boidShader.SetFloat("deltaTime", stepDeltaTime);
 
@@ -411,24 +415,44 @@ public class Main2D : MonoBehaviour
 
   void UpdateMouseInteraction(float frameDeltaTime)
   {
-    float interactionRadius = GetMouseInteractionRadiusWorld();
     bool mouseActive = TryGetMouseWorldPosition(out Vector2 mouseWorldPosition);
-    Vector2 mouseVelocity = Vector2.zero;
 
     if (mouseActive)
     {
-      if (hasMouseWorldPosition && frameDeltaTime > 0.0001f)
-      {
-        mouseVelocity = (mouseWorldPosition - lastMouseWorldPosition) / frameDeltaTime;
-      }
-
-      mouseVelocity = Vector2.ClampMagnitude(mouseVelocity, particleMaxSpeed * 3f);
+      accumulatedMouseSampleTime = hasMouseWorldPosition ? (accumulatedMouseSampleTime + frameDeltaTime) : 0f;
       lastMouseWorldPosition = mouseWorldPosition;
       hasMouseWorldPosition = true;
     }
     else
     {
       hasMouseWorldPosition = false;
+      hasSimulatedMouseWorldPosition = false;
+      accumulatedMouseSampleTime = 0f;
+    }
+  }
+
+  void ApplyMouseInteractionForSimulationStep()
+  {
+    float interactionRadius = GetMouseInteractionRadiusWorld();
+    Vector2 mouseWorldPosition = lastMouseWorldPosition;
+    Vector2 mouseVelocity = Vector2.zero;
+    bool mouseActive = hasMouseWorldPosition;
+
+    if (mouseActive)
+    {
+      if (hasSimulatedMouseWorldPosition && accumulatedMouseSampleTime > 0.0001f)
+      {
+        mouseVelocity = (mouseWorldPosition - lastSimulatedMouseWorldPosition) / accumulatedMouseSampleTime;
+      }
+
+      mouseVelocity = Vector2.ClampMagnitude(mouseVelocity, particleMaxSpeed * 3f);
+      lastSimulatedMouseWorldPosition = mouseWorldPosition;
+      hasSimulatedMouseWorldPosition = true;
+      accumulatedMouseSampleTime = 0f;
+    }
+    else
+    {
+      hasSimulatedMouseWorldPosition = false;
     }
 
     boidShader.SetFloat("mouseRadius", interactionRadius);
