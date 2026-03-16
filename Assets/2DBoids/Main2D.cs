@@ -216,12 +216,6 @@ public class Main2D : MonoBehaviour
     float targetArea = GetTargetContainerArea();
     simulationCamera.orthographicSize = GetCameraSizeForArea(targetArea, aspect);
     simulationCamera.transform.position = new Vector3(0f, 0f, -10f);
-
-    if (TryGetComponent(out MoveCamera2D cameraMover))
-    {
-      cameraMover.Start();
-    }
-
     xBound = simulationCamera.orthographicSize * aspect - wallPadding;
     yBound = simulationCamera.orthographicSize - wallPadding;
   }
