@@ -263,7 +263,7 @@ MonoBehaviour:
   maxSimulationStepsPerFrame: 6
   densitySolveIterations: 6
   divergenceSolveIterations: 2
-  containerAreaMultiplier: 0.3
+  containerAreaMultiplier: 0.5
   highCountAreaScale: 1
   gravityForce: 18
   targetDensity: 3.2
