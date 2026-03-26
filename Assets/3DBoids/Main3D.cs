@@ -446,6 +446,11 @@ public class Main3D : MonoBehaviour
 
   void OnDestroy()
   {
+    if(boids.IsCreated)
+    {
+      boids.Dispose();
+      boidsTemp.Dispose();
+    }
     boidBuffer.Release();
     boidBufferOut.Release();
     gridBuffer.Release();
