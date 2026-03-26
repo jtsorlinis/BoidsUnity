@@ -428,13 +428,15 @@ public class Main3D : MonoBehaviour
     modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
     boidSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
 
-    // WebGPU doesn't like readbacks at the moment
-    if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.WebGPU) return;
-
     if (useGpu) return;
     var readback = AsyncGPUReadback.Request(boidBuffer);
     readback.WaitForCompletion();
-    readback.GetData<Boid3D>().CopyTo(boids);
+
+    // WebGPU seems to error on readbacks
+    if(!readback.hasError)
+    {
+      readback.GetData<Boid3D>().CopyTo(boids);
+    }
   }
 
   public void SwitchTo2D()
