@@ -56,27 +56,25 @@ void MergedBehaviours(inout Boid boid) {
       Boid other = boidsIn[j];
       float2 diff = boid.pos - other.pos;
       float distSq = dot(diff, diff);
-      
-      if (distSq < visualRangeSq && distSq > 0) {
-        if (distSq < minDistanceSq) {
-          float invDistSq = 1.0 / distSq;
-          close += diff * invDistSq;
-        }
-        center += other.pos;
-        avgVel += other.vel;
-        neighbours++;
-      }
+      int isOther = distSq > 0;
+      int inRange = distSq < visualRangeSq && isOther;
+      int isClose = distSq < minDistanceSq && inRange;
+      float safeDist = distSq + (1 - isOther);
+      float invDistSq = 1.0 / safeDist * isClose;
+      close += diff * invDistSq;
+      center += other.pos * inRange;
+      avgVel += other.vel * inRange;
+      neighbours += inRange;
     }
   }
+  int hasNeighbours = neighbours > 0;
+  float safeNeighbours = neighbours + (1 - hasNeighbours);
+  float invNeighbours = 1.0 / safeNeighbours;
+  center *= invNeighbours;
+  avgVel *= invNeighbours;
   
-  if (neighbours > 0) {
-    float invNeighbours = 1.0 / neighbours;
-    center *= invNeighbours;
-    avgVel *= invNeighbours;
-    
-    boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime);
-    boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime);
-  }
+  boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime) * hasNeighbours;
+  boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime) * hasNeighbours;
   
   boid.vel += close * (separationFactor * deltaTime);
 }
