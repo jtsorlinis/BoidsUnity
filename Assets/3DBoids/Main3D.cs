@@ -7,9 +7,7 @@ using Unity.Collections;
 struct Boid3D
 {
   public float3 pos;
-  float pad0; // Padding to align to 16 bytes
   public float3 vel;
-  float pad1;
 }
 
 public class Main3D : MonoBehaviour
@@ -68,6 +66,7 @@ public class Main3D : MonoBehaviour
   int[] gridOffsets;
   int gridDimY, gridDimX, gridDimZ, gridTotalCells, blocks;
   float gridCellSize;
+  bool gridDirty;
 
   readonly int cpuLimit = 1 << 16;
   readonly int gpuLimit = (int)blockSize * 65535;
@@ -104,8 +103,8 @@ public class Main3D : MonoBehaviour
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
     // Setup compute buffer
-    boidBuffer = new ComputeBuffer(numBoids, 32);
-    boidBufferOut = new ComputeBuffer(numBoids, 32);
+    boidBuffer = new ComputeBuffer(numBoids, 24);
+    boidBufferOut = new ComputeBuffer(numBoids, 24);
     boidComputeShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBufferOut);
     boidComputeShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBuffer);
     boidComputeShader.SetInt("numBoids", numBoids);
@@ -174,7 +173,7 @@ public class Main3D : MonoBehaviour
       gridOffsets = new int[gridTotalCells];
     }
 
-    gridBuffer = new ComputeBuffer(numBoids, 8);
+    gridBuffer = new ComputeBuffer(numBoids, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
     blocks = Mathf.CeilToInt(gridTotalCells / blockSize);
@@ -207,10 +206,13 @@ public class Main3D : MonoBehaviour
     gridShader.SetInt("blocks", blocks);
 
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBufferIn", gridOffsetBufferIn);
+    boidComputeShader.SetBuffer(updateBoidsKernel, "gridBuffer", gridBuffer);
     boidComputeShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     boidComputeShader.SetInt("gridDimY", gridDimY);
     boidComputeShader.SetInt("gridDimX", gridDimX);
     boidComputeShader.SetInt("gridDimZ", gridDimZ);
+    gridDirty = true;
   }
 
   // Update is called once per frame
@@ -222,11 +224,15 @@ public class Main3D : MonoBehaviour
     {
       boidComputeShader.SetFloat("deltaTime", Time.deltaTime);
 
-      // Clear indices
-      gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
+      if (gridDirty)
+      {
+        // Clear indices
+        gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
 
-      // Populate grid
-      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+        // Populate grid
+        gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+        gridDirty = false;
+      }
 
       // Generate Offsets (Prefix Sum)
       // Offsets in each block
@@ -428,7 +434,11 @@ public class Main3D : MonoBehaviour
     modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
     boidSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
 
-    if (useGpu) return;
+    if (useGpu)
+    {
+      gridDirty = true;
+      return;
+    }
     var readback = AsyncGPUReadback.Request(boidBuffer);
     readback.WaitForCompletion();
 

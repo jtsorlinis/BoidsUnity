@@ -2,9 +2,7 @@
 
 struct Boid {
   float3 pos;
-  float pad0;
   float3 vel;
-  float pad1;
 };
 
 StructuredBuffer<Boid> boidsIn;
@@ -24,15 +22,17 @@ uniform float yBound;
 uniform float zBound;
 
 StructuredBuffer<uint> gridOffsetBuffer;
+RWStructuredBuffer<uint> gridOffsetBufferIn;
+RWStructuredBuffer<uint> gridBuffer;
 float gridInverseCellSize;
 uint gridDimX;
 uint gridDimY;
 uint gridDimZ;
 
 uint3 getGridLocation(Boid boid) {
-  int boidX = floor(boid.pos.x * gridInverseCellSize + gridDimX / 2);
-  int boidY = floor(boid.pos.y * gridInverseCellSize + gridDimY / 2);
-  int boidZ = floor(boid.pos.z * gridInverseCellSize + gridDimZ / 2);
+  int boidX = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
+  int boidY = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
+  int boidZ = (int)floor(boid.pos.z * gridInverseCellSize) + (int)(gridDimZ / 2);
   return uint3(boidX, boidY, boidZ);
 }
 
@@ -125,6 +125,8 @@ void UpdateBoids(uint3 id : SV_DispatchThreadID) {
 
 
   boidsOut[id.x] = boid;
+
+  InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[id.x]);
 }
 
 // Stateless random generation

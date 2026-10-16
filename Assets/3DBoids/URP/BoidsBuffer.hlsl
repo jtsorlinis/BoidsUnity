@@ -3,9 +3,7 @@
 
 struct Boid {
     float3 pos;
-    float pad0;
     float3 vel;
-    float pad1;
 };
 
 StructuredBuffer<float3> meshPositions;

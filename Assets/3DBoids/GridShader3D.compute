@@ -2,16 +2,14 @@
 
 struct Boid {
   float3 pos;
-  float pad0;
   float3 vel;
-  float pad1;
 };
 
 StructuredBuffer<Boid> boids;
 RWStructuredBuffer<Boid> boidsOut;
-RWStructuredBuffer<uint2> gridBuffer;
+RWStructuredBuffer<uint> gridBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
-StructuredBuffer<uint> gridOffsetBufferIn;
+RWStructuredBuffer<uint> gridOffsetBufferIn;
 RWStructuredBuffer<uint> gridSumsBuffer;
 StructuredBuffer<uint> gridSumsBufferIn;
 
@@ -25,9 +23,9 @@ uint numBoids;
 uint d;
 
 uint getGridID(Boid boid) {
-  int boidX = floor(boid.pos.x * gridInverseCellSize + gridDimX / 2);
-  int boidY = floor(boid.pos.y * gridInverseCellSize + gridDimY / 2);
-  int boidZ = floor(boid.pos.z * gridInverseCellSize + gridDimZ / 2);
+  int boidX = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
+  int boidY = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
+  int boidZ = (int)floor(boid.pos.z * gridInverseCellSize) + (int)(gridDimZ / 2);
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
 }
 
@@ -38,9 +36,7 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
     return;
   }
 
-  int cell = getGridID(boids[id.x]);
-  gridBuffer[id.x].x = cell;
-  InterlockedAdd(gridOffsetBuffer[cell], 1, gridBuffer[id.x].y);
+  InterlockedAdd(gridOffsetBuffer[getGridID(boids[id.x])], 1, gridBuffer[id.x]);
 }
 
 #pragma kernel ClearGrid // ID 1
@@ -85,6 +81,8 @@ void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREA
 
   gridOffsetBuffer[globalID] = exclusiveVal;
 
+  gridOffsetBufferIn[globalID] = 0;
+
   if (localID == 0) {
     gridSumsBuffer[groupID] = temp[pout * blockSize + blockSize - 1];
   }
@@ -97,10 +95,9 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
     return;
   }
   
-  uint gridID = gridBuffer[id.x].x;
-  uint cellOffset = gridBuffer[id.x].y;
-  uint index = gridOffsetBuffer[gridID] + cellOffset;
-  boidsOut[index] = boids[id.x];
+  Boid boid = boids[id.x];
+  uint index = gridOffsetBuffer[getGridID(boid)] + gridBuffer[id.x];
+  boidsOut[index] = boid;
 }
 
 #pragma kernel SumBlocks // ID 4
