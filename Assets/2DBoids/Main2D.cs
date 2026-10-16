@@ -63,6 +63,7 @@ public class Main2D : MonoBehaviour
   NativeArray<int> gridOffsets;
   int gridDimY, gridDimX, gridTotalCells;
   float gridCellSize;
+  bool gridDirty;
 
   float xBound, yBound;
   RenderTexture rasterTarget;
@@ -182,7 +183,7 @@ public class Main2D : MonoBehaviour
       gridOffsets = new NativeArray<int>(gridTotalCells, Allocator.Persistent);
     }
 
-    gridBuffer = new ComputeBuffer(numBoids, 8);
+    gridBuffer = new ComputeBuffer(numBoids, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
     blocks = Mathf.CeilToInt(gridTotalCells / blockSize);
@@ -214,9 +215,12 @@ public class Main2D : MonoBehaviour
     gridShader.SetInt("blocks", blocks);
 
     boidShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidShader.SetBuffer(updateBoidsKernel, "gridOffsetBufferIn", gridOffsetBufferIn);
+    boidShader.SetBuffer(updateBoidsKernel, "gridBuffer", gridBuffer);
     boidShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     boidShader.SetInt("gridDimY", gridDimY);
     boidShader.SetInt("gridDimX", gridDimX);
+    gridDirty = true;
   }
 
   // Update is called once per frame
@@ -228,11 +232,15 @@ public class Main2D : MonoBehaviour
     {
       boidShader.SetFloat("deltaTime", Time.deltaTime);
 
-      // Clear indices
-      gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
+      if (gridDirty)
+      {
+        // Clear indices
+        gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
 
-      // Populate grid
-      gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+        // Populate grid
+        gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+        gridDirty = false;
+      }
 
       // Generate Offsets (Prefix Sum)
       // Offsets in each block
@@ -468,7 +476,11 @@ public class Main2D : MonoBehaviour
     modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
     numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
 
-    if (useGpu) return;
+    if (useGpu)
+    {
+      gridDirty = true;
+      return;
+    }
     var readback = AsyncGPUReadback.Request(boidBuffer);
     readback.WaitForCompletion();
 

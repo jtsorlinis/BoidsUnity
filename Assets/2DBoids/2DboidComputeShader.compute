@@ -21,13 +21,15 @@ uniform float xBound;
 uniform float yBound;
 
 StructuredBuffer<uint> gridOffsetBuffer;
+RWStructuredBuffer<uint> gridOffsetBufferIn;
+RWStructuredBuffer<uint> gridBuffer;
 float gridInverseCellSize;
 uint gridDimY;
 uint gridDimX;
 
 uint2 getGridLocation(Boid boid) {
-  int x = floor(boid.pos.x * gridInverseCellSize + gridDimX / 2);
-  int y = floor(boid.pos.y * gridInverseCellSize + gridDimY / 2);
+  int x = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
+  int y = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
   return uint2(x, y);
 }
 
@@ -112,6 +114,8 @@ void UpdateBoids(uint3 id : SV_DispatchThreadID) {
   // Update positions
   boid.pos += boid.vel * deltaTime;
   boidsOut[id.x] = boid;
+
+  InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[id.x]);
 }
 
 
