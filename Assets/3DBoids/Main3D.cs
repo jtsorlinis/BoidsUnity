@@ -69,7 +69,7 @@ public class Main3D : MonoBehaviour
   bool gridDirty;
 
   readonly int cpuLimit = 1 << 16;
-  readonly int gpuLimit = (int)blockSize * 65535;
+  readonly int gpuLimit = (int)blockSize * 65535 / 4;
 
   void Awake()
   {
