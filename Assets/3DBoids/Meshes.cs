@@ -55,22 +55,14 @@ public class Meshes
     float width = 0.4f;
     float height = 0.5f;
 
-    // Duplicate vertices to get back face lighting
     Vector3[] vertices = {
-      // Front face
       new Vector3(-width, -height, 0),
       new Vector3(0, height, 0),
       new Vector3(width, -height, 0),
-      // Back face
-      new Vector3(width, -height, 0),
-      new Vector3(0, height, 0),
-      new Vector3(-width, -height, 0),
     };
     mesh.vertices = vertices;
 
-    int[] tris = {
-      0, 1, 2, // Front facing
-      3, 4, 5}; // Back facing
+    int[] tris = { 0, 1, 2 };
     mesh.triangles = tris;
     mesh.RecalculateNormals();
 

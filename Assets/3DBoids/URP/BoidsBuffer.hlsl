@@ -27,6 +27,11 @@ void BoidVert_float(uint vertexID, float _scale, out float3 v, out float3 n) {
     rotate3D(pos, boid.vel);
     v = (pos * _scale) + boid.pos;
     rotate3D(normal, boid.vel);
-    n = normal;
+#if SHADERPASS == SHADERPASS_SHADOWCASTER
+    float3 viewDir = UNITY_MATRIX_V[2].xyz;
+#else
+    float3 viewDir = _WorldSpaceCameraPos - v;
+#endif
+    n = dot(normal, viewDir) < 0 ? -normal : normal;
 }
 #endif
