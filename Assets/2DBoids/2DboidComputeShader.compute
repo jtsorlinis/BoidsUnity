@@ -1,4 +1,4 @@
-#define blockSize 1024
+#define boidBlockSize 256
 
 struct Boid {
   float2 pos;
@@ -8,6 +8,7 @@ struct Boid {
 StructuredBuffer<Boid> boidsIn;
 RWStructuredBuffer<Boid> boidsOut;
 uniform uint numBoids;
+uniform uint boidStride;
 uniform float deltaTime;
 uniform float maxSpeed;
 uniform float minSpeed;
@@ -35,6 +36,10 @@ uint2 getGridLocation(Boid boid) {
 
 uint getGridID(uint2 pos) {
   return (gridDimX * pos.y) + pos.x;
+}
+
+uint getBoidIndex(uint3 id) {
+  return id.y * boidStride + id.x;
 }
 
 void MergedBehaviours(inout Boid boid) {
@@ -99,13 +104,14 @@ void KeepInBounds(inout Boid boid) {
 }
 
 #pragma kernel UpdateBoids // ID 0
-[numthreads(blockSize, 1, 1)]
+[numthreads(boidBlockSize, 1, 1)]
 void UpdateBoids(uint3 id : SV_DispatchThreadID) {
-  if (id.x >= numBoids) {
+  uint i = getBoidIndex(id);
+  if (i >= numBoids) {
     return;
   }
   
-  Boid boid = boidsIn[id.x];
+  Boid boid = boidsIn[i];
   
   MergedBehaviours(boid);
   LimitSpeed(boid);
@@ -113,9 +119,9 @@ void UpdateBoids(uint3 id : SV_DispatchThreadID) {
 
   // Update positions
   boid.pos += boid.vel * deltaTime;
-  boidsOut[id.x] = boid;
+  boidsOut[i] = boid;
 
-  InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[id.x]);
+  InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[i]);
 }
 
 
@@ -134,13 +140,14 @@ float randPCG(uint input, float min, float max) {
 
 
 #pragma kernel GenerateBoids // ID 1
-[numthreads(blockSize, 1, 1)]
+[numthreads(boidBlockSize, 1, 1)]
 void GenerateBoids(uint3 id : SV_DispatchThreadID) {
-  if (id.x >= numBoids) {
+  uint i = getBoidIndex(id);
+  if (i >= numBoids) {
     return;
   }
 
-  uint base = randSeed + id.x * 4u;
-  boidsOut[id.x].pos = float2(randPCG(base + 0u, -xBound, xBound), randPCG(base + 1u, -yBound, yBound));
-  boidsOut[id.x].vel = float2(randPCG(base + 2u, -maxSpeed, maxSpeed), randPCG(base + 3u, -maxSpeed, maxSpeed));
+  uint base = randSeed + i * 4u;
+  boidsOut[i].pos = float2(randPCG(base + 0u, -xBound, xBound), randPCG(base + 1u, -yBound, yBound));
+  boidsOut[i].vel = float2(randPCG(base + 2u, -maxSpeed, maxSpeed), randPCG(base + 3u, -maxSpeed, maxSpeed));
 }

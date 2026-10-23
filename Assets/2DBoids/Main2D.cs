@@ -13,6 +13,7 @@ struct Boid
 public class Main2D : MonoBehaviour
 {
   const float blockSize = 1024f;
+  const int boidBlockSize = 256;
   const int clearBlockSize = 8;
 
   [Header("Performance")]
@@ -49,6 +50,7 @@ public class Main2D : MonoBehaviour
   int updateGridKernel, clearGridKernel, prefixSumKernel, sumBlocksKernel, addSumsKernel, rearrangeBoidsKernel;
   int clearRasterKernel, rasterizeBoidsKernel;
   int blocks;
+  int boidGroupsX, boidGroupsY;
 
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
@@ -103,6 +105,14 @@ public class Main2D : MonoBehaviour
     addSumsKernel = gridShader.FindKernel("AddSums");
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
+    // Per-boid kernels spill into a second dispatch dimension past 65535 groups
+    int boidGroups = Mathf.CeilToInt(numBoids / (float)boidBlockSize);
+    boidGroupsY = Mathf.Max(1, Mathf.CeilToInt(boidGroups / 65535f));
+    boidGroupsX = Mathf.CeilToInt(boidGroups / (float)boidGroupsY);
+    boidShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
+    gridShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
+    rasterShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
+
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 16);
     boidBufferOut = new ComputeBuffer(numBoids, 16);
@@ -143,7 +153,7 @@ public class Main2D : MonoBehaviour
     {
       boidShader.SetBuffer(generateBoidsKernel, "boidsOut", boidBuffer);
       boidShader.SetInt("randSeed", UnityEngine.Random.Range(0, int.MaxValue));
-      boidShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+      boidShader.Dispatch(generateBoidsKernel, boidGroupsX, boidGroupsY, 1);
     }
 
     if (rasterImage == null)
@@ -168,6 +178,7 @@ public class Main2D : MonoBehaviour
     rasterTarget.Create();
     rasterShader.SetTexture(clearRasterKernel, "rasterTarget", rasterTarget);
     rasterShader.SetTexture(rasterizeBoidsKernel, "rasterTarget", rasterTarget);
+    gridShader.SetTexture(rearrangeBoidsKernel, "rasterTarget", rasterTarget);
     rasterImage.texture = rasterTarget;
 
     // Spatial grid setup
@@ -228,6 +239,8 @@ public class Main2D : MonoBehaviour
   {
     fpsText.text = "FPS: " + (int)(1 / Time.smoothDeltaTime);
 
+    PrepareRaster();
+
     if (useGpu)
     {
       boidShader.SetFloat("deltaTime", Time.deltaTime);
@@ -238,7 +251,7 @@ public class Main2D : MonoBehaviour
         gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
 
         // Populate grid
-        gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+        gridShader.Dispatch(updateGridKernel, boidGroupsX, boidGroupsY, 1);
         gridDirty = false;
       }
 
@@ -262,11 +275,11 @@ public class Main2D : MonoBehaviour
       gridShader.Dispatch(addSumsKernel, blocks, 1, 1);
 
 
-      // Rearrange boids
-      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+      // Rearrange boids (and draw them)
+      gridShader.Dispatch(rearrangeBoidsKernel, boidGroupsX, boidGroupsY, 1);
 
       // Compute boid behaviours
-      boidShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+      boidShader.Dispatch(updateBoidsKernel, boidGroupsX, boidGroupsY, 1);
     }
     else // CPU
     {
@@ -290,12 +303,11 @@ public class Main2D : MonoBehaviour
 
       // Send data to gpu buffer
       boidBuffer.SetData(boids);
+      rasterShader.Dispatch(rasterizeBoidsKernel, boidGroupsX, boidGroupsY, 1);
     }
-
-    RenderBoids();
   }
 
-  void RenderBoids()
+  void PrepareRaster()
   {
     var cam = Camera.main;
     int width = Mathf.Max(1, Screen.width);
@@ -314,21 +326,27 @@ public class Main2D : MonoBehaviour
       rasterTarget.Create();
       rasterShader.SetTexture(clearRasterKernel, "rasterTarget", rasterTarget);
       rasterShader.SetTexture(rasterizeBoidsKernel, "rasterTarget", rasterTarget);
+      gridShader.SetTexture(rearrangeBoidsKernel, "rasterTarget", rasterTarget);
       rasterImage.texture = rasterTarget;
     }
 
-    rasterShader.SetInt("rasterWidth", rasterTarget.width);
-    rasterShader.SetInt("rasterHeight", rasterTarget.height);
-    rasterShader.SetVector("cameraCenter", new Vector4(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z, 0));
-    rasterShader.SetFloat("orthographicSize", cam.orthographicSize);
-    rasterShader.SetFloat("cameraAspect", cam.aspect);
+    SetCameraParams(rasterShader, cam);
+    SetCameraParams(gridShader, cam);
     rasterShader.SetVector("backgroundColor", cam.backgroundColor);
 
     rasterShader.Dispatch(clearRasterKernel,
       Mathf.CeilToInt(rasterTarget.width / (float)clearBlockSize),
       Mathf.CeilToInt(rasterTarget.height / (float)clearBlockSize),
       1);
-    rasterShader.Dispatch(rasterizeBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+  }
+
+  void SetCameraParams(ComputeShader shader, Camera cam)
+  {
+    shader.SetInt("rasterWidth", rasterTarget.width);
+    shader.SetInt("rasterHeight", rasterTarget.height);
+    shader.SetVector("cameraCenter", new Vector4(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z, 0));
+    shader.SetFloat("orthographicSize", cam.orthographicSize);
+    shader.SetFloat("cameraAspect", cam.aspect);
   }
 
   void MergedBehaviours(ref Boid boid)

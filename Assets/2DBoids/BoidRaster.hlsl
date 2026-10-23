@@ -1,0 +1,85 @@
+static const float boidScale = 0.1;
+static const float4 boidColor = float4(1.0, 1.0, 1.0, 1.0);
+
+RWTexture2D<unorm float4> rasterTarget;
+int rasterWidth;
+int rasterHeight;
+float4 cameraCenter;
+float orthographicSize;
+float cameraAspect;
+
+float2 RotateLocalVertex(float2 vertex, float2 velocity) {
+  float2 dir = normalize(velocity);
+  return float2(vertex.x * dir.y + vertex.y * dir.x, vertex.y * dir.y - vertex.x * dir.x);
+}
+
+float EdgeFunction(float2 a, float2 b, float2 c) {
+  return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
+}
+
+void RasterizeBoid(float2 pos, float2 vel) {
+  float2 halfExtents = float2(orthographicSize * cameraAspect, orthographicSize);
+  float2 rasterSize = float2(rasterWidth, rasterHeight);
+  float2 screenScale = rasterSize / (halfExtents * 2.0);
+  float2 screenOffset = rasterSize * 0.5 - cameraCenter.xy * screenScale;
+
+  float2 world0 = RotateLocalVertex(float2(-0.4, -0.5) * boidScale, vel) + pos;
+  float2 world1 = RotateLocalVertex(float2(0.0, 0.5) * boidScale, vel) + pos;
+  float2 world2 = RotateLocalVertex(float2(0.4, -0.5) * boidScale, vel) + pos;
+
+  float2 v0 = world0 * screenScale + screenOffset;
+  float2 v1 = world1 * screenScale + screenOffset;
+  float2 v2 = world2 * screenScale + screenOffset;
+
+  float2 minBounds = floor(min(v0, min(v1, v2)));
+  float2 maxBounds = ceil(max(v0, max(v1, v2)));
+  if (maxBounds.x < 0.0 || maxBounds.y < 0.0 || minBounds.x >= rasterWidth || minBounds.y >= rasterHeight) {
+    return;
+  }
+
+  int minX = max(0, (int)minBounds.x);
+  int minY = max(0, (int)minBounds.y);
+  int maxX = min(rasterWidth - 1, (int)maxBounds.x);
+  int maxY = min(rasterHeight - 1, (int)maxBounds.y);
+
+  if (minX > maxX || minY > maxY) {
+    return;
+  }
+
+  float area = EdgeFunction(v0, v1, v2);
+  if (area <= 1e-5) {
+    return;
+  }
+
+  float2 pixelStart = float2(minX + 0.5, minY + 0.5);
+  float w0Row = EdgeFunction(v1, v2, pixelStart);
+  float w1Row = EdgeFunction(v2, v0, pixelStart);
+  float w2Row = EdgeFunction(v0, v1, pixelStart);
+
+  float w0StepX = v2.y - v1.y;
+  float w1StepX = v0.y - v2.y;
+  float w2StepX = v1.y - v0.y;
+  float w0StepY = v1.x - v2.x;
+  float w1StepY = v2.x - v0.x;
+  float w2StepY = v0.x - v1.x;
+
+  for (int y = minY; y <= maxY; y++) {
+    float w0 = w0Row;
+    float w1 = w1Row;
+    float w2 = w2Row;
+
+    for (int x = minX; x <= maxX; x++) {
+      if (w0 >= 0.0 && w1 >= 0.0 && w2 >= 0.0) {
+        rasterTarget[int2(x, y)] = boidColor;
+      }
+
+      w0 += w0StepX;
+      w1 += w1StepX;
+      w2 += w2StepX;
+    }
+
+    w0Row += w0StepY;
+    w1Row += w1StepY;
+    w2Row += w2StepY;
+  }
+}
