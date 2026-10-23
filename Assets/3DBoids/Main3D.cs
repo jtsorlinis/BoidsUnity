@@ -13,6 +13,7 @@ struct Boid3D
 public class Main3D : MonoBehaviour
 {
   const float blockSize = 1024f;
+  const int boidBlockSize = 256;
 
   [Header("Performance")]
   bool useGpu = false;
@@ -52,6 +53,7 @@ public class Main3D : MonoBehaviour
 
   int updateBoidsKernel, generateBoidsKernel;
   int updateGridKernel, clearGridKernel, prefixSumKernel, sumBlocksKernel, addSumsKernel, rearrangeBoidsKernel;
+  int boidGroupsX, boidGroupsY;
 
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
@@ -102,6 +104,12 @@ public class Main3D : MonoBehaviour
     addSumsKernel = gridShader.FindKernel("AddSums");
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
+    int boidGroups = Mathf.CeilToInt(numBoids / (float)boidBlockSize);
+    boidGroupsY = Mathf.Max(1, Mathf.CeilToInt(boidGroups / 65535f));
+    boidGroupsX = Mathf.CeilToInt(boidGroups / (float)boidGroupsY);
+    boidComputeShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
+    gridShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
+
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 24);
     boidBufferOut = new ComputeBuffer(numBoids, 24);
@@ -140,7 +148,7 @@ public class Main3D : MonoBehaviour
     {
       boidComputeShader.SetBuffer(generateBoidsKernel, "boidsOut", boidBuffer);
       boidComputeShader.SetInt("randSeed", UnityEngine.Random.Range(0, int.MaxValue));
-      boidComputeShader.Dispatch(generateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+      boidComputeShader.Dispatch(generateBoidsKernel, boidGroupsX, boidGroupsY, 1);
     }
 
     // Set shader renderParams
@@ -149,7 +157,7 @@ public class Main3D : MonoBehaviour
     rp.matProps.SetBuffer("boids", boidBuffer);
     rp.shadowCastingMode = ShadowCastingMode.On;
     rp.receiveShadows = true;
-    rp.worldBounds = new Bounds(Vector3.zero, Vector3.one * 100);
+    rp.worldBounds = new Bounds(Vector3.zero, 2 * new Vector3(xBound + 1, yBound + 1, zBound + 1));
 
     meshPositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, triangleMesh.vertices.Length, 3 * sizeof(float));
     meshPositions.SetData(triangleMesh.vertices);
@@ -230,7 +238,7 @@ public class Main3D : MonoBehaviour
         gridShader.Dispatch(clearGridKernel, blocks, 1, 1);
 
         // Populate grid
-        gridShader.Dispatch(updateGridKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+        gridShader.Dispatch(updateGridKernel, boidGroupsX, boidGroupsY, 1);
         gridDirty = false;
       }
 
@@ -254,10 +262,10 @@ public class Main3D : MonoBehaviour
       gridShader.Dispatch(addSumsKernel, blocks, 1, 1);
 
       // Rearrange boids
-      gridShader.Dispatch(rearrangeBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+      gridShader.Dispatch(rearrangeBoidsKernel, boidGroupsX, boidGroupsY, 1);
 
       // Compute boid behaviours
-      boidComputeShader.Dispatch(updateBoidsKernel, Mathf.CeilToInt(numBoids / blockSize), 1, 1);
+      boidComputeShader.Dispatch(updateBoidsKernel, boidGroupsX, boidGroupsY, 1);
     }
     else
     {

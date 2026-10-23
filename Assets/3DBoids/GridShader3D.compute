@@ -1,4 +1,5 @@
 #define blockSize 1024
+#define boidBlockSize 256
 
 struct Boid {
   float3 pos;
@@ -20,6 +21,7 @@ uint gridDimZ;
 uint gridTotalCells;
 uint blocks;
 uint numBoids;
+uint boidStride;
 uint d;
 
 uint getGridID(Boid boid) {
@@ -29,14 +31,19 @@ uint getGridID(Boid boid) {
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
 }
 
+uint getBoidIndex(uint3 id) {
+  return id.y * boidStride + id.x;
+}
+
 #pragma kernel UpdateGrid // ID 0
-[numthreads(blockSize, 1, 1)]
+[numthreads(boidBlockSize, 1, 1)]
 void UpdateGrid(uint3 id : SV_DispatchThreadID) {
-  if (id.x >= numBoids) {
+  uint i = getBoidIndex(id);
+  if (i >= numBoids) {
     return;
   }
 
-  InterlockedAdd(gridOffsetBuffer[getGridID(boids[id.x])], 1, gridBuffer[id.x]);
+  InterlockedAdd(gridOffsetBuffer[getGridID(boids[i])], 1, gridBuffer[i]);
 }
 
 #pragma kernel ClearGrid // ID 1
@@ -89,14 +96,15 @@ void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREA
 }
 
 #pragma kernel RearrangeBoids // ID 3
-[numthreads(blockSize, 1, 1)]
+[numthreads(boidBlockSize, 1, 1)]
 void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
-  if (id.x >= numBoids) {
+  uint i = getBoidIndex(id);
+  if (i >= numBoids) {
     return;
   }
   
-  Boid boid = boids[id.x];
-  uint index = gridOffsetBuffer[getGridID(boid)] + gridBuffer[id.x];
+  Boid boid = boids[i];
+  uint index = gridOffsetBuffer[getGridID(boid)] + gridBuffer[i];
   boidsOut[index] = boid;
 }
 
