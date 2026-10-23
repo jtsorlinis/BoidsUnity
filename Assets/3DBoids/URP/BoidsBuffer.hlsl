@@ -10,6 +10,8 @@ StructuredBuffer<float3> meshPositions;
 StructuredBuffer<float3> meshNormals;
 StructuredBuffer<Boid> boids;
 int vertCount;
+int shadowStride;
+float shadowScale;
 
 void rotate3D(inout float3 v, float3 vel) {
     float pitch = atan2(vel.y, length(vel.xz)) - HALF_PI;
@@ -21,6 +23,10 @@ void rotate3D(inout float3 v, float3 vel) {
 void BoidVert_float(uint vertexID, float _scale, out float3 v, out float3 n) {
     uint instanceID = vertexID / vertCount;
     uint instanceVertexID = vertexID - instanceID * vertCount;
+#if SHADERPASS == SHADERPASS_SHADOWCASTER
+    instanceID *= shadowStride;
+    _scale *= shadowScale;
+#endif
     Boid boid = boids[instanceID];
     float3 pos = meshPositions[instanceVertexID];
     float3 normal = meshNormals[instanceVertexID];

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using Unity.Mathematics;
 using Unity.Collections;
 
@@ -38,7 +39,8 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader boidComputeShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
-  RenderParams rp;
+  RenderParams rp, shadowRp;
+  int shadowStride => numBoids >= 1 << 20 ? 2 : 1;
   Mesh triangleMesh;
   GraphicsBuffer meshPositions, meshNormals;
   [SerializeField] Transform floorPlane;
@@ -86,6 +88,7 @@ public class Main3D : MonoBehaviour
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
     Camera.main.transform.SetPositionAndRotation(new Vector3(0, 0, -spaceBounds * 3.8f), Quaternion.identity);
     GetComponent<MoveCamera3D>().Start();
+    ((UniversalRenderPipelineAsset)GraphicsSettings.currentRenderPipeline).shadowDistance = spaceBounds * 6.5f;
     floorPlane.localScale = new Vector3(spaceBounds / 2.5f, 1, spaceBounds / 2.5f);
     floorPlane.position = new Vector3(0, -spaceBounds - 1f, 0);
     xBound = 2 * spaceBounds - edgeMargin;
@@ -155,7 +158,7 @@ public class Main3D : MonoBehaviour
     rp = new RenderParams(boidMaterial);
     rp.matProps = new MaterialPropertyBlock();
     rp.matProps.SetBuffer("boids", boidBuffer);
-    rp.shadowCastingMode = ShadowCastingMode.On;
+    rp.shadowCastingMode = ShadowCastingMode.Off;
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, 2 * new Vector3(xBound + 1, yBound + 1, zBound + 1));
 
@@ -166,6 +169,10 @@ public class Main3D : MonoBehaviour
     rp.matProps.SetBuffer("meshPositions", meshPositions);
     rp.matProps.SetBuffer("meshNormals", meshNormals);
     rp.matProps.SetInteger("vertCount", triangleMesh.vertices.Length);
+    rp.matProps.SetInteger("shadowStride", shadowStride);
+    rp.matProps.SetFloat("shadowScale", Mathf.Sqrt(shadowStride));
+    shadowRp = rp;
+    shadowRp.shadowCastingMode = ShadowCastingMode.ShadowsOnly;
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -288,6 +295,7 @@ public class Main3D : MonoBehaviour
     }
 
     Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertices.Length);
+    Graphics.RenderPrimitives(shadowRp, MeshTopology.Triangles, numBoids / shadowStride * triangleMesh.vertices.Length);
   }
 
   void MergedBehaviours(ref Boid3D boid)
