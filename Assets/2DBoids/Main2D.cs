@@ -14,6 +14,7 @@ public class Main2D : MonoBehaviour
 {
   const float blockSize = 1024f;
   const int boidBlockSize = 256;
+  const int searchBlockSize = 64;
   const int clearBlockSize = 8;
 
   [Header("Performance")]
@@ -51,6 +52,7 @@ public class Main2D : MonoBehaviour
   int clearRasterKernel, rasterizeBoidsKernel;
   int blocks;
   int boidGroupsX, boidGroupsY;
+  int updateGroupsX, updateGroupsY;
 
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
@@ -111,6 +113,11 @@ public class Main2D : MonoBehaviour
     boidShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
     gridShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
     rasterShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
+    // UpdateBoids searches neighbours in smaller groups
+    int updateGroups = Mathf.CeilToInt(numBoids / (float)searchBlockSize);
+    updateGroupsY = Mathf.Max(1, Mathf.CeilToInt(updateGroups / 65535f));
+    updateGroupsX = Mathf.CeilToInt(updateGroups / (float)updateGroupsY);
+    boidShader.SetInt("updateGroupsX", updateGroupsX);
 
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 16);
@@ -266,7 +273,7 @@ public class Main2D : MonoBehaviour
       gridShader.Dispatch(rearrangeBoidsKernel, boidGroupsX, boidGroupsY, 1);
 
       // Compute boid behaviours
-      boidShader.Dispatch(updateBoidsKernel, boidGroupsX, boidGroupsY, 1);
+      boidShader.Dispatch(updateBoidsKernel, updateGroupsX, updateGroupsY, 1);
     }
     else // CPU
     {

@@ -42,40 +42,68 @@ uint getBoidIndex(uint3 id) {
   return id.y * boidStride + id.x;
 }
 
-void MergedBehaviours(inout Boid boid) {
+// Neighbour search: a group's boids are consecutive in cell order, so their 3 neighbour rows mostly overlap. Each row's
+// union of the group's ranges is staged once into groupshared memory, unless dense cells make it too big for the tile,
+// in which case the group reads that row from global memory.
+#define searchBlockSize 64
+#define tileSize 160
+groupshared float4 tile[tileSize];
+uniform uint updateGroupsX;
+
+void AddNeighbour(float2 pos, float2 otherPos, float2 otherVel, inout float2 center, inout float2 close, inout float2 avgVel, inout uint neighbours) {
+  float2 diff = pos - otherPos;
+  float distSq = dot(diff, diff);
+  if (distSq < visualRangeSq && distSq > 0) {
+    if (distSq < minDistanceSq) {
+      float invDistSq = 1.0 / distSq;
+      close += diff * invDistSq;
+    }
+    center += otherPos;
+    avgVel += otherVel;
+    neighbours++;
+  }
+}
+
+void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCell) {
   float2 center = 0;
   float2 close = 0;
   float2 avgVel = 0;
   uint neighbours = 0;
 
-  uint2 gridXY = getGridLocation(boid);
-  uint cell = getGridID(gridXY);
-  
-  // Loop Around Own Cell
-  // Unrolling the loop for the 3 rows: cell-gridDimX, cell, cell+gridDimX
-  [unroll]
+  uint cell = getGridID(getGridLocation(boid));
+
+  // Loop around own cell: rows cell - gridDimX, cell, cell + gridDimX
+  [loop]
   for (int i = -1; i <= 1; i++) {
-    uint y = cell + i * gridDimX;
-    uint start = gridOffsetBuffer[y - 1];
-    uint end = gridOffsetBuffer[y + 2];
-    
-    for (uint j = start; j < end; j++) {
-      Boid other = boidsIn[j];
-      float2 diff = boid.pos - other.pos;
-      float distSq = dot(diff, diff);
-      
-      if (distSq < visualRangeSq && distSq > 0) {
-        if (distSq < minDistanceSq) {
-          float invDistSq = 1.0 / distSq;
-          close += diff * invDistSq;
-        }
-        center += other.pos;
-        avgVel += other.vel;
-        neighbours++;
+    uint row = i * gridDimX;
+    uint start = gridOffsetBuffer[cell + row - 1];
+    uint end = gridOffsetBuffer[cell + row + 2];
+    uint tileStart = gridOffsetBuffer[firstCell + row - 1];
+    uint tileCount = gridOffsetBuffer[lastCell + row + 2] - tileStart;
+    bool tiled = tileCount <= tileSize;
+
+    GroupMemoryBarrierWithGroupSync();
+    if (tiled) {
+      for (uint k = localID; k < tileCount; k += searchBlockSize) {
+        Boid other = boidsIn[tileStart + k];
+        tile[k] = float4(other.pos, other.vel);
+      }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (tiled) {
+      for (uint j = start - tileStart; j < end - tileStart; j++) {
+        float4 other = tile[j];
+        AddNeighbour(boid.pos, other.xy, other.zw, center, close, avgVel, neighbours);
+      }
+    } else {
+      for (uint j = start; j < end; j++) {
+        Boid other = boidsIn[j];
+        AddNeighbour(boid.pos, other.pos, other.vel, center, close, avgVel, neighbours);
       }
     }
   }
-  
+
   if (neighbours > 0) {
     float invNeighbours = 1.0 / neighbours;
     center *= invNeighbours;
@@ -104,24 +132,30 @@ void KeepInBounds(inout Boid boid) {
 }
 
 #pragma kernel UpdateBoids // ID 0
-[numthreads(boidBlockSize, 1, 1)]
-void UpdateBoids(uint3 id : SV_DispatchThreadID) {
-  uint i = getBoidIndex(id);
-  if (i >= numBoids) {
+[numthreads(searchBlockSize, 1, 1)]
+void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
+  uint first = (groupID.y * updateGroupsX + groupID.x) * searchBlockSize;
+  if (first >= numBoids) {
     return;
   }
-  
-  Boid boid = boidsIn[i];
-  
-  MergedBehaviours(boid);
+  // Threads past the last boid still take part in the staging, as copies of the last boid
+  uint last = min(first + searchBlockSize, numBoids) - 1;
+  uint i = first + localID;
+  Boid boid = boidsIn[min(i, last)];
+  uint firstCell = getGridID(getGridLocation(boidsIn[first]));
+  uint lastCell = getGridID(getGridLocation(boidsIn[last]));
+
+  MergedBehaviours(boid, localID, firstCell, lastCell);
   LimitSpeed(boid);
   KeepInBounds(boid);
 
   // Update positions
   boid.pos += boid.vel * deltaTime;
-  boidsOut[i] = boid;
 
-  InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[i]);
+  if (i < numBoids) {
+    boidsOut[i] = boid;
+    InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[i]);
+  }
 }
 
 
