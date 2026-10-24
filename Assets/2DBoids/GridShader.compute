@@ -1,5 +1,7 @@
-#define blockSize 1024
+#define blockSize 256
 #define boidBlockSize 256
+// Each prefix sum group covers 4 rows of blockSize cells, so loads and stores stay coalesced
+#define blockCells (blockSize * 4)
 
 #include "BoidRaster.hlsl"
 
@@ -23,7 +25,6 @@ uint gridTotalCells;
 uint blocks;
 uint numBoids;
 uint boidStride;
-uint d;
 
 uint getGridID(Boid boid) {
   int x = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
@@ -33,6 +34,10 @@ uint getGridID(Boid boid) {
 
 uint getBoidIndex(uint3 id) {
   return id.y * boidStride + id.x;
+}
+
+uint getCell(uint groupID, uint localID, uint row) {
+  return groupID * blockCells + row * blockSize + localID;
 }
 
 #pragma kernel UpdateGrid // ID 0
@@ -48,54 +53,121 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
 
 #pragma kernel ClearGrid // ID 1
 [numthreads(blockSize, 1, 1)]
-void ClearGrid(uint3 id : SV_DispatchThreadID) {
-  if (id.x >= gridTotalCells) {
-    return;
+void ClearGrid(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
+  [unroll]
+  for (uint row = 0; row < 4; row++) {
+    uint cell = getCell(groupID, localID, row);
+    if (cell < gridTotalCells) {
+      gridOffsetBuffer[cell] = 0;
+    }
   }
-
-  gridOffsetBuffer[id.x] = 0;
 }
 
-groupshared int temp[blockSize * 2];
-#pragma kernel PrefixSum // ID 2
-[numthreads(blockSize, 1, 1)]
-void PrefixSum(uint globalID : SV_DispatchThreadID, uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
+groupshared uint4 scanTemp[2][blockSize];
 
-  int pout = 0, pin = 1;
-  temp[localID] = gridOffsetBufferIn[globalID];
+// Exclusive scan of a group's 4 rows of values in row order, total gets their sum
+uint4 GroupScan(uint4 values, uint localID, out uint total) {
+  GroupMemoryBarrierWithGroupSync();
+  uint4 inclusive = values;
+  uint buf = 0;
+  [unroll]
+  for (uint offset = 1; offset < blockSize; offset *= 2) {
+    scanTemp[buf][localID] = inclusive;
+    GroupMemoryBarrierWithGroupSync();
+    if (localID >= offset) {
+      inclusive += scanTemp[buf][localID - offset];
+    }
+    buf ^= 1;
+  }
+  buf ^= 1;
+  uint4 rowTotals = scanTemp[buf][blockSize - 1] + scanTemp[buf][blockSize / 2 - 1];
+  total = rowTotals.x + rowTotals.y + rowTotals.z + rowTotals.w;
+  return inclusive - values + uint4(0, rowTotals.x, rowTotals.x + rowTotals.y, total - rowTotals.w);
+}
+
+groupshared uint sumTemp[blockSize];
+#pragma kernel SumBlocks // ID 2
+[numthreads(blockSize, 1, 1)]
+void SumBlocks(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
+  uint sum = 0;
+  [unroll]
+  for (uint row = 0; row < 4; row++) {
+    uint cell = getCell(groupID, localID, row);
+    if (cell < gridTotalCells) {
+      sum += gridOffsetBufferIn[cell];
+    }
+  }
+  sumTemp[localID] = sum;
   GroupMemoryBarrierWithGroupSync();
 
   [unroll]
-  for (uint offset = 1; offset < blockSize; offset *= 2) {
-    pout = 1 - pout; // swap double buffer indices
-    pin = 1 - pout;
-    if (localID >= offset) {
-      temp[pout * blockSize + localID] = temp[pin * blockSize + localID] + temp[pin * blockSize + localID - offset];
-    } else {
-      temp[pout * blockSize + localID] = temp[pin * blockSize + localID];
+  for (uint stride = blockSize / 2; stride > 0; stride /= 2) {
+    if (localID < stride) {
+      sumTemp[localID] += sumTemp[localID + stride];
     }
     GroupMemoryBarrierWithGroupSync();
   }
 
-  // Don't write out of bounds
-  if (globalID >= gridTotalCells) {
-    return;
-  }
-
-  uint writeIdx = pout * blockSize + localID;
-  int  inclusiveVal = temp[writeIdx];
-  int  exclusiveVal = (localID == 0) ? 0 : temp[writeIdx - 1];
-
-  gridOffsetBuffer[globalID] = exclusiveVal;
-
-  gridOffsetBufferIn[globalID] = 0;
-
   if (localID == 0) {
-    gridSumsBuffer[groupID] = temp[pout * blockSize + blockSize - 1];
+    gridSumsBuffer[groupID] = sumTemp[0];
   }
 }
 
-#pragma kernel RearrangeBoids // ID 3
+// Single group, turns the block totals into block offsets in place
+#pragma kernel ScanSums // ID 3
+[numthreads(blockSize, 1, 1)]
+void ScanSums(uint localID : SV_GROUPTHREADID) {
+  uint carry = 0;
+  for (uint first = 0; first < blocks; first += blockCells) {
+    uint4 sums = 0;
+    uint row;
+    [unroll]
+    for (row = 0; row < 4; row++) {
+      uint i = first + row * blockSize + localID;
+      if (i < blocks) {
+        sums[row] = gridSumsBuffer[i];
+      }
+    }
+
+    uint total;
+    uint4 offsets = GroupScan(sums, localID, total) + carry;
+    [unroll]
+    for (row = 0; row < 4; row++) {
+      uint i = first + row * blockSize + localID;
+      if (i < blocks) {
+        gridSumsBuffer[i] = offsets[row];
+      }
+    }
+    carry += total;
+  }
+}
+
+#pragma kernel PrefixSum // ID 4
+[numthreads(blockSize, 1, 1)]
+void PrefixSum(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
+  uint4 counts = 0;
+  uint row;
+  [unroll]
+  for (row = 0; row < 4; row++) {
+    uint cell = getCell(groupID, localID, row);
+    if (cell < gridTotalCells) {
+      counts[row] = gridOffsetBufferIn[cell];
+    }
+  }
+
+  uint total;
+  uint4 offsets = GroupScan(counts, localID, total) + gridSumsBufferIn[groupID];
+  [unroll]
+  for (row = 0; row < 4; row++) {
+    uint cell = getCell(groupID, localID, row);
+    if (cell < gridTotalCells) {
+      gridOffsetBuffer[cell] = offsets[row];
+      gridOffsetBufferIn[cell] = 0;
+    }
+  }
+}
+
+#pragma kernel RearrangeBoids // ID 5
 [numthreads(boidBlockSize, 1, 1)]
 void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
   uint i = getBoidIndex(id);
@@ -109,29 +181,4 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
 
   // Drawing here saves a separate pass over every boid
   RasterizeBoid(boid.pos, boid.vel);
-}
-
-#pragma kernel SumBlocks // ID 4
-[numthreads(blockSize, 1, 1)]
-void SumBlocks(uint3 id : SV_DISPATCHTHREADID) {
-  if (id.x >= blocks) {
-    return;
-  }
-
-  uint k = id.x;
-
-  if (k < d) {
-    gridSumsBuffer[k] = gridSumsBufferIn[k];
-  } else {
-    gridSumsBuffer[k] = gridSumsBufferIn[k] + gridSumsBufferIn[k - d];
-  }
-}
-
-#pragma kernel AddSums // ID 5
-[numthreads(blockSize, 1, 1)]
-void AddSums(uint globalID : SV_DISPATCHTHREADID, uint groupID : SV_GROUPID) {
-  if (groupID == 0 || globalID > gridTotalCells) {
-    return;
-  }
-  gridOffsetBuffer[globalID] += gridSumsBufferIn[groupID - 1];
 }
