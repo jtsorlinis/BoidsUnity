@@ -45,6 +45,20 @@ uint getBoidIndex(uint3 id) {
   return id.y * boidStride + id.x;
 }
 
+void AddNeighbour(float3 pos, float3 otherPos, float3 otherVel, inout float3 center, inout float3 close, inout float3 avgVel, inout uint neighbours) {
+  float3 diff = pos - otherPos;
+  float distSq = dot(diff, diff);
+  if (distSq < visualRangeSq && distSq > 0) {
+    if (distSq < minDistanceSq) {
+      float invDistSq = 1.0 / distSq;
+      close += diff * invDistSq;
+    }
+    center += otherPos;
+    avgVel += otherVel;
+    neighbours++;
+  }
+}
+
 void MergedBehaviours(inout Boid boid) {
   float3 center = 0;
   float3 close = 0;
@@ -64,20 +78,20 @@ void MergedBehaviours(inout Boid boid) {
       uint start = gridOffsetBuffer[gridIdx - 1];
       uint end = gridOffsetBuffer[gridIdx + 2];
 
-      for (uint i = start; i < end; i++) {
+      uint i = start;
+      for (; i + 3 < end; i += 4) {
+        Boid b0 = boidsIn[i];
+        Boid b1 = boidsIn[i + 1];
+        Boid b2 = boidsIn[i + 2];
+        Boid b3 = boidsIn[i + 3];
+        AddNeighbour(boid.pos, b0.pos, b0.vel, center, close, avgVel, neighbours);
+        AddNeighbour(boid.pos, b1.pos, b1.vel, center, close, avgVel, neighbours);
+        AddNeighbour(boid.pos, b2.pos, b2.vel, center, close, avgVel, neighbours);
+        AddNeighbour(boid.pos, b3.pos, b3.vel, center, close, avgVel, neighbours);
+      }
+      for (; i < end; i++) {
         Boid other = boidsIn[i];
-        float3 diff = boid.pos - other.pos;
-        float distSq = dot(diff, diff);
-        
-        if (distSq < visualRangeSq && distSq > 0) {
-          if (distSq < minDistanceSq) {
-            float invDistSq = 1.0 / distSq;
-            close += diff * invDistSq;
-          }
-          center += other.pos;
-          avgVel += other.vel;
-          neighbours++;
-        }
+        AddNeighbour(boid.pos, other.pos, other.vel, center, close, avgVel, neighbours);
       }
     }
   }
