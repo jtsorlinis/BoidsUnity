@@ -97,23 +97,29 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
       GroupMemoryBarrierWithGroupSync();
 
       if (tiled) {
-        uint i = start - tileStart;
+        uint j = start - tileStart;
         uint tileEnd = end - tileStart;
-        for (; i + 1 < tileEnd; i += 2) {
-          float4 a = tilePosVelX[i];
-          float4 b = tilePosVelX[i + 1];
-          float2 aVel = tileVelYZ[i];
-          float2 bVel = tileVelYZ[i + 1];
-          AddNeighbour(boid.pos, a.xyz, float3(a.w, aVel), center, close, avgVel, neighbours);
-          AddNeighbour(boid.pos, b.xyz, float3(b.w, bVel), center, close, avgVel, neighbours);
+        for (; j + 3 < tileEnd; j += 4) {
+          float4 o0 = tilePosVelX[j];
+          float4 o1 = tilePosVelX[j + 1];
+          float4 o2 = tilePosVelX[j + 2];
+          float4 o3 = tilePosVelX[j + 3];
+          float2 v0 = tileVelYZ[j];
+          float2 v1 = tileVelYZ[j + 1];
+          float2 v2 = tileVelYZ[j + 2];
+          float2 v3 = tileVelYZ[j + 3];
+          AddNeighbour(boid.pos, o0.xyz, float3(o0.w, v0), center, close, avgVel, neighbours);
+          AddNeighbour(boid.pos, o1.xyz, float3(o1.w, v1), center, close, avgVel, neighbours);
+          AddNeighbour(boid.pos, o2.xyz, float3(o2.w, v2), center, close, avgVel, neighbours);
+          AddNeighbour(boid.pos, o3.xyz, float3(o3.w, v3), center, close, avgVel, neighbours);
         }
-        if (i < tileEnd) {
-          float4 a = tilePosVelX[i];
-          AddNeighbour(boid.pos, a.xyz, float3(a.w, tileVelYZ[i]), center, close, avgVel, neighbours);
+        for (; j < tileEnd; j++) {
+          float4 other = tilePosVelX[j];
+          AddNeighbour(boid.pos, other.xyz, float3(other.w, tileVelYZ[j]), center, close, avgVel, neighbours);
         }
       } else {
-        for (uint i = start; i < end; i++) {
-          Boid other = boidsIn[i];
+        for (uint j = start; j < end; j++) {
+          Boid other = boidsIn[j];
           AddNeighbour(boid.pos, other.pos, other.vel, center, close, avgVel, neighbours);
         }
       }
