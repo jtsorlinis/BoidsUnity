@@ -45,6 +45,12 @@ uint getBoidIndex(uint3 id) {
   return id.y * boidStride + id.x;
 }
 
+#define searchBlockSize 64
+#define tileSize 160
+groupshared float4 tilePosVelX[tileSize];
+groupshared float2 tileVelYZ[tileSize];
+uniform uint updateGroupsX;
+
 void AddNeighbour(float3 pos, float3 otherPos, float3 otherVel, inout float3 center, inout float3 close, inout float3 avgVel, inout uint neighbours) {
   float3 diff = pos - otherPos;
   float distSq = dot(diff, diff);
@@ -59,39 +65,57 @@ void AddNeighbour(float3 pos, float3 otherPos, float3 otherVel, inout float3 cen
   }
 }
 
-void MergedBehaviours(inout Boid boid) {
+void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCell) {
   float3 center = 0;
   float3 close = 0;
   float3 avgVel = 0;
   uint neighbours = 0;
 
-  uint3 gridXYZ = getGridLocation(boid);
-  uint cell = getGridID(gridXYZ);
+  uint cell = getGridID(getGridLocation(boid));
   uint zStep = gridDimX * gridDimY;
 
   // Loop around own cell (3x3x3 neighborhood)
-  [unroll]
+  [loop]
   for (int z = -1; z <= 1; z++) {
-    [unroll]
+    [loop]
     for (int y = -1; y <= 1; y++) {
-      uint gridIdx = cell + z * zStep + y * gridDimX;
-      uint start = gridOffsetBuffer[gridIdx - 1];
-      uint end = gridOffsetBuffer[gridIdx + 2];
+      uint row = z * zStep + y * gridDimX;
+      uint start = gridOffsetBuffer[cell + row - 1];
+      uint end = gridOffsetBuffer[cell + row + 2];
+      uint tileStart = gridOffsetBuffer[firstCell + row - 1];
+      uint tileCount = gridOffsetBuffer[lastCell + row + 2] - tileStart;
+      bool tiled = tileCount <= tileSize;
 
-      uint i = start;
-      for (; i + 3 < end; i += 4) {
-        Boid b0 = boidsIn[i];
-        Boid b1 = boidsIn[i + 1];
-        Boid b2 = boidsIn[i + 2];
-        Boid b3 = boidsIn[i + 3];
-        AddNeighbour(boid.pos, b0.pos, b0.vel, center, close, avgVel, neighbours);
-        AddNeighbour(boid.pos, b1.pos, b1.vel, center, close, avgVel, neighbours);
-        AddNeighbour(boid.pos, b2.pos, b2.vel, center, close, avgVel, neighbours);
-        AddNeighbour(boid.pos, b3.pos, b3.vel, center, close, avgVel, neighbours);
+      GroupMemoryBarrierWithGroupSync();
+      if (tiled) {
+        for (uint k = localID; k < tileCount; k += searchBlockSize) {
+          Boid other = boidsIn[tileStart + k];
+          tilePosVelX[k] = float4(other.pos, other.vel.x);
+          tileVelYZ[k] = other.vel.yz;
+        }
       }
-      for (; i < end; i++) {
-        Boid other = boidsIn[i];
-        AddNeighbour(boid.pos, other.pos, other.vel, center, close, avgVel, neighbours);
+      GroupMemoryBarrierWithGroupSync();
+
+      if (tiled) {
+        uint i = start - tileStart;
+        uint tileEnd = end - tileStart;
+        for (; i + 1 < tileEnd; i += 2) {
+          float4 a = tilePosVelX[i];
+          float4 b = tilePosVelX[i + 1];
+          float2 aVel = tileVelYZ[i];
+          float2 bVel = tileVelYZ[i + 1];
+          AddNeighbour(boid.pos, a.xyz, float3(a.w, aVel), center, close, avgVel, neighbours);
+          AddNeighbour(boid.pos, b.xyz, float3(b.w, bVel), center, close, avgVel, neighbours);
+        }
+        if (i < tileEnd) {
+          float4 a = tilePosVelX[i];
+          AddNeighbour(boid.pos, a.xyz, float3(a.w, tileVelYZ[i]), center, close, avgVel, neighbours);
+        }
+      } else {
+        for (uint i = start; i < end; i++) {
+          Boid other = boidsIn[i];
+          AddNeighbour(boid.pos, other.pos, other.vel, center, close, avgVel, neighbours);
+        }
       }
     }
   }
@@ -127,26 +151,30 @@ void KeepInBounds(inout Boid boid) {
 }
 
 #pragma kernel UpdateBoids // ID 0
-[numthreads(boidBlockSize, 1, 1)]
-void UpdateBoids(uint3 id : SV_DispatchThreadID) {
-  uint i = getBoidIndex(id);
-  if (i >= numBoids) {
+[numthreads(searchBlockSize, 1, 1)]
+void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
+  uint first = (groupID.y * updateGroupsX + groupID.x) * searchBlockSize;
+  if (first >= numBoids) {
     return;
   }
-  
-  Boid boid = boidsIn[i];
-  
-  MergedBehaviours(boid);
+  // Threads past the last boid still take part in the staging, as copies of the last boid
+  uint last = min(first + searchBlockSize, numBoids) - 1;
+  uint i = first + localID;
+  Boid boid = boidsIn[min(i, last)];
+  uint firstCell = getGridID(getGridLocation(boidsIn[first]));
+  uint lastCell = getGridID(getGridLocation(boidsIn[last]));
+
+  MergedBehaviours(boid, localID, firstCell, lastCell);
   LimitSpeed(boid);
   KeepInBounds(boid);
 
   // Update positions
   boid.pos += boid.vel * deltaTime;
 
-
-  boidsOut[i] = boid;
-
-  InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[i]);
+  if (i < numBoids) {
+    boidsOut[i] = boid;
+    InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[i]);
+  }
 }
 
 // Stateless random generation

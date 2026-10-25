@@ -15,6 +15,7 @@ public class Main3D : MonoBehaviour
 {
   const float blockSize = 1024f;
   const int boidBlockSize = 256;
+  const int searchBlockSize = 64;
 
   [Header("Performance")]
   bool useGpu = false;
@@ -56,6 +57,7 @@ public class Main3D : MonoBehaviour
   int updateBoidsKernel, generateBoidsKernel;
   int updateGridKernel, clearGridKernel, sumBlocksKernel, scanSumsKernel, prefixSumKernel, rearrangeBoidsKernel;
   int boidGroupsX, boidGroupsY;
+  int updateGroupsX, updateGroupsY;
 
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
@@ -111,6 +113,10 @@ public class Main3D : MonoBehaviour
     boidGroupsX = Mathf.CeilToInt(boidGroups / (float)boidGroupsY);
     boidComputeShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
     gridShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
+    int updateGroups = Mathf.CeilToInt(numBoids / (float)searchBlockSize);
+    updateGroupsY = Mathf.Max(1, Mathf.CeilToInt(updateGroups / 65535f));
+    updateGroupsX = Mathf.CeilToInt(updateGroups / (float)updateGroupsY);
+    boidComputeShader.SetInt("updateGroupsX", updateGroupsX);
 
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 24);
@@ -260,7 +266,7 @@ public class Main3D : MonoBehaviour
       gridShader.Dispatch(rearrangeBoidsKernel, boidGroupsX, boidGroupsY, 1);
 
       // Compute boid behaviours
-      boidComputeShader.Dispatch(updateBoidsKernel, boidGroupsX, boidGroupsY, 1);
+      boidComputeShader.Dispatch(updateBoidsKernel, updateGroupsX, updateGroupsY, 1);
     }
     else
     {
