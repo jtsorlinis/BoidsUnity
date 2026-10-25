@@ -1,0 +1,50 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+  <Style src="BoidsUI.uss" />
+  <ui:VisualElement name="hud" class="hud" picking-mode="Ignore">
+    <ui:VisualElement name="card" class="card">
+      <ui:VisualElement class="header">
+        <ui:Label text="Boids" class="title" />
+        <ui:VisualElement name="fps-badge" class="fps-badge">
+          <ui:Label name="fps" text="0" class="fps-value" />
+          <ui:Label text="FPS" class="fps-unit" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+
+      <ui:VisualElement class="row">
+        <ui:Label text="View" class="row-label" />
+        <ui:VisualElement class="segmented">
+          <ui:Button name="view-2d" text="2D" focusable="false" class="segment" />
+          <ui:Button name="view-3d" text="3D" focusable="false" class="segment" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+
+      <ui:VisualElement class="row">
+        <ui:Label text="Compute" class="row-label" />
+        <ui:VisualElement class="segmented">
+          <ui:Button name="mode-cpu" text="CPU" focusable="false" class="segment" />
+          <ui:Button name="mode-gpu" text="GPU" focusable="false" class="segment" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+
+      <ui:VisualElement class="row row--slider">
+        <ui:Label text="Count" class="row-label" />
+        <ui:Label name="boid-count" text="32" class="row-value" />
+      </ui:VisualElement>
+      <ui:Slider name="boid-slider" low-value="5" high-value="16" value="5" focusable="false" class="boid-slider" />
+      <ui:VisualElement class="slider-range">
+        <ui:Label name="boid-min" text="32" class="slider-range-label" />
+        <ui:Label name="boid-max" text="65,536" class="slider-range-label" />
+      </ui:VisualElement>
+
+      <ui:VisualElement name="gpu-callout" class="gpu-callout">
+        <ui:VisualElement class="gpu-callout__header">
+          <ui:Label name="gpu-callout-text" text="That's the CPU limit. The GPU can run up to 67 million boids." class="gpu-callout__text" />
+          <ui:Button name="gpu-callout-close" text="×" focusable="false" class="gpu-callout__close" />
+        </ui:VisualElement>
+        <ui:Button name="gpu-callout-switch" text="Switch to GPU" focusable="false" class="gpu-callout__button" />
+      </ui:VisualElement>
+
+      <ui:Label name="hint" text="Drag to pan · Scroll to zoom" class="hint" />
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

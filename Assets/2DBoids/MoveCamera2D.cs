@@ -1,10 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 public class MoveCamera2D : MonoBehaviour
 {
+  // Same 0.1 scale the old Input Manager axes applied to mouse movement and the scroll wheel
+  const float pointerSensitivity = 0.1f;
+  const float scrollSensitivity = 0.1f;
+
   Camera cam;
   float zoom;
   float origZoom;
@@ -25,21 +29,38 @@ public class MoveCamera2D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject())
+    var pointer = Pointer.current;
+    var mouse = Mouse.current;
+    var keyboard = Keyboard.current;
+    if (pointer == null)
+    {
+      return;
+    }
+
+    // Left or right button (or a touch) drags, unless the press started on the panel
+    var pointerPosition = pointer.position.ReadValue();
+    bool pressed = pointer.press.wasPressedThisFrame || (mouse != null && mouse.rightButton.wasPressedThisFrame);
+    bool held = pointer.press.isPressed || (mouse != null && mouse.rightButton.isPressed);
+    if (pressed && !BoidsUI.IsPointerOverUI(pointerPosition))
     {
       Cursor.lockState = CursorLockMode.Locked;
       isDragging = true;
     }
-    if (Input.GetMouseButtonUp(0))
+    if (isDragging && !held)
     {
       Cursor.lockState = CursorLockMode.None;
       isDragging = false;
     }
 
     float panSpeed = cam.orthographicSize / 57.5f;
-    var mouseX = Input.GetAxis("Mouse X") * panSpeed;
-    var mouseY = Input.GetAxis("Mouse Y") * panSpeed;
-    var vscroll = Input.GetAxis("Mouse ScrollWheel");
+    var pan = pointer.delta.ReadValue() * (pointerSensitivity * panSpeed);
+    var vscroll = mouse != null ? mouse.scroll.ReadValue().y * scrollSensitivity : 0;
+
+    // Don't zoom while scrolling over the panel
+    if (vscroll != 0 && BoidsUI.IsPointerOverUI(pointerPosition))
+    {
+      vscroll = 0;
+    }
 
     // Zoom
     var zoomSpeed = cam.orthographicSize / 2;
@@ -52,11 +73,11 @@ public class MoveCamera2D : MonoBehaviour
     // Pan
     if (isDragging)
     {
-      cam.transform.Translate(-mouseX, -mouseY, 0);
+      cam.transform.Translate(-pan.x, -pan.y, 0);
     }
 
     // Quit on escape
-    if (Input.GetKey("escape"))
+    if (keyboard != null && keyboard.escapeKey.isPressed)
     {
       Application.Quit();
     }
