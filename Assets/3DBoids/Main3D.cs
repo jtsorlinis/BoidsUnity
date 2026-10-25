@@ -40,8 +40,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader boidComputeShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
-  RenderParams rp, shadowRp;
-  int shadowStride => numBoids >= 1 << 20 ? 2 : 1;
+  RenderParams rp;
   Mesh triangleMesh;
   GraphicsBuffer meshPositions, meshNormals;
   [SerializeField] Transform floorPlane;
@@ -163,7 +162,7 @@ public class Main3D : MonoBehaviour
     rp = new RenderParams(boidMaterial);
     rp.matProps = new MaterialPropertyBlock();
     rp.matProps.SetBuffer("boids", boidBuffer);
-    rp.shadowCastingMode = ShadowCastingMode.Off;
+    rp.shadowCastingMode = ShadowCastingMode.On;
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, 2 * new Vector3(xBound + 1, yBound + 1, zBound + 1));
 
@@ -174,10 +173,6 @@ public class Main3D : MonoBehaviour
     rp.matProps.SetBuffer("meshPositions", meshPositions);
     rp.matProps.SetBuffer("meshNormals", meshNormals);
     rp.matProps.SetInteger("vertCount", triangleMesh.vertices.Length);
-    rp.matProps.SetInteger("shadowStride", shadowStride);
-    rp.matProps.SetFloat("shadowScale", Mathf.Sqrt(shadowStride));
-    shadowRp = rp;
-    shadowRp.shadowCastingMode = ShadowCastingMode.ShadowsOnly;
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -289,7 +284,6 @@ public class Main3D : MonoBehaviour
     }
 
     Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertices.Length);
-    Graphics.RenderPrimitives(shadowRp, MeshTopology.Triangles, numBoids / shadowStride * triangleMesh.vertices.Length);
   }
 
   void MergedBehaviours(ref Boid3D boid)
