@@ -9,6 +9,9 @@
     <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1" style="width: 100vw; height: 100vh; background: {{{ BACKGROUND_FILENAME ? 'url(\'Build/' + BACKGROUND_FILENAME.replace(/'/g, '%27') + '\') center / cover' : BACKGROUND_COLOR }}}"></canvas>
     <script src="Build/{{{ LOADER_FILENAME }}}"></script>
     <script>
+      // Right-drag moves the camera, so keep the browser menu off the canvas
+      document.querySelector("#unity-canvas").addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         // Mobile device style: fill the whole browser client area with the game canvas:
         var meta = document.createElement('meta');

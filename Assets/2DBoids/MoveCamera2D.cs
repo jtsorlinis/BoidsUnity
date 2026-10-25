@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 public class MoveCamera2D : MonoBehaviour
 {
@@ -25,12 +24,13 @@ public class MoveCamera2D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject())
+    // Left or right button drags, unless the press started on the panel
+    if ((Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) && !BoidsUI.IsPointerOverUI(Input.mousePosition))
     {
       Cursor.lockState = CursorLockMode.Locked;
       isDragging = true;
     }
-    if (Input.GetMouseButtonUp(0))
+    if (isDragging && !Input.GetMouseButton(0) && !Input.GetMouseButton(1))
     {
       Cursor.lockState = CursorLockMode.None;
       isDragging = false;
@@ -40,6 +40,12 @@ public class MoveCamera2D : MonoBehaviour
     var mouseX = Input.GetAxis("Mouse X") * panSpeed;
     var mouseY = Input.GetAxis("Mouse Y") * panSpeed;
     var vscroll = Input.GetAxis("Mouse ScrollWheel");
+
+    // Don't zoom while scrolling over the panel
+    if (vscroll != 0 && BoidsUI.IsPointerOverUI(Input.mousePosition))
+    {
+      vscroll = 0;
+    }
 
     // Zoom
     var zoomSpeed = cam.orthographicSize / 2;

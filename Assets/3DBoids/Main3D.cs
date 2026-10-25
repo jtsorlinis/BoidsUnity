@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Unity.Mathematics;
@@ -20,6 +19,7 @@ public class Main3D : MonoBehaviour
   [Header("Performance")]
   bool useGpu = false;
   [SerializeField] int numBoids = 32;
+  int pendingNumBoids;
 
   [Header("Settings")]
   [SerializeField] float maxSpeed = 2f;
@@ -33,10 +33,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] float alignmentFactor = 5;
 
   [Header("Prefabs")]
-  [SerializeField] Text fpsText;
-  [SerializeField] Text boidText;
-  [SerializeField] Slider boidSlider;
-  [SerializeField] Button modeButton;
+  [SerializeField] BoidsUI ui;
   [SerializeField] ComputeShader boidComputeShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
@@ -78,14 +75,17 @@ public class Main3D : MonoBehaviour
 
   void Awake()
   {
-    boidSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
+    ui.SetLimits(cpuLimit, gpuLimit);
+    ui.SetGpu(useGpu);
+    ui.NumBoidsChanged += SetNumBoids;
+    ui.GpuChanged += SetGpu;
     triangleMesh = Meshes.MakeTriangle();
   }
 
   // Start is called before the first frame update
   void Start()
   {
-    boidText.text = "Boids: " + numBoids;
+    ui.SetNumBoids(numBoids);
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
     Camera.main.transform.SetPositionAndRotation(new Vector3(0, 0, -spaceBounds * 3.8f), Quaternion.identity);
     GetComponent<MoveCamera3D>().Start();
@@ -240,7 +240,15 @@ public class Main3D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    fpsText.text = "FPS: " + (int)(1 / Time.smoothDeltaTime);
+    // Restart here rather than from the UI callback, which can run after this frame's draw calls
+    // and free the buffers they use before the frame renders
+    if (pendingNumBoids > 0)
+    {
+      numBoids = Mathf.Min(pendingNumBoids, useGpu ? gpuLimit : cpuLimit);
+      pendingNumBoids = 0;
+      OnDestroy();
+      Start();
+    }
 
     if (useGpu)
     {
@@ -425,30 +433,28 @@ public class Main3D : MonoBehaviour
     }
   }
 
-  public void SliderChange(float val)
+  void SetNumBoids(int count)
   {
-    numBoids = (int)Mathf.Pow(2, val);
-    var limit = useGpu ? gpuLimit : cpuLimit;
-    if (numBoids > limit)
-    {
-      numBoids = limit;
-    }
-    OnDestroy();
-    Start();
+    pendingNumBoids = count;
   }
 
-  public void ModeChange()
+  void SetGpu(bool gpu)
   {
-    useGpu = !useGpu;
-    modeButton.image.color = useGpu ? Color.green : Color.red;
-    modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
-    boidSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
+    useGpu = gpu;
 
     if (useGpu)
     {
       gridDirty = true;
       return;
     }
+
+    // Too many boids for the CPU arrays, start over at the CPU limit
+    if (numBoids > cpuLimit)
+    {
+      SetNumBoids(cpuLimit);
+      return;
+    }
+
     var readback = AsyncGPUReadback.Request(boidBuffer);
     readback.WaitForCompletion();
 
@@ -457,11 +463,6 @@ public class Main3D : MonoBehaviour
     {
       readback.GetData<Boid3D>().CopyTo(boids);
     }
-  }
-
-  public void SwitchTo2D()
-  {
-    UnityEngine.SceneManagement.SceneManager.LoadScene("Boids2DScene");
   }
 
   void OnDestroy()

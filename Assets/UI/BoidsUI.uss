@@ -1,0 +1,304 @@
+/* Rules are scoped under .card so they outrank the default runtime theme's single-class selectors.
+   Colours inside the card are opaque: the project blends in linear space, which makes translucent
+   whites render much brighter than they would on the web. */
+
+:root {
+    --text: rgb(237, 237, 240);
+    --text-muted: rgb(158, 158, 166);
+    --text-faint: rgb(112, 112, 122);
+    --surface: rgba(22, 23, 28, 0.92);
+    --border: rgb(58, 59, 68);
+    --control: rgb(48, 49, 57);
+    --control-hover: rgb(62, 63, 72);
+    --selected: rgb(94, 95, 105);
+    --track: rgb(70, 71, 81);
+    --accent: rgb(10, 132, 255);
+    --accent-hover: rgb(42, 150, 255);
+    --callout: rgb(21, 38, 62);
+    --callout-border: rgb(36, 70, 114);
+    --good: rgb(48, 209, 88);
+    --ok: rgb(255, 214, 10);
+    --bad: rgb(255, 69, 58);
+}
+
+.hud {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: flex-start;
+    padding: 12px;
+}
+
+.card {
+    width: 256px;
+    padding: 12px 14px 10px 14px;
+    background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--border);
+    border-radius: 12px;
+}
+
+.card .unity-label {
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+    font-size: 13px;
+}
+
+/* Header */
+
+.card .header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.card .title {
+    font-size: 17px;
+    -unity-font-style: bold;
+}
+
+.card .fps-badge {
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background-color: var(--control);
+}
+
+.card .fps-value {
+    min-width: 24px;
+    margin-right: 4px;
+    -unity-text-align: middle-right;
+    -unity-font-style: bold;
+    color: var(--text-muted);
+    transition-property: color;
+    transition-duration: 0.3s;
+}
+
+.card .fps-unit {
+    font-size: 11px;
+    color: var(--text-faint);
+}
+
+.card .fps--good .fps-value {
+    color: var(--good);
+}
+
+.card .fps--ok .fps-value {
+    color: var(--ok);
+}
+
+.card .fps--bad .fps-value {
+    color: var(--bad);
+}
+
+/* Label / control rows */
+
+.card .row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.card .row--slider {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.card .row-label {
+    color: var(--text-muted);
+}
+
+.card .row-value {
+    -unity-font-style: bold;
+}
+
+/* Segmented control */
+
+.card .segmented {
+    flex-direction: row;
+    width: 132px;
+    padding: 2px;
+    border-radius: 8px;
+    background-color: var(--control);
+}
+
+.card .segment {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--text-muted);
+    font-size: 13px;
+    -unity-font-style: bold;
+    transition-property: background-color, color;
+    transition-duration: 0.12s;
+}
+
+.card .segment:hover {
+    background-color: var(--control-hover);
+    color: var(--text);
+}
+
+.card .segment:active {
+    background-color: var(--selected);
+}
+
+.card .segment--selected,
+.card .segment--selected:hover {
+    background-color: var(--selected);
+    color: var(--text);
+}
+
+/* Slider */
+
+.card .boid-slider {
+    margin: 0;
+    padding: 0;
+    height: 22px;
+}
+
+.card .boid-slider .unity-base-slider__input {
+    margin: 0;
+    padding: 0;
+}
+
+.card .boid-slider .unity-base-slider__tracker {
+    top: 50%;
+    height: 4px;
+    margin-top: -2px;
+    left: 0;
+    right: 0;
+    border-width: 0;
+    border-radius: 2px;
+    background-color: var(--track);
+}
+
+.card .boid-slider .unity-base-slider__fill {
+    border-radius: 2px;
+    background-color: var(--accent);
+}
+
+.card .boid-slider .unity-base-slider__dragger {
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    margin-left: 0;
+    border-width: 0;
+    border-radius: 8px;
+    background-color: rgb(255, 255, 255);
+    transition-property: scale;
+    transition-duration: 0.1s;
+}
+
+.card .boid-slider:hover .unity-base-slider__dragger {
+    scale: 1.12 1.12;
+}
+
+.card .boid-slider .unity-base-slider__dragger-border {
+    display: none;
+}
+
+.card .slider-range {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.card .slider-range-label {
+    font-size: 11px;
+    color: var(--text-faint);
+}
+
+/* GPU callout */
+
+.card .gpu-callout {
+    display: none;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-width: 1px;
+    border-color: var(--callout-border);
+    border-radius: 8px;
+    background-color: var(--callout);
+    opacity: 0;
+    translate: 0 -4px;
+    transition-property: opacity, translate;
+    transition-duration: 0.25s;
+}
+
+.card .gpu-callout--open {
+    display: flex;
+}
+
+.card .gpu-callout--shown {
+    opacity: 1;
+    translate: 0 0;
+}
+
+.card .gpu-callout__header {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.card .gpu-callout__text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 12px;
+    white-space: normal;
+}
+
+.card .gpu-callout__close {
+    width: 18px;
+    height: 18px;
+    margin: -4px -4px 0 6px;
+    padding: 0;
+    border-width: 0;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.card .gpu-callout__close:hover {
+    background-color: var(--control-hover);
+    color: var(--text);
+}
+
+.card .gpu-callout__button {
+    height: 28px;
+    margin: 8px 0 0 0;
+    border-width: 0;
+    border-radius: 6px;
+    background-color: var(--accent);
+    color: rgb(255, 255, 255);
+    font-size: 13px;
+    -unity-font-style: bold;
+    transition-property: background-color;
+    transition-duration: 0.12s;
+}
+
+.card .gpu-callout__button:hover,
+.card .gpu-callout__button:hover:active {
+    background-color: var(--accent-hover);
+}
+
+/* Footer */
+
+.card .hint {
+    padding-top: 8px;
+    border-top-width: 1px;
+    border-color: var(--border);
+    font-size: 12px;
+    color: var(--text-faint);
+    white-space: normal;
+}

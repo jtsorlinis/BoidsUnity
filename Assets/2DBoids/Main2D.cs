@@ -19,6 +19,7 @@ public class Main2D : MonoBehaviour
 
   [Header("Performance")]
   [SerializeField] int numBoids = 500;
+  int pendingNumBoids;
   bool useGpu = false;
 
   [Header("Settings")]
@@ -33,10 +34,7 @@ public class Main2D : MonoBehaviour
   [SerializeField] float alignmentFactor = 5;
 
   [Header("Prefabs")]
-  [SerializeField] Text fpsText;
-  [SerializeField] Text boidText;
-  [SerializeField] Slider numSlider;
-  [SerializeField] Button modeButton;
+  [SerializeField] BoidsUI ui;
   [SerializeField] ComputeShader boidShader;
   [SerializeField] ComputeShader rasterShader;
   [SerializeField] ComputeShader gridShader;
@@ -77,7 +75,10 @@ public class Main2D : MonoBehaviour
 
   void Awake()
   {
-    numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
+    ui.SetLimits(cpuLimit, gpuLimit);
+    ui.SetGpu(useGpu);
+    ui.NumBoidsChanged += SetNumBoids;
+    ui.GpuChanged += SetGpu;
   }
 
   // Start is called before the first frame update
@@ -88,7 +89,7 @@ public class Main2D : MonoBehaviour
     Camera.main.transform.position = new Vector3(0, 0, -10);
     GetComponent<MoveCamera2D>().Start();
 
-    boidText.text = "Boids: " + numBoids;
+    ui.SetNumBoids(numBoids);
     xBound = Camera.main.orthographicSize * Camera.main.aspect - edgeMargin;
     yBound = Camera.main.orthographicSize - edgeMargin;
     turnSpeed = maxSpeed * 3;
@@ -163,9 +164,12 @@ public class Main2D : MonoBehaviour
 
     if (rasterImage == null)
     {
+      // Full screen canvas just for the boid raster, drawn underneath the UI Toolkit panel
+      var rasterCanvas = new GameObject("BoidRasterCanvas", typeof(Canvas)).GetComponent<Canvas>();
+      rasterCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+      rasterCanvas.sortingOrder = -1;
       rasterImage = new GameObject("BoidRasterOutput", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage)).GetComponent<RawImage>();
-      rasterImage.transform.SetParent(fpsText.canvas.transform, false);
-      rasterImage.transform.SetAsFirstSibling();
+      rasterImage.transform.SetParent(rasterCanvas.transform, false);
       rasterImage.raycastTarget = false;
       var rect = rasterImage.rectTransform;
       rect.anchorMin = Vector2.zero;
@@ -244,7 +248,15 @@ public class Main2D : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    fpsText.text = "FPS: " + (int)(1 / Time.smoothDeltaTime);
+    // Restart here rather than from the UI callback, which can run after this frame's dispatches
+    // and free the buffers they use before the frame renders
+    if (pendingNumBoids > 0)
+    {
+      numBoids = Mathf.Min(pendingNumBoids, useGpu ? gpuLimit : cpuLimit);
+      pendingNumBoids = 0;
+      OnDestroy();
+      Start();
+    }
 
     PrepareRaster();
 
@@ -468,30 +480,28 @@ public class Main2D : MonoBehaviour
     }
   }
 
-  public void SliderChange(float val)
+  void SetNumBoids(int count)
   {
-    numBoids = (int)Mathf.Pow(2, val);
-    var limit = useGpu ? gpuLimit : cpuLimit;
-    if (numBoids > limit)
-    {
-      numBoids = limit;
-    }
-    OnDestroy();
-    Start();
+    pendingNumBoids = count;
   }
 
-  public void ModeChange()
+  void SetGpu(bool gpu)
   {
-    useGpu = !useGpu;
-    modeButton.image.color = useGpu ? Color.green : Color.red;
-    modeButton.GetComponentInChildren<Text>().text = useGpu ? "GPU" : "CPU";
-    numSlider.maxValue = Mathf.Log(useGpu ? gpuLimit : cpuLimit, 2);
+    useGpu = gpu;
 
     if (useGpu)
     {
       gridDirty = true;
       return;
     }
+
+    // Too many boids for the CPU arrays, start over at the CPU limit
+    if (numBoids > cpuLimit)
+    {
+      SetNumBoids(cpuLimit);
+      return;
+    }
+
     var readback = AsyncGPUReadback.Request(boidBuffer);
     readback.WaitForCompletion();
 
@@ -500,11 +510,6 @@ public class Main2D : MonoBehaviour
     {
       readback.GetData<Boid>().CopyTo(boids);
     }
-  }
-
-  public void SwitchTo3D()
-  {
-    UnityEngine.SceneManagement.SceneManager.LoadScene("Boids3DScene");
   }
 
   void OnDestroy()
