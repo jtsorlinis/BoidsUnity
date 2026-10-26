@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 using Unity.Mathematics;
 using Unity.Collections;
 
@@ -20,6 +19,8 @@ public class Main3D : MonoBehaviour
   bool useGpu = false;
   [SerializeField] int numBoids = 32;
   int pendingNumBoids;
+  // 8192 shadow map, or 4096: ~7% cheaper at 16M boids but softer close-ups
+  [SerializeField] bool highResShadows = true;
 
   [Header("Settings")]
   [SerializeField] float maxSpeed = 2f;
@@ -37,8 +38,7 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader boidComputeShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
-  RenderParams rp, shadowRp;
-  int shadowStride => numBoids >= 1 << 20 ? 2 : 1;
+  RenderParams rp;
   Mesh triangleMesh;
   GraphicsBuffer meshPositions, meshNormals;
   [SerializeField] Transform floorPlane;
@@ -89,7 +89,6 @@ public class Main3D : MonoBehaviour
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
     Camera.main.transform.SetPositionAndRotation(new Vector3(0, 0, -spaceBounds * 3.8f), Quaternion.identity);
     GetComponent<MoveCamera3D>().Start();
-    ((UniversalRenderPipelineAsset)GraphicsSettings.currentRenderPipeline).shadowDistance = spaceBounds * 6.5f;
     floorPlane.localScale = new Vector3(spaceBounds / 2.5f, 1, spaceBounds / 2.5f);
     floorPlane.position = new Vector3(0, -spaceBounds - 1f, 0);
     xBound = 2 * spaceBounds - edgeMargin;
@@ -163,6 +162,7 @@ public class Main3D : MonoBehaviour
     rp = new RenderParams(boidMaterial);
     rp.matProps = new MaterialPropertyBlock();
     rp.matProps.SetBuffer("boids", boidBuffer);
+    // BoidShadows draws the boids into its own shadow map
     rp.shadowCastingMode = ShadowCastingMode.Off;
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, 2 * new Vector3(xBound + 1, yBound + 1, zBound + 1));
@@ -174,10 +174,11 @@ public class Main3D : MonoBehaviour
     rp.matProps.SetBuffer("meshPositions", meshPositions);
     rp.matProps.SetBuffer("meshNormals", meshNormals);
     rp.matProps.SetInteger("vertCount", triangleMesh.vertices.Length);
-    rp.matProps.SetInteger("shadowStride", shadowStride);
-    rp.matProps.SetFloat("shadowScale", Mathf.Sqrt(shadowStride));
-    shadowRp = rp;
-    shadowRp.shadowCastingMode = ShadowCastingMode.ShadowsOnly;
+
+    // Shadows only need to cover the floor, and the flock with some room to overshoot its bounds
+    var shadowBounds = new Bounds();
+    shadowBounds.SetMinMax(new Vector3(-2 * spaceBounds, floorPlane.position.y, -2 * spaceBounds), new Vector3(2 * spaceBounds, spaceBounds, 2 * spaceBounds));
+    BoidShadows.Set(boidMaterial, rp.matProps, numBoids * triangleMesh.vertices.Length, shadowBounds, highResShadows ? 8192 : 4096);
 
     // Spatial grid setup
     gridCellSize = visualRange;
@@ -297,7 +298,6 @@ public class Main3D : MonoBehaviour
     }
 
     Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertices.Length);
-    Graphics.RenderPrimitives(shadowRp, MeshTopology.Triangles, numBoids / shadowStride * triangleMesh.vertices.Length);
   }
 
   void MergedBehaviours(ref Boid3D boid)
@@ -467,6 +467,7 @@ public class Main3D : MonoBehaviour
 
   void OnDestroy()
   {
+    BoidShadows.Clear();
     if(boids.IsCreated)
     {
       boids.Dispose();
