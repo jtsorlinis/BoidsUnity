@@ -88,7 +88,7 @@ public class Main3D : MonoBehaviour
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
     Camera.main.transform.SetPositionAndRotation(new Vector3(0, 0, -spaceBounds * 3.8f), Quaternion.identity);
     GetComponent<MoveCamera3D>().Start();
-    // URP fits one shadow cascade around the camera out to the shadow distance: far enough to cover the flock from the start
+    // URP fits its shadow cascades around the camera out to the shadow distance: far enough to cover the flock from the start
     var pipeline = (UniversalRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
     pipeline.shadowDistance = spaceBounds * 6.5f;
     pipeline.mainLightShadowmapResolution = 16384;
