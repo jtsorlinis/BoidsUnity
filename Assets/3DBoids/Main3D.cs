@@ -19,6 +19,8 @@ public class Main3D : MonoBehaviour
   bool useGpu = false;
   [SerializeField] int numBoids = 32;
   int pendingNumBoids;
+  // 8192 shadow map, or 4096: ~7% cheaper at 16M boids but softer close-ups
+  [SerializeField] bool highResShadows = true;
 
   [Header("Settings")]
   [SerializeField] float maxSpeed = 2f;
@@ -176,7 +178,7 @@ public class Main3D : MonoBehaviour
     // Shadows only need to cover the floor, and the flock with some room to overshoot its bounds
     var shadowBounds = new Bounds();
     shadowBounds.SetMinMax(new Vector3(-2 * spaceBounds, floorPlane.position.y, -2 * spaceBounds), new Vector3(2 * spaceBounds, spaceBounds, 2 * spaceBounds));
-    BoidShadows.Set(boidMaterial, rp.matProps, numBoids * triangleMesh.vertices.Length, shadowBounds);
+    BoidShadows.Set(boidMaterial, rp.matProps, numBoids * triangleMesh.vertices.Length, shadowBounds, highResShadows ? 8192 : 4096);
 
     // Spatial grid setup
     gridCellSize = visualRange;

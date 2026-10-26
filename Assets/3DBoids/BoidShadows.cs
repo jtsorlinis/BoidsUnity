@@ -11,17 +11,18 @@ public class BoidShadows : ScriptableRendererFeature
 {
   static Material material;
   static MaterialPropertyBlock properties;
-  static int shaderPass, vertexCount;
+  static int shaderPass, vertexCount, shadowmapResolution;
   static Bounds bounds;
 
-  // Main3D hands over how it draws the boids, and the box the floor and flock sit in
-  public static void Set(Material boidMaterial, MaterialPropertyBlock boidProperties, int boidVertexCount, Bounds sceneBounds)
+  // Main3D hands over how it draws the boids, the box the floor and flock sit in, and the shadow map size
+  public static void Set(Material boidMaterial, MaterialPropertyBlock boidProperties, int boidVertexCount, Bounds sceneBounds, int shadowResolution)
   {
     material = boidMaterial;
     properties = boidProperties;
     shaderPass = boidMaterial.FindPass("ShadowCaster");
     vertexCount = boidVertexCount;
     bounds = sceneBounds;
+    shadowmapResolution = shadowResolution;
   }
 
   public static void Clear()
@@ -102,7 +103,8 @@ public class BoidShadows : ScriptableRendererFeature
         return;
       }
 
-      int resolution = shadowData.mainLightShadowmapWidth;
+      // Main3D's pick, not the pipeline asset's: URP's own shadow map has nothing to draw
+      int resolution = shadowmapResolution;
       FitToView(cameraData.camera, light.localToWorldMatrix.rotation, resolution, out var view, out var proj);
 
       using var builder = renderGraph.AddRasterRenderPass<PassData>("Boid Shadows", out var data);
