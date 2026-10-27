@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -19,10 +17,11 @@ public class MoveCamera3D : MonoBehaviour
   float yRotationLimit = 88f;
   float sensitivity = 1.5f;
 
-  // Start is called before the first frame update
-  public void Start()
+  // Puts the camera here, looking down +z
+  public void ResetView(Vector3 position)
   {
     cam = Camera.main;
+    cam.transform.SetPositionAndRotation(position, Quaternion.identity);
     rotation = Vector3.zero;
   }
 
