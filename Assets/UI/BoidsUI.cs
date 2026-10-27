@@ -199,22 +199,12 @@ public class BoidsUI : MonoBehaviour
     float maxExponent = Log2(maxBoids);
     float exponent = Mathf.Clamp(Log2(numBoids), minExponent, maxExponent);
     bool syncValue = slider.value > maxExponent || CountFor(slider.value) != numBoids;
-    if (maxExponent >= slider.highValue)
+    slider.highValue = Mathf.Max(slider.highValue, maxExponent);
+    if (syncValue)
     {
-      slider.highValue = maxExponent;
-      if (syncValue)
-      {
-        slider.SetValueWithoutNotify(exponent);
-      }
+      slider.SetValueWithoutNotify(exponent);
     }
-    else
-    {
-      if (syncValue)
-      {
-        slider.SetValueWithoutNotify(exponent);
-      }
-      slider.highValue = maxExponent;
-    }
+    slider.highValue = maxExponent;
 
     countLabel.text = Format(numBoids);
     minLabel.text = Format(1 << minExponent);

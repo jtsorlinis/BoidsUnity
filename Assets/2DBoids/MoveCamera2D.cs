@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -11,18 +9,18 @@ public class MoveCamera2D : MonoBehaviour
 
   Camera cam;
   float zoom;
-  float origZoom;
   float maxZoom = 2;
   float minZoom;
   float smoothing = 10;
   bool isDragging = false;
 
-  // Start is called before the first frame update
-  public void Start()
+  // Centres the camera at this orthographic size, which is also the furthest it zooms out
+  public void ResetView(float size)
   {
     cam = Camera.main;
-    zoom = cam.orthographicSize;
-    origZoom = zoom;
+    cam.orthographicSize = size;
+    cam.transform.position = new Vector3(0, 0, -10);
+    zoom = size;
     minZoom = zoom + (Mathf.Sqrt(zoom) / 2);
   }
 

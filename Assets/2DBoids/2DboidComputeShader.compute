@@ -28,14 +28,10 @@ float gridInverseCellSize;
 uint gridDimY;
 uint gridDimX;
 
-uint2 getGridLocation(Boid boid) {
+uint getGridID(Boid boid) {
   int x = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
   int y = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
-  return uint2(x, y);
-}
-
-uint getGridID(uint2 pos) {
-  return (gridDimX * pos.y) + pos.x;
+  return (gridDimX * y) + x;
 }
 
 uint getBoidIndex(uint3 id) {
@@ -67,7 +63,7 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
   float2 avgVel = 0;
   uint neighbours = 0;
 
-  uint cell = getGridID(getGridLocation(boid));
+  uint cell = getGridID(boid);
 
   // Loop Around Own Cell
   [loop]
@@ -151,8 +147,8 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
   uint last = min(first + searchBlockSize, numBoids) - 1;
   uint i = first + localID;
   Boid boid = boidsIn[min(i, last)];
-  uint firstCell = getGridID(getGridLocation(boidsIn[first]));
-  uint lastCell = getGridID(getGridLocation(boidsIn[last]));
+  uint firstCell = getGridID(boidsIn[first]);
+  uint lastCell = getGridID(boidsIn[last]);
 
   MergedBehaviours(boid, localID, firstCell, lastCell);
   LimitSpeed(boid);
@@ -163,7 +159,7 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
 
   if (i < numBoids) {
     boidsOut[i] = boid;
-    InterlockedAdd(gridOffsetBufferIn[getGridID(getGridLocation(boid))], 1, gridBuffer[i]);
+    InterlockedAdd(gridOffsetBufferIn[getGridID(boid)], 1, gridBuffer[i]);
   }
 }
 

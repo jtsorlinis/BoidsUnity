@@ -12,7 +12,8 @@ struct Boid3D
 
 public class Main3D : MonoBehaviour
 {
-  const float blockSize = 1024f;
+  // Grid cells per prefix sum group, the shader's blockCells
+  const int blockCells = 1024;
   const int boidBlockSize = 256;
   const int searchBlockSize = 64;
 
@@ -69,8 +70,9 @@ public class Main3D : MonoBehaviour
   float gridCellSize;
   bool gridDirty;
 
-  readonly int cpuLimit = 1 << 16;
-  readonly int gpuLimit = (int)blockSize * 65535 / 4;
+  const int cpuLimit = 1 << 16;
+  // Highest count the slider offers (about 16M)
+  const int gpuLimit = 16776960;
 
   void Awake()
   {
@@ -86,8 +88,7 @@ public class Main3D : MonoBehaviour
   {
     ui.SetNumBoids(numBoids);
     spaceBounds = Mathf.Max(1, Mathf.Pow(numBoids, 1f / 3f) / 7.5f + edgeMargin);
-    Camera.main.transform.SetPositionAndRotation(new Vector3(0, 0, -spaceBounds * 3.8f), Quaternion.identity);
-    GetComponent<MoveCamera3D>().Start();
+    GetComponent<MoveCamera3D>().ResetView(new Vector3(0, 0, -spaceBounds * 3.8f));
     // URP fits its shadow cascades around the camera out to the shadow distance: far enough to cover the flock from the start
     var pipeline = (UniversalRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
     pipeline.shadowDistance = spaceBounds * 6.5f;
@@ -110,14 +111,10 @@ public class Main3D : MonoBehaviour
     prefixSumKernel = gridShader.FindKernel("PrefixSum");
     rearrangeBoidsKernel = gridShader.FindKernel("RearrangeBoids");
 
-    int boidGroups = Mathf.CeilToInt(numBoids / (float)boidBlockSize);
-    boidGroupsY = Mathf.Max(1, Mathf.CeilToInt(boidGroups / 65535f));
-    boidGroupsX = Mathf.CeilToInt(boidGroups / (float)boidGroupsY);
+    (boidGroupsX, boidGroupsY) = DispatchGroups(boidBlockSize);
     boidComputeShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
     gridShader.SetInt("boidStride", boidGroupsX * boidBlockSize);
-    int updateGroups = Mathf.CeilToInt(numBoids / (float)searchBlockSize);
-    updateGroupsY = Mathf.Max(1, Mathf.CeilToInt(updateGroups / 65535f));
-    updateGroupsX = Mathf.CeilToInt(updateGroups / (float)updateGroupsY);
+    (updateGroupsX, updateGroupsY) = DispatchGroups(searchBlockSize);
     boidComputeShader.SetInt("updateGroupsX", updateGroupsX);
 
     // Setup compute buffer
@@ -138,12 +135,21 @@ public class Main3D : MonoBehaviour
     boidComputeShader.SetFloat("separationFactor", separationFactor);
     boidComputeShader.SetFloat("alignmentFactor", alignmentFactor);
 
-    // Generate boids on GPU if over CPU limit
+    // Spatial grid setup
+    gridCellSize = visualRange;
+    gridDimX = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 20;
+    gridDimY = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 20;
+    gridDimZ = Mathf.FloorToInt(zBound * 2 / gridCellSize) + 20;
+    gridTotalCells = gridDimX * gridDimY * gridDimZ;
+
+    // Generate boids (and the grid) on GPU if over CPU limit
     if (numBoids <= cpuLimit)
     {
       // Populate on CPU and send to GPU
       boids = new NativeArray<Boid3D>(numBoids, Allocator.Persistent);
       boidsTemp = new NativeArray<Boid3D>(numBoids, Allocator.Persistent);
+      grid = new int2[numBoids];
+      gridOffsets = new int[gridTotalCells];
       for (int i = 0; i < numBoids; i++)
       {
         var boid = new Boid3D();
@@ -169,38 +175,24 @@ public class Main3D : MonoBehaviour
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, 2 * new Vector3(xBound + 1, yBound + 1, zBound + 1));
 
-    meshPositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, triangleMesh.vertices.Length, 3 * sizeof(float));
+    int vertCount = triangleMesh.vertexCount;
+    meshPositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, vertCount, 3 * sizeof(float));
     meshPositions.SetData(triangleMesh.vertices);
-    meshNormals = new GraphicsBuffer(GraphicsBuffer.Target.Structured, triangleMesh.normals.Length, 3 * sizeof(float));
+    meshNormals = new GraphicsBuffer(GraphicsBuffer.Target.Structured, vertCount, 3 * sizeof(float));
     meshNormals.SetData(triangleMesh.normals);
     rp.matProps.SetBuffer("meshPositions", meshPositions);
     rp.matProps.SetBuffer("meshNormals", meshNormals);
-    rp.matProps.SetInteger("vertCount", triangleMesh.vertices.Length);
-
-    // Spatial grid setup
-    gridCellSize = visualRange;
-    gridDimX = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 20;
-    gridDimY = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 20;
-    gridDimZ = Mathf.FloorToInt(zBound * 2 / gridCellSize) + 20;
-    gridTotalCells = gridDimX * gridDimY * gridDimZ;
-
-    // Don't generate grid on CPU if over CPU limit
-    if (numBoids <= cpuLimit)
-    {
-      grid = new int2[numBoids];
-      gridOffsets = new int[gridTotalCells];
-    }
+    rp.matProps.SetInteger("vertCount", vertCount);
 
     gridBuffer = new ComputeBuffer(numBoids, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
-    blocks = Mathf.CeilToInt(gridTotalCells / blockSize);
+    blocks = Mathf.CeilToInt(gridTotalCells / (float)blockCells);
     gridSumsBuffer = new ComputeBuffer(blocks, 4);
     gridShader.SetInt("numBoids", numBoids);
     gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
-    gridShader.SetBuffer(updateGridKernel, "gridSumsBuffer", gridSumsBuffer);
 
     gridShader.SetBuffer(clearGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
@@ -282,30 +274,30 @@ public class Main3D : MonoBehaviour
       GenerateGridOffsets();
       RearrangeBoids();
 
+      float deltaTime = Time.deltaTime;
       for (int i = 0; i < numBoids; i++)
       {
         var boid = boidsTemp[i];
-        MergedBehaviours(ref boid);
+        MergedBehaviours(ref boid, deltaTime);
         LimitSpeed(ref boid);
-        KeepInBounds(ref boid);
-        boid.pos += boid.vel * Time.deltaTime;
+        KeepInBounds(ref boid, deltaTime);
+        boid.pos += boid.vel * deltaTime;
         boids[i] = boid;
       }
       boidBuffer.SetData(boids);
     }
 
-    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertices.Length);
+    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertexCount);
   }
 
-  void MergedBehaviours(ref Boid3D boid)
+  void MergedBehaviours(ref Boid3D boid, float deltaTime)
   {
     float3 center = float3.zero;
     float3 close = float3.zero;
     float3 avgVel = float3.zero;
     int neighbours = 0;
 
-    var gridXYZ = GetGridLocation(boid);
-    int gridCell = GetGridIDbyLoc(gridXYZ);
+    int gridCell = GetGridID(boid);
     int zStep = gridDimX * gridDimY;
 
     for (int z = gridCell - zStep; z <= gridCell + zStep; z += zStep)
@@ -338,11 +330,11 @@ public class Main3D : MonoBehaviour
       center /= neighbours;
       avgVel /= neighbours;
 
-      boid.vel += (center - boid.pos) * (cohesionFactor * Time.deltaTime);
-      boid.vel += (avgVel - boid.vel) * (alignmentFactor * Time.deltaTime);
+      boid.vel += (center - boid.pos) * (cohesionFactor * deltaTime);
+      boid.vel += (avgVel - boid.vel) * (alignmentFactor * deltaTime);
     }
 
-    boid.vel += close * (separationFactor * Time.deltaTime);
+    boid.vel += close * (separationFactor * deltaTime);
   }
 
   void LimitSpeed(ref Boid3D boid)
@@ -352,19 +344,19 @@ public class Main3D : MonoBehaviour
     boid.vel *= clampedSpeed / speed;
   }
 
-  void KeepInBounds(ref Boid3D boid)
+  void KeepInBounds(ref Boid3D boid, float deltaTime)
   {
     if (Mathf.Abs(boid.pos.x) > xBound)
     {
-      boid.vel.x -= Mathf.Sign(boid.pos.x) * Time.deltaTime * turnSpeed;
+      boid.vel.x -= Mathf.Sign(boid.pos.x) * deltaTime * turnSpeed;
     }
     if (Mathf.Abs(boid.pos.y) > yBound)
     {
-      boid.vel.y -= Mathf.Sign(boid.pos.y) * Time.deltaTime * turnSpeed;
+      boid.vel.y -= Mathf.Sign(boid.pos.y) * deltaTime * turnSpeed;
     }
     if (Mathf.Abs(boid.pos.z) > zBound)
     {
-      boid.vel.z -= Mathf.Sign(boid.pos.z) * Time.deltaTime * turnSpeed;
+      boid.vel.z -= Mathf.Sign(boid.pos.z) * deltaTime * turnSpeed;
     }
   }
 
@@ -376,25 +368,9 @@ public class Main3D : MonoBehaviour
     return (gridDimY * gridDimX * boidz) + (gridDimX * boidy) + boidx;
   }
 
-  int GetGridIDbyLoc(int3 pos)
-  {
-    return (gridDimY * gridDimX * pos.z) + (gridDimX * pos.y) + pos.x;
-  }
-
-  int3 GetGridLocation(Boid3D boid)
-  {
-    int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
-    int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
-    int boidz = Mathf.FloorToInt(boid.pos.z / gridCellSize + gridDimZ / 2);
-    return new int3(boidx, boidy, boidz);
-  }
-
   void ClearGrid()
   {
-    for (int i = 0; i < gridTotalCells; i++)
-    {
-      gridOffsets[i] = 0;
-    }
+    System.Array.Clear(gridOffsets, 0, gridOffsets.Length);
   }
 
   void UpdateGrid()
@@ -460,6 +436,14 @@ public class Main3D : MonoBehaviour
     {
       readback.GetData<Boid3D>().CopyTo(boids);
     }
+  }
+
+  // Groups of groupSize threads covering every boid, spilling into a second dimension past 65535 groups
+  (int x, int y) DispatchGroups(int groupSize)
+  {
+    int groups = Mathf.CeilToInt(numBoids / (float)groupSize);
+    int y = Mathf.Max(1, Mathf.CeilToInt(groups / 65535f));
+    return (Mathf.CeilToInt(groups / (float)y), y);
   }
 
   void OnDestroy()
