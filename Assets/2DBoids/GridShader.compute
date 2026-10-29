@@ -11,7 +11,7 @@ struct Boid {
 };
 
 StructuredBuffer<Boid> boids;
-RWStructuredBuffer<Boid> boidsOut;
+RWStructuredBuffer<uint> sortedIndices;
 RWStructuredBuffer<uint> gridBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
 RWStructuredBuffer<uint> gridOffsetBufferIn;
@@ -177,7 +177,7 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
   
   Boid boid = boids[i];
   uint index = gridOffsetBuffer[getGridID(boid)] + gridBuffer[i];
-  boidsOut[index] = boid;
+  sortedIndices[index] = i;
 
   // Drawing here saves a separate pass over every boid
   RasterizeBoid(boid.pos, boid.vel);

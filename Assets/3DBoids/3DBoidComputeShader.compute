@@ -23,6 +23,7 @@ uniform float yBound;
 uniform float zBound;
 
 StructuredBuffer<uint> gridOffsetBuffer;
+StructuredBuffer<uint> sortedIndices;
 RWStructuredBuffer<uint> gridOffsetBufferIn;
 RWStructuredBuffer<uint> gridBuffer;
 float gridInverseCellSize;
@@ -85,7 +86,7 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
       GroupMemoryBarrierWithGroupSync();
       if (tiled) {
         for (uint k = localID; k < tileCount; k += searchBlockSize) {
-          Boid other = boidsIn[tileStart + k];
+          Boid other = boidsIn[sortedIndices[tileStart + k]];
           tilePosVelX[k] = float4(other.pos, other.vel.x);
           tileVelYZ[k] = other.vel.yz;
         }
@@ -114,8 +115,19 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
           AddNeighbour(boid.pos, other.xyz, float3(other.w, tileVelYZ[j]), center, close, avgVel, neighbours);
         }
       } else {
-        for (uint j = start; j < end; j++) {
-          Boid other = boidsIn[j];
+        uint j = start;
+        for (; j + 3 < end; j += 4) {
+          Boid o0 = boidsIn[sortedIndices[j]];
+          Boid o1 = boidsIn[sortedIndices[j + 1]];
+          Boid o2 = boidsIn[sortedIndices[j + 2]];
+          Boid o3 = boidsIn[sortedIndices[j + 3]];
+          AddNeighbour(boid.pos, o0.pos, o0.vel, center, close, avgVel, neighbours);
+          AddNeighbour(boid.pos, o1.pos, o1.vel, center, close, avgVel, neighbours);
+          AddNeighbour(boid.pos, o2.pos, o2.vel, center, close, avgVel, neighbours);
+          AddNeighbour(boid.pos, o3.pos, o3.vel, center, close, avgVel, neighbours);
+        }
+        for (; j < end; j++) {
+          Boid other = boidsIn[sortedIndices[j]];
           AddNeighbour(boid.pos, other.pos, other.vel, center, close, avgVel, neighbours);
         }
       }
@@ -162,9 +174,9 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
   // Threads past the last boid still take part in the staging, as copies of the last boid
   uint last = min(first + searchBlockSize, numBoids) - 1;
   uint i = first + localID;
-  Boid boid = boidsIn[min(i, last)];
-  uint firstCell = getGridID(boidsIn[first]);
-  uint lastCell = getGridID(boidsIn[last]);
+  Boid boid = boidsIn[sortedIndices[min(i, last)]];
+  uint firstCell = getGridID(boidsIn[sortedIndices[first]]);
+  uint lastCell = getGridID(boidsIn[sortedIndices[last]]);
 
   MergedBehaviours(boid, localID, firstCell, lastCell);
   LimitSpeed(boid);

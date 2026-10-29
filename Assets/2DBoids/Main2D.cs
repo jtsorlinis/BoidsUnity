@@ -56,6 +56,7 @@ public class Main2D : MonoBehaviour
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
+  ComputeBuffer sortedIndexBuffer;
   ComputeBuffer gridOffsetBuffer;
   ComputeBuffer gridOffsetBufferIn;
   ComputeBuffer gridSumsBuffer;
@@ -130,8 +131,6 @@ public class Main2D : MonoBehaviour
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 16);
     boidBufferOut = new ComputeBuffer(numBoids, 16);
-    boidShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBufferOut);
-    boidShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBuffer);
     boidShader.SetInt("numBoids", numBoids);
     boidShader.SetFloat("maxSpeed", maxSpeed);
     boidShader.SetFloat("minSpeed", minSpeed);
@@ -143,7 +142,6 @@ public class Main2D : MonoBehaviour
     boidShader.SetFloat("cohesionFactor", cohesionFactor);
     boidShader.SetFloat("separationFactor", separationFactor);
     boidShader.SetFloat("alignmentFactor", alignmentFactor);
-    rasterShader.SetBuffer(rasterizeBoidsKernel, "boids", boidBuffer);
     rasterShader.SetInt("numBoids", numBoids);
 
     // Spatial grid setup
@@ -181,12 +179,12 @@ public class Main2D : MonoBehaviour
     CreateRasterTarget();
 
     gridBuffer = new ComputeBuffer(numBoids, 4);
+    sortedIndexBuffer = new ComputeBuffer(numBoids, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
     blocks = Mathf.CeilToInt(gridTotalCells / (float)blockCells);
     gridSumsBuffer = new ComputeBuffer(blocks, 4);
     gridShader.SetInt("numBoids", numBoids);
-    gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
@@ -203,8 +201,7 @@ public class Main2D : MonoBehaviour
 
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boidsOut", boidBufferOut);
+    gridShader.SetBuffer(rearrangeBoidsKernel, "sortedIndices", sortedIndexBuffer);
 
     gridShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     gridShader.SetInt("gridDimY", gridDimY);
@@ -213,11 +210,13 @@ public class Main2D : MonoBehaviour
     gridShader.SetInt("blocks", blocks);
 
     boidShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidShader.SetBuffer(updateBoidsKernel, "sortedIndices", sortedIndexBuffer);
     boidShader.SetBuffer(updateBoidsKernel, "gridOffsetBufferIn", gridOffsetBufferIn);
     boidShader.SetBuffer(updateBoidsKernel, "gridBuffer", gridBuffer);
     boidShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     boidShader.SetInt("gridDimY", gridDimY);
     boidShader.SetInt("gridDimX", gridDimX);
+    BindBoidBuffers();
     gridDirty = true;
   }
 
@@ -256,11 +255,12 @@ public class Main2D : MonoBehaviour
       gridShader.Dispatch(scanSumsKernel, 1, 1, 1);
       gridShader.Dispatch(prefixSumKernel, blocks, 1, 1);
 
-      // Rearrange boids (and draw them)
+      // Sort boid indices by cell (and draw the boids)
       gridShader.Dispatch(rearrangeBoidsKernel, boidGroupsX, boidGroupsY, 1);
 
       // Compute boid behaviours
       boidShader.Dispatch(updateBoidsKernel, updateGroupsX, updateGroupsY, 1);
+      SwapBoidBuffers();
     }
     else // CPU
     {
@@ -287,6 +287,23 @@ public class Main2D : MonoBehaviour
       boidBuffer.SetData(boids);
       rasterShader.Dispatch(rasterizeBoidsKernel, boidGroupsX, boidGroupsY, 1);
     }
+  }
+
+  // UpdateBoids reads boidBuffer (through sortedIndices) and writes the next boids to boidBufferOut in grid order,
+  // then they swap so boidBuffer holds the latest
+  void SwapBoidBuffers()
+  {
+    (boidBuffer, boidBufferOut) = (boidBufferOut, boidBuffer);
+    BindBoidBuffers();
+  }
+
+  void BindBoidBuffers()
+  {
+    gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
+    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
+    boidShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBuffer);
+    boidShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBufferOut);
+    rasterShader.SetBuffer(rasterizeBoidsKernel, "boids", boidBuffer);
   }
 
   void PrepareRaster()
@@ -503,6 +520,7 @@ public class Main2D : MonoBehaviour
     boidBuffer.Release();
     boidBufferOut.Release();
     gridBuffer.Release();
+    sortedIndexBuffer.Release();
     gridOffsetBuffer.Release();
     gridOffsetBufferIn.Release();
     gridSumsBuffer.Release();
