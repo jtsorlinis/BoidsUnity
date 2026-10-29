@@ -31,8 +31,8 @@ void RasterizeBoid(float2 pos, float2 vel) {
   float2 v1 = world1 * screenScale + screenOffset;
   float2 v2 = world2 * screenScale + screenOffset;
 
-  float2 minBounds = floor(min(v0, min(v1, v2)));
-  float2 maxBounds = ceil(max(v0, max(v1, v2)));
+  float2 minBounds = ceil(min(v0, min(v1, v2)) - 0.5);
+  float2 maxBounds = floor(max(v0, max(v1, v2)) - 0.5);
   if (maxBounds.x < 0.0 || maxBounds.y < 0.0 || minBounds.x >= rasterWidth || minBounds.y >= rasterHeight) {
     return;
   }

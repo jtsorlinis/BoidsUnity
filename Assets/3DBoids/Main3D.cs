@@ -59,6 +59,7 @@ public class Main3D : MonoBehaviour
   ComputeBuffer boidBuffer;
   ComputeBuffer boidBufferOut;
   ComputeBuffer gridBuffer;
+  ComputeBuffer sortedIndexBuffer;
   ComputeBuffer gridOffsetBuffer;
   ComputeBuffer gridOffsetBufferIn;
   ComputeBuffer gridSumsBuffer;
@@ -120,8 +121,6 @@ public class Main3D : MonoBehaviour
     // Setup compute buffer
     boidBuffer = new ComputeBuffer(numBoids, 24);
     boidBufferOut = new ComputeBuffer(numBoids, 24);
-    boidComputeShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBufferOut);
-    boidComputeShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBuffer);
     boidComputeShader.SetInt("numBoids", numBoids);
     boidComputeShader.SetFloat("maxSpeed", maxSpeed);
     boidComputeShader.SetFloat("minSpeed", minSpeed);
@@ -170,7 +169,6 @@ public class Main3D : MonoBehaviour
     // Set shader renderParams
     rp = new RenderParams(boidMaterial);
     rp.matProps = new MaterialPropertyBlock();
-    rp.matProps.SetBuffer("boids", boidBuffer);
     rp.shadowCastingMode = ShadowCastingMode.On;
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, 2 * new Vector3(xBound + 1, yBound + 1, zBound + 1));
@@ -185,12 +183,12 @@ public class Main3D : MonoBehaviour
     rp.matProps.SetInteger("vertCount", vertCount);
 
     gridBuffer = new ComputeBuffer(numBoids, 4);
+    sortedIndexBuffer = new ComputeBuffer(numBoids, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
     blocks = Mathf.CeilToInt(gridTotalCells / (float)blockCells);
     gridSumsBuffer = new ComputeBuffer(blocks, 4);
     gridShader.SetInt("numBoids", numBoids);
-    gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(updateGridKernel, "gridOffsetBuffer", gridOffsetBufferIn);
 
@@ -207,8 +205,7 @@ public class Main3D : MonoBehaviour
 
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridBuffer", gridBuffer);
     gridShader.SetBuffer(rearrangeBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boidsOut", boidBufferOut);
+    gridShader.SetBuffer(rearrangeBoidsKernel, "sortedIndices", sortedIndexBuffer);
 
     gridShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     gridShader.SetInt("gridDimY", gridDimY);
@@ -218,12 +215,14 @@ public class Main3D : MonoBehaviour
     gridShader.SetInt("blocks", blocks);
 
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
+    boidComputeShader.SetBuffer(updateBoidsKernel, "sortedIndices", sortedIndexBuffer);
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBufferIn", gridOffsetBufferIn);
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridBuffer", gridBuffer);
     boidComputeShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     boidComputeShader.SetInt("gridDimY", gridDimY);
     boidComputeShader.SetInt("gridDimX", gridDimX);
     boidComputeShader.SetInt("gridDimZ", gridDimZ);
+    BindBoidBuffers();
     gridDirty = true;
   }
 
@@ -260,11 +259,12 @@ public class Main3D : MonoBehaviour
       gridShader.Dispatch(scanSumsKernel, 1, 1, 1);
       gridShader.Dispatch(prefixSumKernel, blocks, 1, 1);
 
-      // Rearrange boids
+      // Sort boid indices by cell
       gridShader.Dispatch(rearrangeBoidsKernel, boidGroupsX, boidGroupsY, 1);
 
       // Compute boid behaviours
       boidComputeShader.Dispatch(updateBoidsKernel, updateGroupsX, updateGroupsY, 1);
+      SwapBoidBuffers();
     }
     else
     {
@@ -288,6 +288,23 @@ public class Main3D : MonoBehaviour
     }
 
     Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertexCount);
+  }
+
+  // UpdateBoids reads boidBuffer (through sortedIndices) and writes the next boids to boidBufferOut in grid order,
+  // then they swap so boidBuffer holds the latest
+  void SwapBoidBuffers()
+  {
+    (boidBuffer, boidBufferOut) = (boidBufferOut, boidBuffer);
+    BindBoidBuffers();
+  }
+
+  void BindBoidBuffers()
+  {
+    gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
+    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
+    boidComputeShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBuffer);
+    boidComputeShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBufferOut);
+    rp.matProps.SetBuffer("boids", boidBuffer);
   }
 
   void MergedBehaviours(ref Boid3D boid, float deltaTime)
@@ -456,6 +473,7 @@ public class Main3D : MonoBehaviour
     boidBuffer.Release();
     boidBufferOut.Release();
     gridBuffer.Release();
+    sortedIndexBuffer.Release();
     gridOffsetBuffer.Release();
     gridOffsetBufferIn.Release();
     gridSumsBuffer.Release();
