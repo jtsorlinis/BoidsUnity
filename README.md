@@ -12,4 +12,6 @@ The simulation uses a uniform spatial grid as an acceleration structure to deter
 
 Method used is inspired by this presentation: https://on-demand.gputechconf.com/gtc/2014/presentations/S4117-fast-fixed-radius-nearest-neighbor-gpu.pdf
 
-![image](https://user-images.githubusercontent.com/17734528/197126576-3a6d47ba-d65c-458f-aaf5-f0f9609cdefb.png)
+![3D: 16,776,960 boids on the GPU](docs/screenshot-3d.jpg)
+
+![2D: 67,107,840 boids on the GPU](docs/screenshot-2d.png)
