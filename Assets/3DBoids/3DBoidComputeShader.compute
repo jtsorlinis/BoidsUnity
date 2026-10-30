@@ -86,7 +86,7 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
 
       GroupMemoryBarrierWithGroupSync();
       if (tiled) {
-        [unroll]
+        [loop]
         for (uint s = 0; s < stagePasses; s++) {
           uint k = localID + s * searchBlockSize;
           if (k < tileCount) {
