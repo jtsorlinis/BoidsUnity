@@ -2,7 +2,8 @@ var path = require('path');
 var ghpages = require('gh-pages');
 
 ghpages.publish(path.join(__dirname, '../Build/BoidsUnity'), {
-  remove: ['.', '.*', ".vscode"]
+  remove: ['.', '.*', ".vscode"],
+  history: false
 }, (err) => {
   if (err) {
     console.error(err);
