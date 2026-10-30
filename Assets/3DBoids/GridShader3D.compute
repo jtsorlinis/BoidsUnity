@@ -10,7 +10,7 @@ struct Boid {
 
 StructuredBuffer<Boid> boids;
 RWStructuredBuffer<uint> sortedIndices;
-RWStructuredBuffer<uint> gridBuffer;
+RWStructuredBuffer<uint2> gridBuffer;
 RWStructuredBuffer<uint> gridOffsetBuffer;
 RWStructuredBuffer<uint> gridOffsetBufferIn;
 RWStructuredBuffer<uint> gridSumsBuffer;
@@ -48,7 +48,10 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
     return;
   }
 
-  InterlockedAdd(gridOffsetBuffer[getGridID(boids[i])], 1, gridBuffer[i]);
+  uint cell = getGridID(boids[i]);
+  uint rank;
+  InterlockedAdd(gridOffsetBuffer[cell], 1, rank);
+  gridBuffer[i] = uint2(cell, rank);
 }
 
 #pragma kernel ClearGrid // ID 1
@@ -175,7 +178,6 @@ void RearrangeBoids(uint3 id : SV_DispatchThreadID) {
     return;
   }
   
-  Boid boid = boids[i];
-  uint index = gridOffsetBuffer[getGridID(boid)] + gridBuffer[i];
-  sortedIndices[index] = i;
+  uint2 slot = gridBuffer[i];
+  sortedIndices[gridOffsetBuffer[slot.x] + slot.y] = i;
 }

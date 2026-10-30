@@ -182,7 +182,7 @@ public class Main3D : MonoBehaviour
     rp.matProps.SetBuffer("meshNormals", meshNormals);
     rp.matProps.SetInteger("vertCount", vertCount);
 
-    gridBuffer = new ComputeBuffer(numBoids, 4);
+    gridBuffer = new ComputeBuffer(numBoids, 8);
     sortedIndexBuffer = new ComputeBuffer(numBoids, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
@@ -301,7 +301,6 @@ public class Main3D : MonoBehaviour
   void BindBoidBuffers()
   {
     gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
     boidComputeShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBuffer);
     boidComputeShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBufferOut);
     rp.matProps.SetBuffer("boids", boidBuffer);
