@@ -25,7 +25,7 @@ uniform float zBound;
 StructuredBuffer<uint> gridOffsetBuffer;
 StructuredBuffer<uint> sortedIndices;
 RWStructuredBuffer<uint> gridOffsetBufferIn;
-RWStructuredBuffer<uint> gridBuffer;
+RWStructuredBuffer<uint2> gridBuffer;
 float gridInverseCellSize;
 uint gridDimX;
 uint gridDimY;
@@ -44,6 +44,7 @@ uint getBoidIndex(uint3 id) {
 
 #define searchBlockSize 64
 #define tileSize 160
+#define stagePasses ((tileSize + searchBlockSize - 1) / searchBlockSize)
 groupshared float4 tilePosVelX[tileSize];
 groupshared float2 tileVelYZ[tileSize];
 uniform uint updateGroupsX;
@@ -85,10 +86,14 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
 
       GroupMemoryBarrierWithGroupSync();
       if (tiled) {
-        for (uint k = localID; k < tileCount; k += searchBlockSize) {
-          Boid other = boidsIn[sortedIndices[tileStart + k]];
-          tilePosVelX[k] = float4(other.pos, other.vel.x);
-          tileVelYZ[k] = other.vel.yz;
+        [loop]
+        for (uint s = 0; s < stagePasses; s++) {
+          uint k = localID + s * searchBlockSize;
+          if (k < tileCount) {
+            Boid other = boidsIn[sortedIndices[tileStart + k]];
+            tilePosVelX[k] = float4(other.pos, other.vel.x);
+            tileVelYZ[k] = other.vel.yz;
+          }
         }
       }
       GroupMemoryBarrierWithGroupSync();
@@ -187,7 +192,10 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
 
   if (i < numBoids) {
     boidsOut[i] = boid;
-    InterlockedAdd(gridOffsetBufferIn[getGridID(boid)], 1, gridBuffer[i]);
+    uint cell = getGridID(boid);
+    uint rank;
+    InterlockedAdd(gridOffsetBufferIn[cell], 1, rank);
+    gridBuffer[i] = uint2(cell, rank);
   }
 }
 

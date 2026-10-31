@@ -178,7 +178,7 @@ public class Main2D : MonoBehaviour
 
     CreateRasterTarget();
 
-    gridBuffer = new ComputeBuffer(numBoids, 4);
+    gridBuffer = new ComputeBuffer(numBoids, 8);
     sortedIndexBuffer = new ComputeBuffer(numBoids, 4);
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
@@ -255,10 +255,10 @@ public class Main2D : MonoBehaviour
       gridShader.Dispatch(scanSumsKernel, 1, 1, 1);
       gridShader.Dispatch(prefixSumKernel, blocks, 1, 1);
 
-      // Sort boid indices by cell (and draw the boids)
+      // Sort boid indices by cell
       gridShader.Dispatch(rearrangeBoidsKernel, boidGroupsX, boidGroupsY, 1);
 
-      // Compute boid behaviours
+      // Compute boid behaviours (and draw the boids)
       boidShader.Dispatch(updateBoidsKernel, updateGroupsX, updateGroupsY, 1);
       SwapBoidBuffers();
     }
@@ -300,7 +300,6 @@ public class Main2D : MonoBehaviour
   void BindBoidBuffers()
   {
     gridShader.SetBuffer(updateGridKernel, "boids", boidBuffer);
-    gridShader.SetBuffer(rearrangeBoidsKernel, "boids", boidBuffer);
     boidShader.SetBuffer(updateBoidsKernel, "boidsIn", boidBuffer);
     boidShader.SetBuffer(updateBoidsKernel, "boidsOut", boidBufferOut);
     rasterShader.SetBuffer(rasterizeBoidsKernel, "boids", boidBuffer);
@@ -316,7 +315,7 @@ public class Main2D : MonoBehaviour
     }
 
     SetCameraParams(rasterShader, cam);
-    SetCameraParams(gridShader, cam);
+    SetCameraParams(boidShader, cam);
     rasterShader.SetVector("backgroundColor", cam.backgroundColor);
 
     rasterShader.Dispatch(clearRasterKernel,
@@ -337,7 +336,7 @@ public class Main2D : MonoBehaviour
     rasterTarget.Create();
     rasterShader.SetTexture(clearRasterKernel, "rasterTarget", rasterTarget);
     rasterShader.SetTexture(rasterizeBoidsKernel, "rasterTarget", rasterTarget);
-    gridShader.SetTexture(rearrangeBoidsKernel, "rasterTarget", rasterTarget);
+    boidShader.SetTexture(updateBoidsKernel, "rasterTarget", rasterTarget);
     rasterImage.texture = rasterTarget;
   }
 
