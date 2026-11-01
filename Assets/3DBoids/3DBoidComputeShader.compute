@@ -38,7 +38,6 @@ uint getGridID(Boid boid) {
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
 }
 
-// Which x half of its cell a boid is in
 uint getHalfX(Boid boid) {
   return (uint)((int)floor(boid.pos.x * gridInverseCellSize * 2) & 1);
 }

@@ -30,7 +30,6 @@ uint getGridID(Boid boid) {
   return (gridDimX * y) + x;
 }
 
-// Which x half of its cell a boid is in
 uint getHalfX(Boid boid) {
   return (uint)((int)floor(boid.pos.x * gridInverseCellSize * 2) & 1);
 }
@@ -174,7 +173,6 @@ void PrefixSum(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
   for (row = 0; row < 4; row++) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
-      // One offset per x half cell
       gridOffsetBuffer[2 * cell] = offsets[row];
       gridOffsetBuffer[2 * cell + 1] = offsets[row] + leftCounts[row];
       gridOffsetBufferIn[cell] = 0;
