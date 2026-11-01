@@ -3,9 +3,55 @@
   <head>
     <meta charset="utf-8">
     <title>{{{ PRODUCT_NAME }}}</title>
+    <style>
+      /* Source link, styled like the UI Toolkit card (Assets/UI/BoidsUI.uss) */
+      #sourceButton {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-sizing: border-box;
+        height: 36px;
+        padding: 0 14px 0 12px;
+        background-color: rgba(22, 23, 28, 0.92);
+        border: 1px solid rgb(58, 59, 68);
+        border-radius: 12px;
+        color: rgb(158, 158, 166);
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        user-select: none;
+        transition: background-color 0.12s, color 0.12s;
+      }
+
+      #sourceButton svg {
+        width: 18px;
+        fill: currentColor;
+      }
+
+      /* Trimmed to the letters, so they centre on the icon without room left for descenders */
+      #sourceButton span {
+        text-box: trim-both cap alphabetic;
+      }
+
+      #sourceButton:hover {
+        background-color: rgb(62, 63, 72);
+        color: rgb(237, 237, 240);
+      }
+    </style>
   </head>
   <body style="padding: 0; border: 0; margin: 0; overflow: hidden;">
     <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1" style="width: 100vw; height: 100vh; background: {{{ BACKGROUND_FILENAME ? 'url(\'Build/' + BACKGROUND_FILENAME.replace(/'/g, '%27') + '\') center / cover' : BACKGROUND_COLOR }}}"></canvas>
+    <a href="https://github.com/jtsorlinis/BoidsUnity" target="_blank" rel="noopener noreferrer" id="sourceButton">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" aria-hidden="true">
+        <!--! Font Awesome Pro 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2023 Fonticons, Inc. -->
+        <path d="M392.8 1.2c-17-4.9-34.7 5-39.6 22l-128 448c-4.9 17 5 34.7 22 39.6s34.7-5 39.6-22l128-448c4.9-17-5-34.7-22-39.6zm80.6 120.1c-12.5 12.5-12.5 32.8 0 45.3L562.7 256l-89.4 89.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l112-112c12.5-12.5 12.5-32.8 0-45.3l-112-112c-12.5-12.5-32.8-12.5-45.3 0zm-306.7 0c-12.5-12.5-32.8-12.5-45.3 0l-112 112c-12.5 12.5-12.5 32.8 0 45.3l112 112c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256l89.4-89.4c12.5-12.5 12.5-32.8 0-45.3z" />
+      </svg>
+      <span>View source</span>
+    </a>
     <script src="Build/{{{ LOADER_FILENAME }}}"></script>
     <script>
       var canvas = document.querySelector("#unity-canvas");
