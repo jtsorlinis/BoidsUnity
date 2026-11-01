@@ -179,12 +179,10 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
 
   if (i < numBoids) {
     boidsOut[i] = boid;
-    // Each count holds a pair of cells in 16 bits each
     uint cell = getGridID(boid);
-    uint shift = (cell & 1) * 16;
-    uint ranks;
-    InterlockedAdd(gridOffsetBufferIn[cell / 2], 1u << shift, ranks);
-    gridBuffer[i] = uint2(cell, (ranks >> shift) & 0xFFFF);
+    uint rank;
+    InterlockedAdd(gridOffsetBufferIn[cell], 1, rank);
+    gridBuffer[i] = uint2(cell, rank);
 
     // Drawing here saves a separate pass over every boid
     RasterizeBoid(boid.pos, boid.vel);

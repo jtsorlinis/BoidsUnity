@@ -49,10 +49,9 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
   }
 
   uint cell = getGridID(boids[i]);
-  uint shift = (cell & 1) * 16;
-  uint ranks;
-  InterlockedAdd(gridOffsetBuffer[cell / 2], 1u << shift, ranks);
-  gridBuffer[i] = uint2(cell, (ranks >> shift) & 0xFFFF);
+  uint rank;
+  InterlockedAdd(gridOffsetBuffer[cell], 1, rank);
+  gridBuffer[i] = uint2(cell, rank);
 }
 
 #pragma kernel ClearGrid // ID 1
@@ -98,8 +97,7 @@ void SumBlocks(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
   for (uint row = 0; row < 4; row++) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
-      uint halves = gridOffsetBufferIn[cell];
-      sum += (halves & 0xFFFF) + (halves >> 16);
+      sum += gridOffsetBufferIn[cell];
     }
   }
   sumTemp[localID] = sum;
@@ -151,15 +149,12 @@ void ScanSums(uint localID : SV_GROUPTHREADID) {
 [numthreads(blockSize, 1, 1)]
 void PrefixSum(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
   uint4 counts = 0;
-  uint4 leftCounts = 0;
   uint row;
   [unroll]
   for (row = 0; row < 4; row++) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
-      uint halves = gridOffsetBufferIn[cell];
-      leftCounts[row] = halves & 0xFFFF;
-      counts[row] = leftCounts[row] + (halves >> 16);
+      counts[row] = gridOffsetBufferIn[cell];
     }
   }
 
@@ -169,8 +164,7 @@ void PrefixSum(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
   for (row = 0; row < 4; row++) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
-      gridOffsetBuffer[2 * cell] = offsets[row];
-      gridOffsetBuffer[2 * cell + 1] = offsets[row] + leftCounts[row];
+      gridOffsetBuffer[cell] = offsets[row];
       gridOffsetBufferIn[cell] = 0;
     }
   }

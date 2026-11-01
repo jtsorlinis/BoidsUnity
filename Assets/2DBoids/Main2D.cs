@@ -180,10 +180,10 @@ public class Main2D : MonoBehaviour
 
     gridBuffer = new ComputeBuffer(numBoids, 8);
     sortedIndexBuffer = new ComputeBuffer(numBoids, 4);
-    // GPU cells are half as wide in x: offsets per cell, counts per pair of cells (16 bits each)
+    // GPU cells are half as wide in x
     gridOffsetBuffer = new ComputeBuffer(gridTotalCells * 2, 4);
-    gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
-    blocks = Mathf.CeilToInt(gridTotalCells / (float)blockCells);
+    gridOffsetBufferIn = new ComputeBuffer(gridTotalCells * 2, 4);
+    blocks = Mathf.CeilToInt(gridTotalCells * 2 / (float)blockCells);
     gridSumsBuffer = new ComputeBuffer(blocks, 4);
     gridShader.SetInt("numBoids", numBoids);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
@@ -207,7 +207,7 @@ public class Main2D : MonoBehaviour
     gridShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     gridShader.SetInt("gridDimY", gridDimY);
     gridShader.SetInt("gridDimX", gridDimX * 2);
-    gridShader.SetInt("gridTotalCells", gridTotalCells);
+    gridShader.SetInt("gridTotalCells", gridTotalCells * 2);
     gridShader.SetInt("blocks", blocks);
 
     boidShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
