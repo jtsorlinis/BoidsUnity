@@ -26,7 +26,7 @@ uint numBoids;
 uint boidStride;
 
 uint getGridID(Boid boid) {
-  int boidX = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
+  int boidX = (int)floor(boid.pos.x * gridInverseCellSize * 2) + (int)(gridDimX / 2);
   int boidY = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
   int boidZ = (int)floor(boid.pos.z * gridInverseCellSize) + (int)(gridDimZ / 2);
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;

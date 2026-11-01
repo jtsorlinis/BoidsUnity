@@ -32,7 +32,7 @@ uint gridDimY;
 uint gridDimZ;
 
 uint getGridID(Boid boid) {
-  int boidX = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
+  int boidX = (int)floor(boid.pos.x * gridInverseCellSize * 2) + (int)(gridDimX / 2);
   int boidY = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
   int boidZ = (int)floor(boid.pos.z * gridInverseCellSize) + (int)(gridDimZ / 2);
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
@@ -78,10 +78,10 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
     [loop]
     for (int y = -1; y <= 1; y++) {
       uint row = z * zStep + y * gridDimX;
-      uint start = gridOffsetBuffer[cell + row - 1];
-      uint end = gridOffsetBuffer[cell + row + 2];
-      uint tileStart = gridOffsetBuffer[firstCell + row - 1];
-      uint tileCount = gridOffsetBuffer[lastCell + row + 2] - tileStart;
+      uint start = gridOffsetBuffer[cell + row - 2];
+      uint end = gridOffsetBuffer[cell + row + 3];
+      uint tileStart = gridOffsetBuffer[firstCell + row - 2];
+      uint tileCount = gridOffsetBuffer[lastCell + row + 3] - tileStart;
       bool tiled = tileCount <= tileSize;
 
       GroupMemoryBarrierWithGroupSync();
