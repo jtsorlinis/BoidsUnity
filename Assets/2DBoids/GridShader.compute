@@ -25,13 +25,9 @@ uint numBoids;
 uint boidStride;
 
 uint getGridID(Boid boid) {
-  int x = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
+  int x = (int)floor(boid.pos.x * gridInverseCellSize * 2) + (int)(gridDimX / 2);
   int y = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
   return (gridDimX * y) + x;
-}
-
-uint getHalfX(Boid boid) {
-  return (uint)((int)floor(boid.pos.x * gridInverseCellSize * 2) & 1);
 }
 
 uint getBoidIndex(uint3 id) {
@@ -50,13 +46,11 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
     return;
   }
 
-  Boid boid = boids[i];
-  uint cell = getGridID(boid);
-  uint xHalf = getHalfX(boid);
-  uint shift = xHalf * 16;
+  uint cell = getGridID(boids[i]);
+  uint shift = (cell & 1) * 16;
   uint ranks;
-  InterlockedAdd(gridOffsetBuffer[cell], 1u << shift, ranks);
-  gridBuffer[i] = uint2(2 * cell + xHalf, (ranks >> shift) & 0xFFFF);
+  InterlockedAdd(gridOffsetBuffer[cell / 2], 1u << shift, ranks);
+  gridBuffer[i] = uint2(cell, (ranks >> shift) & 0xFFFF);
 }
 
 #pragma kernel ClearGrid // ID 1

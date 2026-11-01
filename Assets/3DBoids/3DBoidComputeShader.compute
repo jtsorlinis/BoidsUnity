@@ -31,15 +31,12 @@ uint gridDimX;
 uint gridDimY;
 uint gridDimZ;
 
+// Cells are half as wide in x
 uint getGridID(Boid boid) {
-  int boidX = (int)floor(boid.pos.x * gridInverseCellSize) + (int)(gridDimX / 2);
+  int boidX = (int)floor(boid.pos.x * gridInverseCellSize * 2) + (int)(gridDimX / 2);
   int boidY = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
   int boidZ = (int)floor(boid.pos.z * gridInverseCellSize) + (int)(gridDimZ / 2);
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
-}
-
-uint getHalfX(Boid boid) {
-  return (uint)((int)floor(boid.pos.x * gridInverseCellSize * 2) & 1);
 }
 
 uint getBoidIndex(uint3 id) {
@@ -73,15 +70,15 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
   float3 avgVel = 0;
   uint neighbours = 0;
 
-  uint cell = 2 * getGridID(boid) + getHalfX(boid);
-  uint zStep = gridDimX * 2 * gridDimY;
+  uint cell = getGridID(boid);
+  uint zStep = gridDimX * gridDimY;
 
   // Loop around own cell (3x3x3 neighborhood)
   [loop]
   for (int z = -1; z <= 1; z++) {
     [loop]
     for (int y = -1; y <= 1; y++) {
-      uint row = z * zStep + y * gridDimX * 2;
+      uint row = z * zStep + y * gridDimX;
       uint start = gridOffsetBuffer[cell + row - 2];
       uint end = gridOffsetBuffer[cell + row + 3];
       uint tileStart = gridOffsetBuffer[firstCell + row - 2];
@@ -184,10 +181,8 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
   uint last = min(first + searchBlockSize, numBoids) - 1;
   uint i = first + localID;
   Boid boid = boidsIn[sortedIndices[min(i, last)]];
-  Boid firstBoid = boidsIn[sortedIndices[first]];
-  Boid lastBoid = boidsIn[sortedIndices[last]];
-  uint firstCell = 2 * getGridID(firstBoid) + getHalfX(firstBoid);
-  uint lastCell = 2 * getGridID(lastBoid) + getHalfX(lastBoid);
+  uint firstCell = getGridID(boidsIn[sortedIndices[first]]);
+  uint lastCell = getGridID(boidsIn[sortedIndices[last]]);
 
   MergedBehaviours(boid, localID, firstCell, lastCell);
   LimitSpeed(boid);
@@ -198,13 +193,12 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
 
   if (i < numBoids) {
     boidsOut[i] = boid;
-    // A cell's count holds its two x halves in 16 bits each
+    // Each count holds a pair of cells in 16 bits each
     uint cell = getGridID(boid);
-    uint xHalf = getHalfX(boid);
-    uint shift = xHalf * 16;
+    uint shift = (cell & 1) * 16;
     uint ranks;
-    InterlockedAdd(gridOffsetBufferIn[cell], 1u << shift, ranks);
-    gridBuffer[i] = uint2(2 * cell + xHalf, (ranks >> shift) & 0xFFFF);
+    InterlockedAdd(gridOffsetBufferIn[cell / 2], 1u << shift, ranks);
+    gridBuffer[i] = uint2(cell, (ranks >> shift) & 0xFFFF);
   }
 }
 
