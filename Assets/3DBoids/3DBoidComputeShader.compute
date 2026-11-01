@@ -31,7 +31,6 @@ uint gridDimX;
 uint gridDimY;
 uint gridDimZ;
 
-// Cells are half as wide in x
 uint getGridID(Boid boid) {
   int boidX = (int)floor(boid.pos.x * gridInverseCellSize * 2) + (int)(gridDimX / 2);
   int boidY = (int)floor(boid.pos.y * gridInverseCellSize) + (int)(gridDimY / 2);
