@@ -37,6 +37,11 @@ uint getGridID(Boid boid) {
   return (gridDimX * y) + x;
 }
 
+// Which x half of its cell a boid is in
+uint getHalfX(Boid boid) {
+  return (uint)((int)floor(boid.pos.x * gridInverseCellSize * 2) & 1);
+}
+
 uint getBoidIndex(uint3 id) {
   return id.y * boidStride + id.x;
 }
@@ -67,16 +72,16 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
   float2 avgVel = 0;
   uint neighbours = 0;
 
-  uint cell = getGridID(boid);
+  uint cell = 2 * getGridID(boid) + getHalfX(boid);
 
   // Loop Around Own Cell
   [loop]
   for (int i = -1; i <= 1; i++) {
-    uint row = i * gridDimX;
-    uint start = gridOffsetBuffer[cell + row - 1];
-    uint end = gridOffsetBuffer[cell + row + 2];
-    uint tileStart = gridOffsetBuffer[firstCell + row - 1];
-    uint tileCount = gridOffsetBuffer[lastCell + row + 2] - tileStart;
+    uint row = i * gridDimX * 2;
+    uint start = gridOffsetBuffer[cell + row - 2];
+    uint end = gridOffsetBuffer[cell + row + 3];
+    uint tileStart = gridOffsetBuffer[firstCell + row - 2];
+    uint tileCount = gridOffsetBuffer[lastCell + row + 3] - tileStart;
     bool tiled = tileCount <= tileSize;
 
     GroupMemoryBarrierWithGroupSync();
@@ -166,8 +171,10 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
   uint last = min(first + searchBlockSize, numBoids) - 1;
   uint i = first + localID;
   Boid boid = boidsIn[sortedIndices[min(i, last)]];
-  uint firstCell = getGridID(boidsIn[sortedIndices[first]]);
-  uint lastCell = getGridID(boidsIn[sortedIndices[last]]);
+  Boid firstBoid = boidsIn[sortedIndices[first]];
+  Boid lastBoid = boidsIn[sortedIndices[last]];
+  uint firstCell = 2 * getGridID(firstBoid) + getHalfX(firstBoid);
+  uint lastCell = 2 * getGridID(lastBoid) + getHalfX(lastBoid);
 
   MergedBehaviours(boid, localID, firstCell, lastCell);
   LimitSpeed(boid);
@@ -178,10 +185,13 @@ void UpdateBoids(uint3 groupID : SV_GroupID, uint localID : SV_GroupIndex) {
 
   if (i < numBoids) {
     boidsOut[i] = boid;
+    // A cell's count holds its two x halves in 16 bits each
     uint cell = getGridID(boid);
-    uint rank;
-    InterlockedAdd(gridOffsetBufferIn[cell], 1, rank);
-    gridBuffer[i] = uint2(cell, rank);
+    uint xHalf = getHalfX(boid);
+    uint shift = xHalf * 16;
+    uint ranks;
+    InterlockedAdd(gridOffsetBufferIn[cell], 1u << shift, ranks);
+    gridBuffer[i] = uint2(2 * cell + xHalf, (ranks >> shift) & 0xFFFF);
 
     // Drawing here saves a separate pass over every boid
     RasterizeBoid(boid.pos, boid.vel);

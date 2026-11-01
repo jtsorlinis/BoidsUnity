@@ -32,6 +32,11 @@ uint getGridID(Boid boid) {
   return (gridDimY * gridDimX * boidZ) + (gridDimX * boidY) + boidX;
 }
 
+// Which x half of its cell a boid is in
+uint getHalfX(Boid boid) {
+  return (uint)((int)floor(boid.pos.x * gridInverseCellSize * 2) & 1);
+}
+
 uint getBoidIndex(uint3 id) {
   return id.y * boidStride + id.x;
 }
@@ -48,10 +53,13 @@ void UpdateGrid(uint3 id : SV_DispatchThreadID) {
     return;
   }
 
-  uint cell = getGridID(boids[i]);
-  uint rank;
-  InterlockedAdd(gridOffsetBuffer[cell], 1, rank);
-  gridBuffer[i] = uint2(cell, rank);
+  Boid boid = boids[i];
+  uint cell = getGridID(boid);
+  uint xHalf = getHalfX(boid);
+  uint shift = xHalf * 16;
+  uint ranks;
+  InterlockedAdd(gridOffsetBuffer[cell], 1u << shift, ranks);
+  gridBuffer[i] = uint2(2 * cell + xHalf, (ranks >> shift) & 0xFFFF);
 }
 
 #pragma kernel ClearGrid // ID 1
@@ -97,7 +105,8 @@ void SumBlocks(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
   for (uint row = 0; row < 4; row++) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
-      sum += gridOffsetBufferIn[cell];
+      uint halves = gridOffsetBufferIn[cell];
+      sum += (halves & 0xFFFF) + (halves >> 16);
     }
   }
   sumTemp[localID] = sum;
@@ -149,12 +158,15 @@ void ScanSums(uint localID : SV_GROUPTHREADID) {
 [numthreads(blockSize, 1, 1)]
 void PrefixSum(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
   uint4 counts = 0;
+  uint4 leftCounts = 0;
   uint row;
   [unroll]
   for (row = 0; row < 4; row++) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
-      counts[row] = gridOffsetBufferIn[cell];
+      uint halves = gridOffsetBufferIn[cell];
+      leftCounts[row] = halves & 0xFFFF;
+      counts[row] = leftCounts[row] + (halves >> 16);
     }
   }
 
@@ -164,7 +176,9 @@ void PrefixSum(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
   for (row = 0; row < 4; row++) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
-      gridOffsetBuffer[cell] = offsets[row];
+      // One offset per x half cell
+      gridOffsetBuffer[2 * cell] = offsets[row];
+      gridOffsetBuffer[2 * cell + 1] = offsets[row] + leftCounts[row];
       gridOffsetBufferIn[cell] = 0;
     }
   }

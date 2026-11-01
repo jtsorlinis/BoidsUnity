@@ -184,7 +184,8 @@ public class Main3D : MonoBehaviour
 
     gridBuffer = new ComputeBuffer(numBoids, 8);
     sortedIndexBuffer = new ComputeBuffer(numBoids, 4);
-    gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
+    // Offsets per x half cell
+    gridOffsetBuffer = new ComputeBuffer(gridTotalCells * 2, 4);
     gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
     blocks = Mathf.CeilToInt(gridTotalCells / (float)blockCells);
     gridSumsBuffer = new ComputeBuffer(blocks, 4);
