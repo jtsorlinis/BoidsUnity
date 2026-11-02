@@ -20,6 +20,8 @@ jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -48,6 +50,8 @@ jobs:
 
       - uses: game-ci/unity-builder@v6
         env:
+          # Lets it look up its CLI release without hitting the shared runners' anonymous API rate limit
+          GITHUB_TOKEN: ${{ github.token }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}

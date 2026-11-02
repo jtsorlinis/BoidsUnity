@@ -17,7 +17,13 @@ public static class NativeBuild
     var target = EditorUserBuildSettings.activeBuildTarget;
     var pathIndex = Array.IndexOf(args, "-customBuildPath");
     var path = pathIndex >= 0 && pathIndex + 1 < args.Length ? args[pathIndex + 1] : DefaultPath(target);
-    EditorApplication.Exit(Build(target, path, args.Contains("-mono")) ? 0 : 1);
+    var succeeded = Build(target, path, args.Contains("-mono"));
+    if (succeeded)
+    {
+      // game-ci fails the job unless its log has this exact line, which only its own build script prints otherwise
+      Console.WriteLine("Build succeeded!");
+    }
+    EditorApplication.Exit(succeeded ? 0 : 1);
   }
 
   static string DefaultPath(BuildTarget target) => target switch
