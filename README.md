@@ -2,6 +2,8 @@
 
 ### See it in action here: [Boids](https://jtsorlinis.github.io/BoidsUnity/)
 
+Native builds of the latest commit: [Windows](https://github.com/jtsorlinis/BoidsUnity/releases/download/latest/BoidsUnity-Windows.zip) · [macOS](https://github.com/jtsorlinis/BoidsUnity/releases/download/latest/BoidsUnity-macOS.zip) · [Linux](https://github.com/jtsorlinis/BoidsUnity/releases/download/latest/BoidsUnity-Linux.zip) (the macOS app isn't notarized, so allow it under System Settings > Privacy & Security on first launch)
+
 ---
 
 I wanted to learn about GPGPU and Compute shaders so ended up making a boid flocking simulation in unity.

@@ -1,0 +1,115 @@
+# Builds Windows, macOS and Linux players with game-ci (Assets/Editor/NativeBuild.cs) on every push to master,
+# and attaches them to the rolling "latest" release.
+# Needs repo secrets UNITY_EMAIL and UNITY_PASSWORD, which activate a Personal seat; set UNITY_SERIAL too for a Plus/Pro
+# one. (A .ulf in UNITY_LICENSE doesn't help: Unity 6 rejects it off the machine it was activated on.)
+# See https://game.ci/docs/github/activation
+name: Native builds
+
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md', 'docs/**', 'PagesPublisher/**', 'deploy.sh']
+  workflow_dispatch:
+
+concurrency:
+  group: native-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # IL2CPP compiles with each platform's own toolchain (MSVC, Xcode), so Windows and macOS build on their own OS.
+          # windows-2022 matches the Windows editor image's Server 2022 base (newer hosts can't run it process-isolated)
+          - { name: Windows, os: windows-2022, targetPlatform: StandaloneWindows64 }
+          - { name: Linux, os: ubuntu-latest, targetPlatform: StandaloneLinux64 }
+          - { name: macOS, os: macos-latest, targetPlatform: StandaloneOSX }
+    steps:
+      - uses: actions/checkout@v7
+
+      # The Unity images are ~15 GB unpacked; drop preinstalled SDKs this build doesn't use
+      - name: Free disk space
+        if: runner.os == 'Linux'
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/cache@v6
+        with:
+          path: Library
+          key: Library-${{ runner.os }}-${{ matrix.targetPlatform }}-${{ hashFiles('Packages/packages-lock.json', 'ProjectSettings/**') }}
+          restore-keys: Library-${{ runner.os }}-${{ matrix.targetPlatform }}-
+
+      # WebDeploy.cs needs the WebGL module, and these editors only have their own target's
+      - name: Drop the web deploy script
+        run: rm Assets/Editor/WebDeploy.cs Assets/Editor/WebDeploy.cs.meta
+
+      - uses: game-ci/unity-builder@v6
+        env:
+          # Lets it look up its CLI release without hitting the shared runners' anonymous API rate limit
+          GITHUB_TOKEN: ${{ github.token }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          targetPlatform: ${{ matrix.targetPlatform }}
+          buildName: BoidsUnity
+          buildMethod: NativeBuild.BuildFromCommandLine
+          versioning: None
+          cacheUnityInstallationOnMac: true
+
+      - name: Zip
+        run: |
+          zip="$GITHUB_WORKSPACE/BoidsUnity-${{ matrix.name }}.zip"
+          cd build/${{ matrix.targetPlatform }}
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            # Ad-hoc signature so Apple silicon will run it (it still isn't notarized)
+            codesign --force --deep --sign - BoidsUnity.app
+            ditto -c -k --keepParent BoidsUnity.app "$zip"
+          elif [[ "$RUNNER_OS" == Windows ]]; then
+            7z a -tzip "$zip" . '-xr!*_DoNotShip' '-xr!*_ButDontShipItWithYourGame' > /dev/null
+          else
+            zip -qr "$zip" . -x '*_DoNotShip/*' '*_ButDontShipItWithYourGame/*'
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: BoidsUnity-${{ matrix.name }}
+          path: BoidsUnity-${{ matrix.name }}.zip
+          retention-days: 14
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      # Updates the release in place (moving its tag) so download links never 404 mid-update
+      - name: Update the latest release
+        run: |
+          notes="Players built from ${GITHUB_SHA::7} by CI.
+
+          macOS: the app is not notarized, so the first launch is blocked. Open it once, then allow it under System Settings > Privacy & Security > Open Anyway (or run \`xattr -dr com.apple.quarantine BoidsUnity.app\`)."
+          if gh release view latest >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true
+            gh release upload latest dist/*.zip --clobber
+            gh release edit latest --notes "$notes"
+          else
+            gh release create latest dist/*.zip --target "$GITHUB_SHA" --title "Latest build" --notes "$notes"
+          fi
