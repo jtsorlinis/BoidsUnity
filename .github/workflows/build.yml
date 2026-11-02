@@ -1,0 +1,103 @@
+# Builds Windows, macOS and Linux players with game-ci (Assets/Editor/NativeBuild.cs) on every push to master,
+# and attaches them to the rolling "latest" release.
+# Needs repo secrets UNITY_LICENSE (contents of a Personal .ulf), UNITY_EMAIL and UNITY_PASSWORD; set UNITY_SERIAL
+# too for a Plus/Pro seat. See https://game.ci/docs/github/activation
+name: Native builds
+
+on:
+  push:
+    # native-ci only builds (no release), for trying the workflow out before it's merged
+    branches: [master, native-ci]
+    paths-ignore: ['**.md', 'docs/**', 'PagesPublisher/**', 'deploy.sh']
+  workflow_dispatch:
+
+concurrency:
+  group: native-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux runners only have the Windows Mono toolchain, so this one swaps the project's IL2CPP for Mono
+          - { name: Windows, os: ubuntu-latest, targetPlatform: StandaloneWindows64, params: -mono }
+          - { name: Linux, os: ubuntu-latest, targetPlatform: StandaloneLinux64, params: '' }
+          - { name: macOS, os: macos-latest, targetPlatform: StandaloneOSX, params: '' }
+    steps:
+      - uses: actions/checkout@v7
+
+      # The Unity images are ~15 GB unpacked; drop preinstalled SDKs this build doesn't use
+      - name: Free disk space
+        if: runner.os == 'Linux'
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/cache@v6
+        with:
+          path: Library
+          key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Packages/packages-lock.json', 'ProjectSettings/**') }}
+          restore-keys: Library-${{ matrix.targetPlatform }}-
+
+      - uses: game-ci/unity-builder@v6
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          targetPlatform: ${{ matrix.targetPlatform }}
+          buildName: BoidsUnity
+          buildMethod: NativeBuild.BuildFromCommandLine
+          customParameters: ${{ matrix.params }}
+          versioning: None
+          cacheUnityInstallationOnMac: true
+
+      - name: Zip
+        run: |
+          zip="$GITHUB_WORKSPACE/BoidsUnity-${{ matrix.name }}.zip"
+          cd build/${{ matrix.targetPlatform }}
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            # Ad-hoc signature so Apple silicon will run it (it still isn't notarized)
+            codesign --force --deep --sign - BoidsUnity.app
+            ditto -c -k --keepParent BoidsUnity.app "$zip"
+          else
+            zip -qr "$zip" . -x '*_DoNotShip/*' '*_ButDontShipItWithYourGame/*'
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: BoidsUnity-${{ matrix.name }}
+          path: BoidsUnity-${{ matrix.name }}.zip
+          retention-days: 14
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      # Updates the release in place (moving its tag) so download links never 404 mid-update
+      - name: Update the latest release
+        run: |
+          notes="Players built from ${GITHUB_SHA::7} by CI.
+
+          macOS: the app is not notarized, so the first launch is blocked. Open it once, then allow it under System Settings > Privacy & Security > Open Anyway (or run \`xattr -dr com.apple.quarantine BoidsUnity.app\`)."
+          if gh release view latest >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GH_REPO/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true
+            gh release upload latest dist/*.zip --clobber
+            gh release edit latest --notes "$notes"
+          else
+            gh release create latest dist/*.zip --target "$GITHUB_SHA" --title "Latest build" --notes "$notes"
+          fi
