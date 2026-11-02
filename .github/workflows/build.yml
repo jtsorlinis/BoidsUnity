@@ -22,14 +22,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Linux runners only have the Windows Mono toolchain, so this one swaps the project's IL2CPP for Mono
-          - { name: Windows, os: ubuntu-latest, targetPlatform: StandaloneWindows64, params: -mono }
-          - { name: Linux, os: ubuntu-latest, targetPlatform: StandaloneLinux64, params: '' }
-          - { name: macOS, os: macos-latest, targetPlatform: StandaloneOSX, params: '' }
+          # IL2CPP compiles with each platform's own toolchain (MSVC, Xcode), so Windows and macOS build on their own OS.
+          # windows-2022 matches the Windows editor image's Server 2022 base (newer hosts can't run it process-isolated)
+          - { name: Windows, os: windows-2022, targetPlatform: StandaloneWindows64 }
+          - { name: Linux, os: ubuntu-latest, targetPlatform: StandaloneLinux64 }
+          - { name: macOS, os: macos-latest, targetPlatform: StandaloneOSX }
     steps:
       - uses: actions/checkout@v7
 
@@ -41,8 +45,8 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: Library
-          key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Packages/packages-lock.json', 'ProjectSettings/**') }}
-          restore-keys: Library-${{ matrix.targetPlatform }}-
+          key: Library-${{ runner.os }}-${{ matrix.targetPlatform }}-${{ hashFiles('Packages/packages-lock.json', 'ProjectSettings/**') }}
+          restore-keys: Library-${{ runner.os }}-${{ matrix.targetPlatform }}-
 
       # WebDeploy.cs needs the WebGL module, and these editors only have their own target's
       - name: Drop the web deploy script
@@ -59,7 +63,6 @@ jobs:
           targetPlatform: ${{ matrix.targetPlatform }}
           buildName: BoidsUnity
           buildMethod: NativeBuild.BuildFromCommandLine
-          customParameters: ${{ matrix.params }}
           versioning: None
           cacheUnityInstallationOnMac: true
 
@@ -71,6 +74,8 @@ jobs:
             # Ad-hoc signature so Apple silicon will run it (it still isn't notarized)
             codesign --force --deep --sign - BoidsUnity.app
             ditto -c -k --keepParent BoidsUnity.app "$zip"
+          elif [[ "$RUNNER_OS" == Windows ]]; then
+            7z a -tzip "$zip" . '-xr!*_DoNotShip' '-xr!*_ButDontShipItWithYourGame' > /dev/null
           else
             zip -qr "$zip" . -x '*_DoNotShip/*' '*_ButDontShipItWithYourGame/*'
           fi

@@ -7,8 +7,7 @@ using UnityEngine;
 
 // Standalone players for CI (.github/workflows/build.yml runs this through game-ci's unity-builder):
 //   Unity -batchmode -quit -buildTarget <StandaloneWindows64|StandaloneOSX|StandaloneLinux64>
-//     -executeMethod NativeBuild.BuildFromCommandLine [-customBuildPath <player path>] [-mono]
-// -mono builds with Mono instead of the project's IL2CPP: Linux runners have no Windows IL2CPP toolchain
+//     -executeMethod NativeBuild.BuildFromCommandLine [-customBuildPath <player path>]
 public static class NativeBuild
 {
   public static void BuildFromCommandLine()
@@ -17,7 +16,7 @@ public static class NativeBuild
     var target = EditorUserBuildSettings.activeBuildTarget;
     var pathIndex = Array.IndexOf(args, "-customBuildPath");
     var path = pathIndex >= 0 && pathIndex + 1 < args.Length ? args[pathIndex + 1] : DefaultPath(target);
-    var succeeded = Build(target, path, args.Contains("-mono"));
+    var succeeded = Build(target, path);
     if (succeeded)
     {
       // game-ci fails the job unless its log has this exact line, which only its own build script prints otherwise
@@ -33,16 +32,10 @@ public static class NativeBuild
     _ => "Build/Linux/BoidsUnity.x86_64",
   };
 
-  static bool Build(BuildTarget target, string path, bool mono)
+  static bool Build(BuildTarget target, string path)
   {
-    // Override settings for the build, then restore whatever the project was using
-    var previousBackend = PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone);
-    if (mono)
-    {
-      PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
-    }
 #if UNITY_STANDALONE_OSX
-    // One app for both Intel and Apple silicon Macs
+    // One app for both Intel and Apple silicon Macs (restored afterwards)
     var previousArchitecture = UnityEditor.OSXStandalone.UserBuildSettings.architecture;
     UnityEditor.OSXStandalone.UserBuildSettings.architecture = OSArchitecture.x64ARM64;
 #endif
@@ -69,7 +62,6 @@ public static class NativeBuild
     }
     finally
     {
-      PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, previousBackend);
 #if UNITY_STANDALONE_OSX
       UnityEditor.OSXStandalone.UserBuildSettings.architecture = previousArchitecture;
 #endif
