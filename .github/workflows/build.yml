@@ -7,8 +7,7 @@ name: Native builds
 
 on:
   push:
-    # native-ci only builds (no release), for trying the workflow out before it's merged
-    branches: [master, native-ci]
+    branches: [master]
     paths-ignore: ['**.md', 'docs/**', 'PagesPublisher/**', 'deploy.sh']
   workflow_dispatch:
 
