@@ -1,7 +1,8 @@
 # Builds Windows, macOS and Linux players with game-ci (Assets/Editor/NativeBuild.cs) on every push to master,
 # and attaches them to the rolling "latest" release.
-# Needs repo secrets UNITY_LICENSE (contents of a Personal .ulf), UNITY_EMAIL and UNITY_PASSWORD; set UNITY_SERIAL
-# too for a Plus/Pro seat. See https://game.ci/docs/github/activation
+# Needs repo secrets UNITY_EMAIL and UNITY_PASSWORD, which activate a Personal seat; set UNITY_SERIAL too for a Plus/Pro
+# one. (A .ulf in UNITY_LICENSE doesn't help: Unity 6 rejects it off the machine it was activated on.)
+# See https://game.ci/docs/github/activation
 name: Native builds
 
 on:
@@ -41,9 +42,12 @@ jobs:
           key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Packages/packages-lock.json', 'ProjectSettings/**') }}
           restore-keys: Library-${{ matrix.targetPlatform }}-
 
+      # WebDeploy.cs needs the WebGL module, and these editors only have their own target's
+      - name: Drop the web deploy script
+        run: rm Assets/Editor/WebDeploy.cs Assets/Editor/WebDeploy.cs.meta
+
       - uses: game-ci/unity-builder@v6
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
