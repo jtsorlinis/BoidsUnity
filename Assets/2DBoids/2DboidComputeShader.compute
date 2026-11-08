@@ -147,12 +147,8 @@ void LimitSpeed(inout Boid boid) {
 }
 
 void KeepInBounds(inout Boid boid) {
-  if (abs(boid.pos.x) > xBound) {
-    boid.vel.x -= sign(boid.pos.x) * deltaTime * turnSpeed;
-  }
-  if (abs(boid.pos.y) > yBound) {
-    boid.vel.y -= sign(boid.pos.y) * deltaTime * turnSpeed;
-  }
+  float2 outside = step(float2(xBound, yBound), abs(boid.pos));
+  boid.vel -= sign(boid.pos) * outside * (turnSpeed * deltaTime);
 }
 
 #pragma kernel UpdateBoids // ID 0

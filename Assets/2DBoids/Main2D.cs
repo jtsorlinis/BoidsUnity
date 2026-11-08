@@ -415,14 +415,8 @@ public class Main2D : MonoBehaviour
   // Keep boids on screen
   void KeepInBounds(ref Boid boid, float deltaTime)
   {
-    if (Mathf.Abs(boid.pos.x) > xBound)
-    {
-      boid.vel.x -= Mathf.Sign(boid.pos.x) * deltaTime * turnSpeed;
-    }
-    if (Mathf.Abs(boid.pos.y) > yBound)
-    {
-      boid.vel.y -= Mathf.Sign(boid.pos.y) * deltaTime * turnSpeed;
-    }
+    var outside = math.step(new float2(xBound, yBound), math.abs(boid.pos));
+    boid.vel -= math.sign(boid.pos) * outside * (turnSpeed * deltaTime);
   }
 
   int GetGridID(Boid boid)

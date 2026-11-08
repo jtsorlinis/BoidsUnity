@@ -365,18 +365,8 @@ public class Main3D : MonoBehaviour
 
   void KeepInBounds(ref Boid3D boid, float deltaTime)
   {
-    if (Mathf.Abs(boid.pos.x) > xBound)
-    {
-      boid.vel.x -= Mathf.Sign(boid.pos.x) * deltaTime * turnSpeed;
-    }
-    if (Mathf.Abs(boid.pos.y) > yBound)
-    {
-      boid.vel.y -= Mathf.Sign(boid.pos.y) * deltaTime * turnSpeed;
-    }
-    if (Mathf.Abs(boid.pos.z) > zBound)
-    {
-      boid.vel.z -= Mathf.Sign(boid.pos.z) * deltaTime * turnSpeed;
-    }
+    var outside = math.step(new float3(xBound, yBound, zBound), math.abs(boid.pos));
+    boid.vel -= math.sign(boid.pos) * outside * (turnSpeed * deltaTime);
   }
 
   int GetGridID(Boid3D boid)
