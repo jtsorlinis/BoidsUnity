@@ -28,8 +28,9 @@ public class Main2D : MonoBehaviour
   [SerializeField] float edgeMargin = .5f;
   [SerializeField] float visualRange = .5f;
   float visualRangeSq => visualRange * visualRange;
-  [SerializeField] float minDistance = 0.15f;
+  [SerializeField] float minDistance = 0.18f;
   float minDistanceSq => minDistance * minDistance;
+  float invMinDistanceSq => 1 / minDistanceSq;
   [SerializeField] float cohesionFactor = 2;
   [SerializeField] float separationFactor = 1;
   [SerializeField] float alignmentFactor = 5;
@@ -136,6 +137,7 @@ public class Main2D : MonoBehaviour
     boidShader.SetFloat("minSpeed", minSpeed);
     boidShader.SetFloat("visualRangeSq", visualRangeSq);
     boidShader.SetFloat("minDistanceSq", minDistanceSq);
+    boidShader.SetFloat("invMinDistanceSq", invMinDistanceSq);
     boidShader.SetFloat("turnSpeed", turnSpeed);
     boidShader.SetFloat("xBound", xBound);
     boidShader.SetFloat("yBound", yBound);
@@ -382,7 +384,7 @@ public class Main2D : MonoBehaviour
         {
           if (distanceSq < minDistanceSq)
           {
-            close += diff / distanceSq;
+            close += diff * (1 / distanceSq - invMinDistanceSq);
           }
           center += other.pos;
           avgVel += other.vel;

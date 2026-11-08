@@ -230,7 +230,7 @@ MonoBehaviour:
   maxSpeed: 2
   edgeMargin: 0.5
   visualRange: 0.5
-  minDistance: 0.15
+  minDistance: 0.18
   cohesionFactor: 2
   separationFactor: 1
   alignmentFactor: 5

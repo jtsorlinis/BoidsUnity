@@ -19,6 +19,7 @@ uniform float cohesionFactor;
 uniform float separationFactor;
 uniform float alignmentFactor;
 uniform float minDistanceSq;
+uniform float invMinDistanceSq;
 uniform float turnSpeed;
 uniform float xBound;
 uniform float yBound;
@@ -52,8 +53,7 @@ void AddNeighbour(float2 pos, float2 otherPos, float2 otherVel, inout float2 cen
   float distSq = dot(diff, diff);
   if (distSq < visualRangeSq && distSq > 0) {
     if (distSq < minDistanceSq) {
-      float invDistSq = 1.0 / distSq;
-      close += diff * invDistSq;
+      close += diff * (1.0 / distSq - invMinDistanceSq);
     }
     center += otherPos;
     avgVel += otherVel;
