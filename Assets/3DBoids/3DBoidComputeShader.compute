@@ -115,10 +115,16 @@ void MergedBehaviours(inout Boid boid, uint localID, uint firstCell, uint lastCe
           AddNeighbour(boid.pos, o2.xyz, float3(o2.w, v2), center, close, avgVel, neighbours);
           AddNeighbour(boid.pos, o3.xyz, float3(o3.w, v3), center, close, avgVel, neighbours);
         }
-        for (; j < tileEnd; j++) {
-          float4 other = tilePosVelX[j];
-          AddNeighbour(boid.pos, other.xyz, float3(other.w, tileVelYZ[j]), center, close, avgVel, neighbours);
-        }
+        uint last = tileEnd - 1;
+        uint j0 = min(j, last);
+        uint j1 = min(j + 1, last);
+        uint j2 = min(j + 2, last);
+        float4 o0 = tilePosVelX[j0];
+        float4 o1 = tilePosVelX[j1];
+        float4 o2 = tilePosVelX[j2];
+        AddNeighbour(boid.pos, j < tileEnd ? o0.xyz : boid.pos, float3(o0.w, tileVelYZ[j0]), center, close, avgVel, neighbours);
+        AddNeighbour(boid.pos, j + 1 < tileEnd ? o1.xyz : boid.pos, float3(o1.w, tileVelYZ[j1]), center, close, avgVel, neighbours);
+        AddNeighbour(boid.pos, j + 2 < tileEnd ? o2.xyz : boid.pos, float3(o2.w, tileVelYZ[j2]), center, close, avgVel, neighbours);
       } else {
         uint j = start;
         for (; j + 3 < end; j += 4) {
