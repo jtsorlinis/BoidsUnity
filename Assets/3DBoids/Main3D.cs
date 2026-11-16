@@ -138,7 +138,8 @@ public class Main3D : MonoBehaviour
 
     // Spatial grid setup
     gridCellSize = visualRange;
-    gridDimX = Mathf.FloorToInt(xBound * 2 / gridCellSize) + 20;
+    // Cells are half as wide in x
+    gridDimX = (Mathf.FloorToInt(xBound * 2 / gridCellSize) + 20) * 2;
     gridDimY = Mathf.FloorToInt(yBound * 2 / gridCellSize) + 20;
     gridDimZ = Mathf.FloorToInt(zBound * 2 / gridCellSize) + 20;
     gridTotalCells = gridDimX * gridDimY * gridDimZ;
@@ -186,10 +187,9 @@ public class Main3D : MonoBehaviour
 
     gridBuffer = new ComputeBuffer(numBoids, 8);
     sortedIndexBuffer = new ComputeBuffer(numBoids, 4);
-    // GPU cells are half as wide in x
-    gridOffsetBuffer = new ComputeBuffer(gridTotalCells * 2, 4);
-    gridOffsetBufferIn = new ComputeBuffer(gridTotalCells * 2, 4);
-    blocks = Mathf.CeilToInt(gridTotalCells * 2 / (float)blockCells);
+    gridOffsetBuffer = new ComputeBuffer(gridTotalCells, 4);
+    gridOffsetBufferIn = new ComputeBuffer(gridTotalCells, 4);
+    blocks = Mathf.CeilToInt(gridTotalCells / (float)blockCells);
     gridSumsBuffer = new ComputeBuffer(blocks, 4);
     gridShader.SetInt("numBoids", numBoids);
     gridShader.SetBuffer(updateGridKernel, "gridBuffer", gridBuffer);
@@ -212,9 +212,9 @@ public class Main3D : MonoBehaviour
 
     gridShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     gridShader.SetInt("gridDimY", gridDimY);
-    gridShader.SetInt("gridDimX", gridDimX * 2);
+    gridShader.SetInt("gridDimX", gridDimX);
     gridShader.SetInt("gridDimZ", gridDimZ);
-    gridShader.SetInt("gridTotalCells", gridTotalCells * 2);
+    gridShader.SetInt("gridTotalCells", gridTotalCells);
     gridShader.SetInt("blocks", blocks);
 
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridOffsetBuffer", gridOffsetBuffer);
@@ -223,7 +223,7 @@ public class Main3D : MonoBehaviour
     boidComputeShader.SetBuffer(updateBoidsKernel, "gridBuffer", gridBuffer);
     boidComputeShader.SetFloat("gridInverseCellSize", 1.0f / gridCellSize);
     boidComputeShader.SetInt("gridDimY", gridDimY);
-    boidComputeShader.SetInt("gridDimX", gridDimX * 2);
+    boidComputeShader.SetInt("gridDimX", gridDimX);
     boidComputeShader.SetInt("gridDimZ", gridDimZ);
     BindBoidBuffers();
     gridDirty = true;
@@ -323,8 +323,8 @@ public class Main3D : MonoBehaviour
     {
       for (int y = z - gridDimX; y <= z + gridDimX; y += gridDimX)
       {
-        int start = gridOffsets[y - 1];
-        int end = gridOffsets[y + 2];
+        int start = gridOffsets[y - 2];
+        int end = gridOffsets[y + 3];
         for (int i = start; i < end; i++)
         {
           Boid3D other = boidsTemp[i];
@@ -371,7 +371,7 @@ public class Main3D : MonoBehaviour
 
   int GetGridID(Boid3D boid)
   {
-    int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize + gridDimX / 2);
+    int boidx = Mathf.FloorToInt(boid.pos.x / gridCellSize * 2 + gridDimX / 2);
     int boidy = Mathf.FloorToInt(boid.pos.y / gridCellSize + gridDimY / 2);
     int boidz = Mathf.FloorToInt(boid.pos.z / gridCellSize + gridDimZ / 2);
     return (gridDimY * gridDimX * boidz) + (gridDimX * boidy) + boidx;
