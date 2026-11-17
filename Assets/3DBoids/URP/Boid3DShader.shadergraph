@@ -10,7 +10,11 @@
             "m_Id": "0fce9f1a989d47f3af72cb8dbca0ac79"
         }
     ],
-    "m_Keywords": [],
+    "m_Keywords": [
+        {
+            "m_Id": "733de52bba8e466cad3ac2205df10574"
+        }
+    ],
     "m_Dropdowns": [],
     "m_CategoryData": [
         {
@@ -236,6 +240,9 @@
         },
         {
             "m_Id": "0fce9f1a989d47f3af72cb8dbca0ac79"
+        },
+        {
+            "m_Id": "733de52bba8e466cad3ac2205df10574"
         }
     ]
 }
@@ -575,6 +582,31 @@
         "z": 0.0
     },
     "m_Labels": []
+}
+
+{
+    "m_SGVersion": 1,
+    "m_Type": "UnityEditor.ShaderGraph.ShaderKeyword",
+    "m_ObjectId": "733de52bba8e466cad3ac2205df10574",
+    "m_Guid": {
+        "m_GuidSerialized": "8fc07e91-22ee-429f-9330-674daef9955d"
+    },
+    "m_Name": "Birds",
+    "m_DefaultRefNameVersion": 1,
+    "m_RefNameGeneratedByDisplayName": "Birds",
+    "m_DefaultReferenceName": "_BIRDS",
+    "m_OverrideReferenceName": "",
+    "m_GeneratePropertyBlock": false,
+    "m_UseCustomSlotLabel": false,
+    "m_CustomSlotLabel": "",
+    "m_DismissedVersion": 0,
+    "m_KeywordType": 0,
+    "m_KeywordDefinition": 1,
+    "m_KeywordScope": 0,
+    "m_KeywordStages": 1,
+    "m_Entries": [],
+    "m_Value": 0,
+    "m_IsEditable": true
 }
 
 {

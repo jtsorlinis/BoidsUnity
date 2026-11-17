@@ -16,6 +16,8 @@ public class Main3D : MonoBehaviour
   const int blockCells = 1024;
   const int boidBlockSize = 256;
   const int searchBlockSize = 64;
+  // A bird is a body and two wings, see BoidsBuffer.hlsl
+  const int birdVertices = 9;
 
   [Header("Performance")]
   bool useGpu = false;
@@ -39,6 +41,10 @@ public class Main3D : MonoBehaviour
   [SerializeField] ComputeShader boidComputeShader;
   [SerializeField] ComputeShader gridShader;
   [SerializeField] Material boidMaterial;
+  // Draws the boids as birds rather than triangles
+  Material birdMaterial;
+  // On to begin with, like the UI's switch
+  bool birds = true;
   RenderParams rp;
   Mesh triangleMesh;
   GraphicsBuffer meshPositions, meshNormals;
@@ -82,6 +88,7 @@ public class Main3D : MonoBehaviour
     ui.SetGpu(useGpu);
     ui.NumBoidsChanged += SetNumBoids;
     ui.GpuChanged += SetGpu;
+    ui.BirdsChanged += SetBirds;
     triangleMesh = Meshes.MakeTriangle();
   }
 
@@ -175,6 +182,8 @@ public class Main3D : MonoBehaviour
     rp.shadowCastingMode = ShadowCastingMode.On;
     rp.receiveShadows = true;
     rp.worldBounds = new Bounds(Vector3.zero, 2 * new Vector3(xBound + 1, yBound + 1, zBound + 1));
+    birdMaterial = new Material(boidMaterial);
+    birdMaterial.EnableKeyword("_BIRDS");
 
     int vertCount = triangleMesh.vertexCount;
     meshPositions = new GraphicsBuffer(GraphicsBuffer.Target.Structured, vertCount, 3 * sizeof(float));
@@ -290,7 +299,8 @@ public class Main3D : MonoBehaviour
       boidBuffer.SetData(boids);
     }
 
-    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * triangleMesh.vertexCount);
+    rp.material = birds ? birdMaterial : boidMaterial;
+    Graphics.RenderPrimitives(rp, MeshTopology.Triangles, numBoids * (birds ? birdVertices : triangleMesh.vertexCount));
   }
 
   // UpdateBoids reads boidBuffer (through sortedIndices) and writes the next boids to boidBufferOut in grid order,
@@ -420,6 +430,11 @@ public class Main3D : MonoBehaviour
     pendingNumBoids = count;
   }
 
+  void SetBirds(bool enabled)
+  {
+    birds = enabled;
+  }
+
   void SetGpu(bool gpu)
   {
     useGpu = gpu;
@@ -471,5 +486,6 @@ public class Main3D : MonoBehaviour
     gridSumsBuffer.Release();
     meshPositions.Release();
     meshNormals.Release();
+    Destroy(birdMaterial);
   }
 }

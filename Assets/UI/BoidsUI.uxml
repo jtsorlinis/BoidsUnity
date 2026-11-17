@@ -36,6 +36,13 @@
         <ui:Label name="boid-max" text="65,536" class="slider-range-label" />
       </ui:VisualElement>
 
+      <ui:VisualElement name="birds-row" class="row">
+        <ui:Label text="Birds" class="row-label" />
+        <ui:VisualElement name="birds-toggle" class="toggle">
+          <ui:VisualElement class="toggle__knob" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+
       <ui:VisualElement name="gpu-callout" class="gpu-callout">
         <ui:VisualElement class="gpu-callout__header">
           <ui:Label name="gpu-callout-text" text="That's the CPU limit. The GPU can run up to 67 million boids." class="gpu-callout__text" />

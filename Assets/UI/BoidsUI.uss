@@ -220,6 +220,38 @@
     color: var(--text-faint);
 }
 
+/* Toggle switch */
+
+.card .toggle {
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    background-color: var(--control);
+    transition-property: background-color;
+    transition-duration: 0.12s;
+}
+
+.card .toggle__knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background-color: var(--text-muted);
+    transition-property: translate, background-color;
+    transition-duration: 0.12s;
+}
+
+.card .toggle--on {
+    background-color: var(--accent);
+}
+
+.card .toggle--on .toggle__knob {
+    translate: 16px 0;
+    background-color: rgb(255, 255, 255);
+}
+
 /* GPU callout */
 
 .card .gpu-callout {

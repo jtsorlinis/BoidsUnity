@@ -17,6 +17,7 @@ public class BoidsUI : MonoBehaviour
 
   public event Action<int> NumBoidsChanged;
   public event Action<bool> GpuChanged;
+  public event Action<bool> BirdsChanged;
 
   static BoidsUI current;
 
@@ -25,7 +26,7 @@ public class BoidsUI : MonoBehaviour
   static readonly bool[] gpuTried = new bool[2];
   static readonly bool[] calloutDismissed = new bool[2];
 
-  VisualElement card, fpsBadge, gpuCallout;
+  VisualElement card, fpsBadge, gpuCallout, birdsRow, birdsToggle;
   Label fpsLabel, countLabel, minLabel, maxLabel, calloutText;
   Button view2D, view3D, cpuButton, gpuButton;
   Slider slider;
@@ -36,6 +37,8 @@ public class BoidsUI : MonoBehaviour
   int gpuMaxBoids = 1 << 16;
   int maxBoids => useGpu ? gpuMaxBoids : cpuMaxBoids;
   bool useGpu;
+  // On whenever a view starts, as the scene load builds a new panel
+  bool birds = true;
   bool is3D;
   int view => is3D ? 1 : 0;
 
@@ -63,10 +66,14 @@ public class BoidsUI : MonoBehaviour
     slider = root.Q<Slider>("boid-slider");
     gpuCallout = root.Q("gpu-callout");
     calloutText = root.Q<Label>("gpu-callout-text");
+    birdsRow = root.Q("birds-row");
+    birdsToggle = root.Q("birds-toggle");
 
     root.Q<Label>("hint").text = is3D
       ? "Drag to look around\nWASD + Q/E while dragging to fly\nHold Shift to fly faster"
       : "Drag to pan · Scroll to zoom";
+    // Only the 3D view's boids can be drawn as birds
+    birdsRow.style.display = is3D ? DisplayStyle.Flex : DisplayStyle.None;
 
     view2D.clicked += () => SwitchScene(false);
     view3D.clicked += () => SwitchScene(true);
@@ -78,6 +85,8 @@ public class BoidsUI : MonoBehaviour
       calloutDismissed[view] = true;
       Refresh();
     };
+    // Anywhere on the row flips the switch, label included
+    birdsRow.RegisterCallback<ClickEvent>(_ => SelectBirds(!birds));
     slider.fill = true;
     slider.lowValue = minExponent;
     slider.RegisterValueChangedCallback(evt =>
@@ -179,6 +188,13 @@ public class BoidsUI : MonoBehaviour
     GpuChanged?.Invoke(gpu);
   }
 
+  void SelectBirds(bool enabled)
+  {
+    birds = enabled;
+    Refresh();
+    BirdsChanged?.Invoke(birds);
+  }
+
   void SwitchScene(bool to3D)
   {
     if (to3D != is3D)
@@ -213,6 +229,7 @@ public class BoidsUI : MonoBehaviour
     view3D.EnableInClassList("segment--selected", is3D);
     cpuButton.EnableInClassList("segment--selected", !useGpu);
     gpuButton.EnableInClassList("segment--selected", useGpu);
+    birdsToggle.EnableInClassList("toggle--on", birds);
     RefreshCallout();
   }
 
