@@ -51,6 +51,21 @@ jobs:
       - name: Drop the web deploy script
         run: rm Assets/Editor/WebDeploy.cs Assets/Editor/WebDeploy.cs.meta
 
+      # game-ci installs the macOS editor through Unity Hub's headless install, which Hub 4 (Homebrew's cask since
+      # 2026-11-19) no longer has. It skips that when the editor is already in the Hub's folder, so put it there with
+      # Unity's own CLI first.
+      - name: Install the Unity editor
+        if: runner.os == 'macOS'
+        run: |
+          curl -fsSL https://unity.com/install.sh | bash
+          unity="$HOME/.unity/bin/unity --non-interactive --no-banner"
+          version=$(sed -n 's/^m_EditorVersion: //p' ProjectSettings/ProjectVersion.txt | tr -d '\r')
+          editors=/Applications/Unity/Hub/Editor
+          mkdir -p "$editors"
+          $unity install-path --set "$editors"
+          $unity install "$version" --module mac-il2cpp --yes --accept-eula
+          test -x "$editors/$version/Unity.app/Contents/MacOS/Unity" || { $unity editors path "$version"; exit 1; }
+
       - uses: game-ci/unity-builder@v6
         env:
           # Lets it look up its CLI release without hitting the shared runners' anonymous API rate limit
