@@ -163,7 +163,9 @@ void PrefixSum(uint localID : SV_GROUPTHREADID, uint groupID : SV_GROUPID) {
     uint cell = getCell(groupID, localID, row);
     if (cell < gridTotalCells) {
       gridOffsetBuffer[cell] = offsets[row];
-      gridOffsetBufferIn[cell] = 0;
+      if (counts[row] != 0) {
+        gridOffsetBufferIn[cell] = 0;
+      }
     }
   }
 }
