@@ -44,7 +44,8 @@ uint getBoidIndex(uint3 id) {
 }
 
 #define searchBlockSize 64
-#define tileSize 160
+// As big as it goes: past 5,376 bytes of groupshared memory, an RTX 4070 slows down
+#define tileSize 224
 #define stagePasses ((tileSize + searchBlockSize - 1) / searchBlockSize)
 groupshared float4 tilePosVelX[tileSize];
 groupshared float2 tileVelYZ[tileSize];
